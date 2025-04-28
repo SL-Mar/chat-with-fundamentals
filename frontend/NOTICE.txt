@@ -1,0 +1,14 @@
+Chat with Fundamentals
+
+Copyright 2025 SL Mar
+
+This software is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This platform was built to streamline local-first financial research, 
+combining structured data pipelines with AI-driven decision support.
+
+Author: SL Mar
+Contact: smr.laignel@gmail.com
