@@ -1,7 +1,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 <p align="center">
-  <img src="Documentation/logocwf.png" alt="Chat with Fundamentals Logo" width="300"/>
+  <img src="Documentation/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
 </p>
 
 # Chat with Fundamentals — AI-powered Fundamental Analysis and Stock Research
@@ -12,7 +12,7 @@ It integrates financial metrics, historical stock prices, recent company news, a
 Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market data.
 
 <p align="center">
-  <img src="Documentation/CWF_demoi1.png" alt="Application Overview" width="700"/>
+  <img src="Documentation/CWF_demoi1.png" alt="Application Overview" width="400"/>
 </p>
 
 ---
@@ -25,7 +25,7 @@ It is built to be **local-first** and **tailored to user needs** through the ref
 All LLM interactions are logged and saved for reproducibility.
 
 <p align="center">
-  <img src="Documentation/CWF_demo2.png" alt="LLM Logging Example" width="700"/>
+  <img src="Documentation/CWF_demo2.png" alt="LLM Logging Example" width="400"/>
 </p>
 
 **Key principles:**
@@ -103,7 +103,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
     - 3-year cumulative returns comparison with the benchmark.
 
 <p align="center">
-  <img src="Documentation/CWF_demo9.png" alt="Single Ticker Analysis Example" width="700"/>
+  <img src="Documentation/CWF_demo9.png" alt="Single Ticker Analysis Example" width="400"/>
 </p>
 
 ---
@@ -121,7 +121,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
   - Provides side-by-side analytics for both tickers.
 
 <p align="center">
-  <img src="Documentation/CWF_demo3.png" alt="Comparative Analysis Example" width="700"/>
+  <img src="Documentation/CWF_demo3.png" alt="Comparative Analysis Example" width="400"/>
 </p>
 
 ---
