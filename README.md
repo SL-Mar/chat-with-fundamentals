@@ -12,7 +12,7 @@ It integrates financial metrics, historical stock prices, recent company news, a
 Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market data.
 
 <p align="center">
-  <img src="Documentation/CWF_demoi1.png" alt="Application Overview" width="400"/>
+  <img src="Documentation/CWF_demo8.png" alt="Application Overview" width="400"/>
 </p>
 
 ---
@@ -25,7 +25,7 @@ It is built to be **local-first** and **tailored to user needs** through the ref
 All LLM interactions are logged and saved for reproducibility.
 
 <p align="center">
-  <img src="Documentation/CWF_demo2.png" alt="LLM Logging Example" width="400"/>
+  <img src="Documentation/CWF_demoi1.png" alt="Demo view" width="400"/>
 </p>
 
 **Key principles:**
@@ -57,31 +57,6 @@ backend/
 
 ---
 
-## Core Workflows
-
-### 🔹 Analyze Fundamentals (CrewAI Workflow)
-
-- Parses user query (e.g., "Analyze Apple and Tesla fundamentals").
-- Builds a structured **DataFetchPlan**.
-- Fetches:
-  - Fundamental metrics (e.g., P/E ratio, revenue)
-  - EOD historical prices
-  - Recent news
-- Generates an **Executive Summary** written by an LLM.
-
-![Demo 2 stocks](Documentation/CWF_demo9.png)
-
-
-### 🔹 Quantitative API Endpoints (FastAPI)
-
-- **Monte Carlo Simulation** of future stock prices (`/simulate`)
-- **Daily Return Distribution** and **Beta Estimation** (`/returns`)
-- **Cumulative Return Comparison** vs benchmark (`/cumret`)
-
-![Example quant workflows](Documentation/CWF_demo3.png)
-
----
-
 ## Typical Use Cases
 
 Chat with Fundamentals enables multiple forms of AI-supported equity research workflows, built around real market data and fundamental analysis.
@@ -103,7 +78,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
     - 3-year cumulative returns comparison with the benchmark.
 
 <p align="center">
-  <img src="Documentation/CWF_demo9.png" alt="Single Ticker Analysis Example" width="400"/>
+  <img src="Documentation/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="400"/>
 </p>
 
 ---
@@ -121,7 +96,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
   - Provides side-by-side analytics for both tickers.
 
 <p align="center">
-  <img src="Documentation/CWF_demo3.png" alt="Comparative Analysis Example" width="400"/>
+  <img src="Documentation/CWF_demo9.png" alt="Comparative Analysis Example" width="400"/>
 </p>
 
 ---
@@ -135,6 +110,11 @@ Chat with Fundamentals includes a fully local-first analytics suite, extending b
 - **Return Distribution Histograms**: Visualizing daily return variability.
 - **Beta and R² Scatter Plots**: Correlation analysis against benchmarks.
 - **3-Year Cumulative Return Comparison**: Ticker vs benchmark over multiple years.
+
+<p align="center">
+  <img src="Documentation/CWF_demo3.png" alt="Quant Analysis Example" width="400"/>
+</p>
+
 
 Planned future enhancements include:
 
@@ -207,8 +187,11 @@ Commercial deployments must comply with **OpenAI** and **EODHD** licensing.
 
 ## Author
 
-- **S.M. Laignel, running consultancy SL MAR, developing QuantCoder FS — an automation platform for research workflows in Finance.**
-  - [Substack](https://quantcoderfs.substack.com)
-  - [GitHub](https://github.com/sl-mar/chat-with-fundamentals)
+**S.M. Laignel**  
+Founder of **SL MAR** consultancy, developing **QuantCoder FS** — a modular platform for automating research workflows in quantitative finance.
+
+- 🌐 [Substack — QuantCoderFS R&D](https://quantcoderfs.substack.com)
+- 💻 [GitHub Repository](https://github.com/sl-mar/chat-with-fundamentals)
+
 
 ---
