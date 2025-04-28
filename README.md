@@ -1,25 +1,34 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-![Chat with Fundamentals Logo](Documentation/logocwf.png)
+
+<p align="center">
+  <img src="Documentation/logocwf.png" alt="Chat with Fundamentals Logo" width="300"/>
+</p>
 
 # Chat with Fundamentals — AI-powered Fundamental Analysis and Stock Research
 
-**Chat with Fundamentals** is an application that generates executive summaries about stocks from fundamental data fetched via EODHD APIs. It integrates financial metrics, historical stock prices, recent company news, and AI-written executive summaries into a single orchestrated workflow. It is designed to streamline the fundamental analysis of securities.
+**Chat with Fundamentals** is an application that generates executive summaries about stocks using fundamental data fetched via EODHD APIs.  
+It integrates financial metrics, historical stock prices, recent company news, and AI-written executive summaries into a single orchestrated workflow — designed to streamline the fundamental analysis of securities.
 
 Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market data.
 
-![Chat with Fundamentals Logo](Documentation/CWF_demoi1.png)
+<p align="center">
+  <img src="Documentation/CWF_demoi1.png" alt="Application Overview" width="700"/>
+</p>
 
 ---
 
 ## Project Philosophy
 
-Chat with Fundamentals is not intended to be a SaaS platform. It is a **research engine** designed to explore how autonomous agents and AI can automate and enhance financial analysis. It is designed to be deployed **local-first** and tailored to user needs through refinement and upgrade of AI and quantitative workflows.  
-All LLM interactions are logged and saved into a file.
+Chat with Fundamentals is not intended to be a SaaS platform.  
+It is a **research engine** designed to explore how autonomous agents and AI can automate and enhance financial analysis.  
+It is built to be **local-first** and **tailored to user needs** through the refinement and upgrade of AI and quantitative workflows.  
+All LLM interactions are logged and saved for reproducibility.
 
-![LLM logging](Documentation/CWF_demo7.png)
+<p align="center">
+  <img src="Documentation/CWF_demo2.png" alt="LLM Logging Example" width="700"/>
+</p>
 
-
-Key principles include:
+**Key principles:**
 
 - **Modularity**: Workflows and agents are designed independently.
 - **Reproducibility**: All steps (query, fetch, summarize) are transparent and testable.
@@ -29,6 +38,7 @@ Key principles include:
 ---
 
 ## Project Structure
+
 
 ```
 backend/
@@ -68,7 +78,71 @@ backend/
 - **Daily Return Distribution** and **Beta Estimation** (`/returns`)
 - **Cumulative Return Comparison** vs benchmark (`/cumret`)
 
-![Example quant workflows](Documentation/CWF_demo5.png)
+![Example quant workflows](Documentation/CWF_demo3.png)
+
+---
+
+## Typical Use Cases
+
+Chat with Fundamentals enables multiple forms of AI-supported equity research workflows, built around real market data and fundamental analysis.
+
+### 🔹 Single-Ticker Research
+
+- **Example Query**: `"Is TSLA a good buy?"`
+- **Workflow**:
+  - Parses the query and identifies TSLA as the target ticker.
+  - Fetches the latest OHLCV data, fundamental metrics, and recent news via EODHD APIs.
+  - Generates a concise, LLM-written executive summary.
+  - Saves the raw data (quotes, metrics, news) in structured JSON format for further use.
+  - Provides access to extended analytics:
+    - TradingView-style financial chart.
+    - Monte Carlo simulation of future stock paths.
+    - Value at Risk (VaR) estimation.
+    - Daily returns distribution analysis.
+    - Correlation and beta scatter plot versus a benchmark.
+    - 3-year cumulative returns comparison with the benchmark.
+
+<p align="center">
+  <img src="Documentation/CWF_demo9.png" alt="Single Ticker Analysis Example" width="700"/>
+</p>
+
+---
+
+### 🔹 Comparative Research
+
+- **Example Query**: `"Compare TSLA and AMZN"`
+- **Workflow**:
+  - Parses and recognizes multiple tickers (TSLA, AMZN).
+  - Fetches individual fundamentals, OHLCV data, and news for both.
+  - Constructs a comparative executive summary focusing on:
+    - Relative financial performance.
+    - Recent price action comparison.
+    - News sentiment comparison.
+  - Provides side-by-side analytics for both tickers.
+
+<p align="center">
+  <img src="Documentation/CWF_demo3.png" alt="Comparative Analysis Example" width="700"/>
+</p>
+
+---
+
+## Built-in Quantitative Analytics
+
+Chat with Fundamentals includes a fully local-first analytics suite, extending beyond LLM summaries:
+
+- **Monte Carlo Simulation**: Future stock path modeling over user-defined horizons.
+- **Value at Risk (VaR) and Expected Shortfall (ES)**: Quantitative risk estimates.
+- **Return Distribution Histograms**: Visualizing daily return variability.
+- **Beta and R² Scatter Plots**: Correlation analysis against benchmarks.
+- **3-Year Cumulative Return Comparison**: Ticker vs benchmark over multiple years.
+
+Planned future enhancements include:
+
+- Rolling Sharpe ratios and volatility bands.
+- Calendar heatmaps of returns.
+- Autocorrelation (ACF/PACF) plots.
+- Volatility cones and regime-change indicators.
+- Drawdown and underwater curve visualizations.
 
 ---
 
