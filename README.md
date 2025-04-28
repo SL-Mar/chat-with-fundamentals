@@ -187,11 +187,14 @@ Commercial deployments must comply with **OpenAI** and **EODHD** licensing.
 
 ## Author
 
-**S.M. Laignel**  
-Founder of **SL MAR** consultancy, developing **QuantCoder FS** — a modular platform for automating research workflows in quantitative finance.
+## Author
 
-- 🌐 [Substack — QuantCoderFS R&D](https://quantcoderfs.substack.com)
-- 💻 [GitHub Repository](https://github.com/sl-mar/chat-with-fundamentals)
-
+<p align="center">
+  <b>S.M. Laignel</b><br>
+  Founder of <b>SL MAR</b> consultancy<br>
+  Developer of <b>QuantCoder FS</b> — modular automation for research workflows in quantitative finance.<br><br>
+  🌐 <a href="https://quantcoderfs.substack.com">Substack — QuantCoderFS R&D</a><br>
+  💻 <a href="https://github.com/sl-mar/chat-with-fundamentals">GitHub Repository</a>
+</p>
 
 ---
