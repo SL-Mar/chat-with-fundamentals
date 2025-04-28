@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+httpx
+pydantic
+langchain
+crewai
+openai
+python-dotenv
+numpy
+pandas
+python-dateutil

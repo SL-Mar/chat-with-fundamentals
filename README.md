@@ -180,13 +180,19 @@ print(result.model_dump_json(indent=2))
 
 ## License
 
-This project is intended for research and personal development use.  
-Commercial deployments must comply with **OpenAI** and **EODHD** licensing.
+This project is intended for research and personal development use. Commercial deployments must comply with **OpenAI** and **EODHD** licensing.
 
 ---
 
-## Author
+## Disclaimer
 
+This application and its associated research outputs are provided solely for informational and educational purposes. Nothing contained within this repository, its documentation, or its outputs should be construed as financial advice, or as an offer, recommendation, or solicitation to buy or sell any security, product, or service.
+
+Users are solely responsible for their own investment and trading decisions.  
+The author(s) make no representations or warranties as to the accuracy, completeness, or suitability of the content for any purpose.  
+By using this application, you acknowledge that you must exercise independent judgment, conduct your own due diligence, and refer to the Terms of Use and Disclaimer pages provided within the application.
+
+---
 ## Author
 
 <p align="center">
