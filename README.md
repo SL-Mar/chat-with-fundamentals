@@ -1,4 +1,5 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+![Chat with Fundamentals Logo](Documentation/logocwf.png)
 
 # Chat with Fundamentals — AI-powered Fundamental Analysis and Stock Research
 
@@ -6,12 +7,17 @@
 
 Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market data.
 
+![Chat with Fundamentals Logo](Documentation/CWF_demoi1.png)
+
 ---
 
 ## Project Philosophy
 
 Chat with Fundamentals is not intended to be a SaaS platform. It is a **research engine** designed to explore how autonomous agents and AI can automate and enhance financial analysis. It is designed to be deployed **local-first** and tailored to user needs through refinement and upgrade of AI and quantitative workflows.  
 All LLM interactions are logged and saved into a file.
+
+![LLM logging](Documentation/CWF_demo7.png)
+
 
 Key principles include:
 
@@ -53,11 +59,16 @@ backend/
   - Recent news
 - Generates an **Executive Summary** written by an LLM.
 
+![Demo 2 stocks](Documentation/CWF_demo9.png)
+
+
 ### 🔹 Quantitative API Endpoints (FastAPI)
 
 - **Monte Carlo Simulation** of future stock prices (`/simulate`)
 - **Daily Return Distribution** and **Beta Estimation** (`/returns`)
 - **Cumulative Return Comparison** vs benchmark (`/cumret`)
+
+![Example quant workflows](Documentation/CWF_demo5.png)
 
 ---
 
@@ -122,8 +133,8 @@ Commercial deployments must comply with **OpenAI** and **EODHD** licensing.
 
 ## Author
 
-- **QuantCoderFS**
+- **S.M. Laignel, running consultancy SL MAR, developing QuantCoder FS — an automation platform for research workflows in Finance.**
   - [Substack](https://quantcoderfs.substack.com)
-  - [GitHub](https://github.com/chat-with-fundamentals)
+  - [GitHub](https://github.com/sl-mar/chat-with-fundamentals)
 
 ---
