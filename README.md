@@ -1,7 +1,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 <p align="center">
-  <img src="Documentation/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
+  <img src="frontend/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
 </p>
 
 # Chat with Fundamentals — AI-powered Fundamental Analysis and Stock Research
