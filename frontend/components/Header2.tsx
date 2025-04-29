@@ -1,32 +1,26 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faHome, faInfoCircle, faEnvelope,
   faBookOpen, faCog, faCodeBranch, faSignOutAlt, faHandshake
 } from '@fortawesome/free-solid-svg-icons';
-import { api } from '../lib/api'; // Adjust path if needed
+import Link from 'next/link';
 
 const Header = () => {
   const router = useRouter();
 
   const handleLogout = async () => {
     try {
-      fetch('http://localhost:8000/shutdown', { method: 'POST' });
-  
-      setTimeout(() => {
-        window.location.href = '/goodbye';
-      }, 300);
+      await fetch('http://localhost:8000/shutdown', { method: 'POST' });
+      router.push('/goodbye');
     } catch (error) {
-      console.error('Shutdown failed', error);
-      window.location.href = '/goodbye';
+      console.error('Logout failed', error);
     }
   };
-  
-  
+
   return (
     <header className="flex flex-col items-center p-4 bg-gray-200 dark:bg-gray-800">
       <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">

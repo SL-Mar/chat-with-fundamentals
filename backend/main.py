@@ -17,7 +17,8 @@
 import asyncio
 import logging                          # ← ensure logging is always in scope
 from contextlib import asynccontextmanager
-import sys
+import os
+import signal
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -109,8 +110,14 @@ def log_test():
 
 @app.post("/shutdown")
 async def shutdown():
-    print("👋 Shutting down server...")
-    sys.exit(0)
+    pid = os.getpid()
+    asyncio.create_task(delayed_shutdown(pid))
+    return {"message": "Shutting down"}
+
+async def delayed_shutdown(pid):
+    await asyncio.sleep(1)
+    os.kill(pid, signal.SIGINT)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # 8) Run with `python main.py` in dev

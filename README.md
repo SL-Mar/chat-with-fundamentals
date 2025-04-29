@@ -56,7 +56,69 @@ backend/
 ```
 
 ---
+## Deployment
 
+You can run **Chat with Fundamentals** locally on **Linux/macOS** or **Windows**. Setup scripts are included for convenience.
+
+### 🔹 Linux/macOS
+
+```bash
+bash deploy.sh
+```
+
+### 🔹 Windows
+
+```bat
+deploy.bat
+```
+
+These scripts will:
+
+- Create a Python virtual environment  
+- Install Python and frontend (Node.js) dependencies  
+- Copy `.env.model` to `.env` if it doesn’t exist  
+
+✅ After setup, open your `.env` file and enter your API keys:
+
+```env
+OPENAI_API_KEY=your-openai-key
+EODHD_API_KEY=your-eodhd-key
+MODEL_NAME=gpt-4o
+```
+
+---
+
+## Launch
+
+Once installed, you can launch the full application stack with a single command.
+
+### 🔹 Linux/macOS
+
+```bash
+bash launch.sh
+```
+
+### 🔹 Windows
+
+```bat
+launch.bat
+```
+
+These launch scripts will:
+
+- Open the project in VS Code  
+- Start the frontend (Next.js) at http://localhost:3000  
+- Start the backend (FastAPI) at http://localhost:8000  
+- Open both interfaces in your default web browser  
+
+📌 **Required File: `AAPL.US.json`**
+
+⚠️ Do not delete or rename `AAPL.US.json` in the project root.  
+This file is used as a reference knowledge base for internal agents during summary generation and analysis.  
+It must remain present for the system to function correctly, even if you're analyzing other tickers.  
+To test with other stocks, you may duplicate this file and modify the contents — but keep the original intact.
+
+---
 ## Typical Use Cases
 
 Chat with Fundamentals enables multiple forms of AI-supported equity research workflows, built around real market data and fundamental analysis.
