@@ -239,6 +239,14 @@ print(result.model_dump_json(indent=2))
 - Expanded technical indicator analytics (MACD, RSI, etc.).
 
 ---
+ ## Changelog
+
++### 5 May 2025
++- Added volatility and performance ratios.
++- Still in **dev** branch.
++- Began refactoring backend with SmolAgents architecture. Moving to local-first model with Hugging Face.
+
+---
 
 ## License
 
@@ -260,7 +268,7 @@ By using this application, you acknowledge that you must exercise independent ju
 <p align="center">
   <b>S.M. Laignel</b><br>
   Founder of <b>SL MAR</b> consultancy<br>
-  Developer of <b>QuantCoder FS</b> — modular automation for research workflows in quantitative finance.<br><br>
+  Quant Developer — modular automation for research workflows in quantitative finance.<br><br>
   🌐 <a href="https://quantcoderfs.substack.com">Substack — QuantCoderFS R&D</a><br>
   💻 <a href="https://github.com/sl-mar/chat-with-fundamentals">GitHub Repository</a>
 </p>
