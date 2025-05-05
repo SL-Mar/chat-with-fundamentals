@@ -54,3 +54,19 @@ export interface EquityCumRetResponse {
   years:     number
   cumret:    CumRetPoint[]
 }
+export interface VolForecastResponse {
+  ticker:      string;
+  sigma_t1:    number;   // next-day forecast
+  ewma_vol:    number[]; // <<— NEW: full rolling series
+  evt_cvar_99: number;   // 99 % Expected Shortfall
+}
+
+// types/equity.ts
+export interface PerfRatiosResponse {
+  ticker:   string;
+  years:    number;
+  sharpe:   number;
+  sortino:  number;
+  max_dd:   number;   // ← NEW (absolute, expressed as -0.23 for –23 %)
+  calmar:   number;
+}

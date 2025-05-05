@@ -3,7 +3,10 @@
 import { Executive_Summary, EODResult } from "../types/models";
 import {
   EquitySimulationResponse,
-  ReturnsResponse,EquityCumRetResponse,
+  ReturnsResponse,
+  EquityCumRetResponse,
+  VolForecastResponse,      // ← NEW interface
+  PerfRatiosResponse        // ← NEW interface
 } from "../types/equity";
 
 const BASE = "http://localhost:8000";
@@ -11,7 +14,7 @@ const BASE = "http://localhost:8000";
 const getJSON = async <T>(url: string): Promise<T> => {
   const r = await fetch(url);
   if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  return r.json() as Promise<T>;
 };
 
 export const api = {
@@ -26,16 +29,16 @@ export const api = {
       const { detail } = await r.json();
       throw new Error(detail || "Fundamentals error");
     }
-    return r.json();
+    return r.json() as Promise<Executive_Summary>;
   },
 
-  /* ────────── End‑of‑Day quotes ────────── */
-  async fetchEODData(ticker: string): Promise<EODResult> {
+  /* ────────── End-of-Day quotes ────────── */
+  fetchEODData(ticker: string): Promise<EODResult> {
     return getJSON<EODResult>(`${BASE}/quantanalyzer/eod?ticker=${ticker}`);
   },
 
-  /* ────────── Monte‑Carlo simulation ───── */
-  async simulateEquity(
+  /* ────────── Monte-Carlo simulation ───── */
+  simulateEquity(
     ticker: string,
     horizon = 20
   ): Promise<EquitySimulationResponse> {
@@ -45,7 +48,7 @@ export const api = {
   },
 
   /* ────────── Returns distribution & beta */
-  async fetchReturns(
+  fetchReturns(
     ticker: string,
     years = 3,
     benchmark = "SPY"
@@ -55,9 +58,34 @@ export const api = {
     );
   },
 
+  /* ────────── Cumulative curve ─────────── */
+  fetchCumRet(
+    ticker: string,
+    years = 3,
+    benchmark = "SPY"
+  ): Promise<EquityCumRetResponse> {
+    return getJSON<EquityCumRetResponse>(
+      `${BASE}/equity/cumret?ticker=${ticker}&years=${years}&benchmark=${benchmark}`
+    );
+  },
 
-  async fetchCumRet(ticker: string, years = 3, benchmark = "SPY"): Promise<EquityCumRetResponse> {
-    const url = `${BASE}/equity/cumret?ticker=${ticker}&years=${years}&benchmark=${benchmark}`
-    return getJSON<EquityCumRetResponse>(url)
-  }
+  /* ────────── NEW • Volatility snapshot ── */
+  fetchVolForecast(
+    ticker: string,
+    lookback = 250
+  ): Promise<VolForecastResponse> {
+    return getJSON<VolForecastResponse>(
+      `${BASE}/equity/vol?ticker=${ticker}&lookback=${lookback}`
+    );
+  },
+
+  /* ────────── NEW • Performance ratios ─── */
+  fetchPerfRatios(
+    ticker: string,
+    years = 3
+  ): Promise<PerfRatiosResponse> {
+    return getJSON<PerfRatiosResponse>(
+      `${BASE}/equity/perf?ticker=${ticker}&years=${years}`
+    );
+  },
 };

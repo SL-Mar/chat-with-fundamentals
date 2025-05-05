@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Set_Metrics } from '../types/fundamental'
+import { Set_Metrics } from '../types/models'
 import { formatNumber, convertNumericKeysToArray } from '../lib/format'
 
 interface MetricsTableProps {

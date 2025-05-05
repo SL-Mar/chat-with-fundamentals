@@ -1,6 +1,6 @@
 'use client'
 
-import { Set_News } from '../types/fundamental'
+import { Set_News } from '../types/models'
 
 interface NewsListProps {
   data: Set_News[]

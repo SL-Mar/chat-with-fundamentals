@@ -1,4 +1,3 @@
-// EquityChart.tsx – visualises 90‑day equity curve + 1 000‑path MC fan
 "use client";
 
 import {
@@ -11,19 +10,19 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import type { ChartOptions } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { addDays, format } from "date-fns";
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Filler, Tooltip, Legend);
 
-// ---------------------------------------------------------------------------
-// Types (mirrors /equity/simulate payload)
-// ---------------------------------------------------------------------------
-
-export interface EquityPoint { date: string; close: number }
+export interface EquityPoint {
+  date: string;
+  close: number;
+}
 
 export interface MonteCarloPayload {
-  paths: number[][]; // [path][day]
+  paths: number[][];
   percentiles: {
     p5: number[];
     p50: number[];
@@ -36,10 +35,6 @@ interface Props {
   monteCarlo: MonteCarloPayload;
   var95: number;
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export default function EquityChart({ equityCurve, monteCarlo, var95 }: Props) {
   /* ─────────── historical series ─────────── */
@@ -62,18 +57,16 @@ export default function EquityChart({ equityCurve, monteCarlo, var95 }: Props) {
     color: string,
     series: number[],
     fill?: "-1" | "+1"
-  ) => {
-    return {
-      label,
-      data: [...pad(histValues.length - 1), histValues.at(-1), ...series],
-      borderColor: color,
-      backgroundColor: color + "20",
-      borderDash: label === "MC P50" ? [4, 4] : [],
-      fill: fill || false,
-      tension: 0.3,
-      pointRadius: 0,
-    };
-  };
+  ) => ({
+    label,
+    data: [...pad(histValues.length - 1), histValues.at(-1), ...series],
+    borderColor: color,
+    backgroundColor: color + "20",
+    borderDash: label === "MC P50" ? [4, 4] : [],
+    fill: fill || false,
+    tension: 0.3,
+    pointRadius: 0,
+  });
 
   /* ─────────── chart data ─────────── */
   const data = {
@@ -94,7 +87,7 @@ export default function EquityChart({ equityCurve, monteCarlo, var95 }: Props) {
   };
 
   /* ─────────── options ─────────── */
-  const options = {
+  const options: ChartOptions<"line"> = {
     responsive: true,
     plugins: {
       legend: { labels: { color: "#ccc" } },
@@ -110,7 +103,7 @@ export default function EquityChart({ equityCurve, monteCarlo, var95 }: Props) {
   return (
     <div className="border rounded p-4 space-y-4 bg-gray-900 text-white">
       <div className="text-sm">
-        <strong>Historical VaR 95 %:</strong> {var95}
+        <strong>Historical VaR 95 %:</strong> {var95}
       </div>
       <Line data={data} options={options} />
     </div>

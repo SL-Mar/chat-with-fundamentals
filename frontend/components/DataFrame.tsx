@@ -1,6 +1,6 @@
 'use client'
 
-import { EODResult } from '../types/fundamental'
+import { EODResult } from '../types/models'
 import { saveAs } from 'file-saver'
 
 interface DataframeProps {
