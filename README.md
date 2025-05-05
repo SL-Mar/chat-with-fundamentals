@@ -239,12 +239,12 @@ print(result.model_dump_json(indent=2))
 - Expanded technical indicator analytics (MACD, RSI, etc.).
 
 ---
- ## Changelog
+## Changelog
 
-+### 5 May 2025
-+- Added volatility and performance ratios.
-+- Still in **dev** branch.
-+- Began refactoring backend with SmolAgents architecture. Moving to local-first model with Hugging Face.
+### 5 May 2025
+- Added volatility and performance ratios.
+- Still in **dev** branch.
+- Began refactoring backend with SmolAgents architecture. Moving to local-first model with Hugging Face.
 
 ---
 
