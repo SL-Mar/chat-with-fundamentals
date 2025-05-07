@@ -30,7 +30,7 @@ class WebSocketHandler(logging.Handler):
 
             log_entry = self.format(record)
             # write to the real stdout, bypassing intercept_stdout
-            sys.__stdout__.write(f"[WebSocketHandler] 🔥 EMIT: {log_entry}\n")
+            sys.__stdout__.write(f"[WebSocketHandler] EMIT: {log_entry}\n")
 
             if _main_event_loop and _main_event_loop.is_running():
                 asyncio.run_coroutine_threadsafe(
@@ -65,6 +65,6 @@ def setup_logger(name: str = "") -> logging.Logger:
 
         _listener = QueueListener(log_queue, console_handler, file_handler, ws_handler)
         _listener.start()
-        sys.__stdout__.write("✅ QueueListener started with console, file, and WS handlers\n")
+        sys.__stdout__.write("QueueListener started with console, file, and WS handlers\n")
 
     return root

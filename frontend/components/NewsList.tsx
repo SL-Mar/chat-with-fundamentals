@@ -1,3 +1,5 @@
+// NewsList.tsx
+
 'use client'
 
 import { Set_News } from '../types/models'

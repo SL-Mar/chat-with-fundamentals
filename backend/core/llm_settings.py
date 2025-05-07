@@ -76,4 +76,4 @@ def set_model_in_db(role: str, model_name: str) -> None:
         raise ValueError("role must be 'manager' or 'store'")
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(f"UPDATE llm_settings SET {role} = ? WHERE id = 1", (model_name,))
-    print(f"✅ Updated {role} model → {model_name}")
+    print(f"Updated {role} model → {model_name}")

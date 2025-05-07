@@ -1,4 +1,7 @@
+// CumulativeReturnChart.tsx
+
 "use client";
+
 import {
   Chart as ChartJS,
   LineElement,

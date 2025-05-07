@@ -16,7 +16,7 @@ logger = setup_logger().getChild("analyzer")
 
 @router.post("/chat", response_model=Executive_Summary)
 async def fundamentals_chat(request: UserQuery, user: str = "dev"):
-    logger.info(f"👤 Authenticated as: {user}")
+    logger.info(f"👤 Authenticated as: {user}") # Authentication logic neutralized here
 
     try:
         user_query = request.user_query
@@ -32,7 +32,7 @@ async def fundamentals_chat(request: UserQuery, user: str = "dev"):
         elapsed = time.time() - start_time
         logger.info(f"[FLOW] FundamentalFlow completed in {elapsed:.2f}s")
 
-        logger.info(f"[RESULT] Executive Summary: {result}")
+        # logger.info(f"[RESULT] Executive Summary: {result}") - for debugging only
         return result
 
     except Exception as e:

@@ -1,3 +1,6 @@
+// EquityChart.tsx
+// Render MC simulation
+
 "use client";
 
 import {

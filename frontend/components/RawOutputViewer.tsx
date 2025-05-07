@@ -1,3 +1,6 @@
+// RawOutputViewer.tsx
+// Downloadable and collapsible
+
 'use client'
 
 import React from 'react'

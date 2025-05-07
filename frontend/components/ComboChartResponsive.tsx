@@ -1,5 +1,5 @@
 // ComboChartResponsive.tsx
-// Bug-fixed version without the unsupported `overlay` property
+
 "use client";
 
 import React, {

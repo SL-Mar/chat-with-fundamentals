@@ -1,3 +1,5 @@
+// Header.tsx
+
 'use client';
 
 import React from 'react';
@@ -8,7 +10,7 @@ import {
   faHome, faInfoCircle, faEnvelope,
   faBookOpen, faCog, faCodeBranch, faSignOutAlt, faHandshake
 } from '@fortawesome/free-solid-svg-icons';
-import { api } from '../lib/api'; // Adjust path if needed
+// import { api } from '../lib/api'; // in case function are called
 
 const Header = () => {
   const router = useRouter();

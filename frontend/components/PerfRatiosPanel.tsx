@@ -1,4 +1,5 @@
-// src/components/PerfRatiosPanel.tsx
+// PerfRatiosPanel.tsx
+
 "use client";
 
 import React, { useEffect, useState } from "react";

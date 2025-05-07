@@ -1,3 +1,5 @@
+# File: routers/llmloader.py
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
@@ -5,7 +7,7 @@ from core.llm_settings import get_model_from_db, set_model_in_db
 import logging
 
 router = APIRouter(prefix="/settings", tags=["LLMLoader"])
-logger = logging.getLogger("llmloader")  # ✅ create a child logger
+logger = logging.getLogger("llmloader")  # create a child logger
 
 class LLMSetting(BaseModel):
     manager: str

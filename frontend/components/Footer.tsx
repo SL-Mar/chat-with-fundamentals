@@ -1,10 +1,12 @@
+// Footer.tsx
+// Template / not used
+
 import React from 'react';
 
 const Footer = () => {
     return (
         <footer>
-            <p>© 2023 Your Company. All rights reserved.</p>
-            {/* Add any additional footer content here */}
+            <p>© 2024 SL Mar. All rights reserved.</p>
         </footer>
     );
 };

@@ -1,3 +1,6 @@
+# File: utils/helper_functions.py
+# Used to fixed rendering bugs in the fundamental matrix
+
 def generate_eodhd_filter_schema(data: dict) -> list[str]:
     """
     Generate flat list of keys in the form:

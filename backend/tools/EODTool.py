@@ -1,3 +1,6 @@
+# File: tools/EODTool.py
+# Not explicitly used - can be passed to a CrewAI agent - but a deterministic fetching is faster
+
 from crewai.tools import BaseTool
 from pydantic import Field
 from datetime import datetime, timedelta

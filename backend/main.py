@@ -15,7 +15,7 @@
 # main.py – FastAPI entry-point
 
 import asyncio
-import logging                          # ← ensure logging is always in scope
+import logging                          # Ensure logging is always in scope
 from contextlib import asynccontextmanager
 import os
 import signal
@@ -85,9 +85,9 @@ async def log_stream(websocket: WebSocket):
     await websocket.accept()
 
     # send last N lines of existing log file on connect
-    N = 50
+    N = 10
     try:
-        with open("quantcoder.log", "r") as f:
+        with open("chatwithfundamentals.log", "r") as f:
             for line in f.readlines()[-N:]:
                 await websocket.send_text(line.rstrip())
     except FileNotFoundError:
@@ -96,7 +96,8 @@ async def log_stream(websocket: WebSocket):
     await log_ws_manager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text()          # keep connection alive
+            await asyncio.sleep(10)  # Keep-alive heartbeat every 10s
+            await websocket.send_text("Connection alive")
     except WebSocketDisconnect:
         log_ws_manager.disconnect(websocket)
 

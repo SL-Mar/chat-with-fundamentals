@@ -1,3 +1,6 @@
+// ChatPrompt.tsx
+// Icons import deprecated - but stays in case of 
+
 'use client'
 
 import { useEffect, useState } from 'react'

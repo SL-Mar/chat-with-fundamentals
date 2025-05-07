@@ -1,4 +1,4 @@
-// components/ReturnsAnalytics.tsx – histogram vs normal + beta scatter with explicit typings
+// components/ReturnsAnalytics.tsx – histogram vs beta scatter
 "use client";
 
 import {
@@ -15,7 +15,14 @@ import {
 import { Bar, Scatter } from "react-chartjs-2";
 import { ReturnsResponse } from "../types/equity";
 
-ChartJS.register(BarElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend);
+ChartJS.register(
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  Tooltip,
+  Legend
+);
 
 interface Props {
   data: ReturnsResponse;
@@ -30,24 +37,14 @@ export default function ReturnsAnalytics({ data }: Props) {
   const min = Math.min(...returns);
   const max = Math.max(...returns);
   const binSize = (max - min) / nBins;
-  const bins = Array.from({ length: nBins }, () => 0);
-  returns.forEach((r) => {
+  const bins = Array(nBins).fill(0);
+  returns.forEach(r => {
     const idx = Math.min(Math.floor((r - min) / binSize), nBins - 1);
     bins[idx] += 1;
   });
   const binLabels = bins.map((_, i) => (min + binSize * i).toFixed(2));
 
-  /* normal curve (scaled to bin count) */
-  const { mean, std } = data.returns;
-  const normal = binLabels.map((l) => {
-    const x = parseFloat(l);
-    const pdf =
-      (1 / (std * Math.sqrt(2 * Math.PI))) *
-      Math.exp(-0.5 * ((x - mean) / std) ** 2);
-    return pdf * returns.length * binSize;
-  });
-
-  /* ─────────── Chart.js data & options with explicit types ─────────── */
+  /* ─────────── Chart.js histogram data (bar only) ─────────── */
   const histData: ChartData<"bar", number[], string> = {
     labels: binLabels,
     datasets: [
@@ -57,22 +54,14 @@ export default function ReturnsAnalytics({ data }: Props) {
         data: bins,
         backgroundColor: "#3b82f6",
       },
-      {
-        type: "line",
-        label: "Normal PDF (scaled)",
-        data: normal,
-        borderColor: "#f87171",
-        backgroundColor: "transparent",
-        pointRadius: 0,
-        tension: 0.2,
-        yAxisID: "y",
-      },
     ],
   };
 
   const histOptions: ChartOptions<"bar"> = {
     responsive: true,
-    plugins: { legend: { labels: { color: "#ccc" } } },
+    plugins: {
+      legend: { labels: { color: "#ccc" } },
+    },
     scales: {
       x: { ticks: { color: "#888" } },
       y: { ticks: { color: "#888" } },
@@ -99,19 +88,11 @@ export default function ReturnsAnalytics({ data }: Props) {
     },
     scales: {
       x: {
-        title: {
-          display: true,
-          text: `${data.benchmark} returns`,
-          color: "#ccc",
-        },
+        title: { display: true, text: `${data.benchmark} returns`, color: "#ccc" },
         ticks: { color: "#888" },
       },
       y: {
-        title: {
-          display: true,
-          text: `${data.ticker} returns`,
-          color: "#ccc",
-        },
+        title: { display: true, text: `${data.ticker} returns`, color: "#ccc" },
         ticks: { color: "#888" },
       },
     },

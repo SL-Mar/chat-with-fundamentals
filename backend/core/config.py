@@ -1,7 +1,7 @@
-import os
+# File: core/config.py
+
 from typing import Optional
 from pydantic_settings import BaseSettings
-from pathlib import Path
 
 class Settings(BaseSettings):
     openai_api_key: str

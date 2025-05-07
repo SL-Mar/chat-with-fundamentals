@@ -1,6 +1,8 @@
 # File: workflows/analyze.py
 # Analyze workflow v1.0
 # 15 April 2025
+# Only one AI workflow / Deterministic flows are coded directly in the router quantanalyzer and simulater
+
 
 import json
 import pprint
@@ -155,11 +157,11 @@ Instructions:
 
                 fetched.append(Fin_Metric(Ticker=ticker, Metric=label, Value=value_str))
 
-            self.logger.info(f"[FETCH] ✅ Collected {len(fetched)} metrics for {ticker}")
+            self.logger.info(f"[FETCH] Collected {len(fetched)} metrics for {ticker}")
             metrics.append(Set_Metrics(Ticker=ticker, Metrics=fetched, State="ok"))
 
         self.state.summary.Metrics = DataSet_Metrics(DataSet=metrics)
-        self.logger.info("[FETCH] 📦 Finished collecting fundamental metrics.")
+        self.logger.info("[FETCH] Finished collecting fundamental metrics.")
 
     @listen(run_crew)
     def fetch_eod(self):
@@ -203,7 +205,7 @@ Instructions:
                 self.logger.error(f"[EOD] Error fetching for {ticker}: {e}")
         
         self.state.summary.Quote = DataSet_EOD(DataSet=quotes)
-        self.logger.info("[EOD] 📈 EOD data fetched and structured.")
+        self.logger.info("[EOD] EOD data fetched and structured.")
 
     @listen(run_crew)
     def fetch_news(self):
@@ -237,7 +239,7 @@ Instructions:
             news_sets.append(Set_News(Ticker=ticker, News=items, Present="ok"))
 
         self.state.summary.News = DataSet_News(DataSet=news_sets)
-        self.logger.info("[NEWS] 🗞️ News data collected.")
+        self.logger.info("[NEWS] News data collected.")
 
     @listen(run_crew)
     def analyze_data(self):
@@ -281,17 +283,17 @@ Return only the executive summary text.
 
         result = crew.kickoff()
         self.state.summary.Ex_summary = result.raw.strip()
-        self.logger.info("[ANALYSIS] ✅ Executive summary generated.")
+        self.logger.info("[ANALYSIS] Executive summary generated.")
 
     @listen(analyze_data)
     def return_data(self):
         self.logger.info("[RESULT] Returning final ExecutiveSummary")
-        self.logger.debug(pprint.pformat(self.state.summary.model_dump()))
+        # self.logger.debug(pprint.pformat(self.state.summary.model_dump())) - for debugging only
         return self.state.summary
 
     def finalize(self) -> Executive_Summary:
         if not self.state.summary:
             raise ValueError("Final Executive_Summary is missing.")
-        self.logger.info("[FINALIZE] ✅ Final result prepared")
-        self.logger.debug(pprint.pformat(self.state.summary.model_dump()))
+        self.logger.info("[FINALIZE] Final result prepared")
+        # self.logger.debug(pprint.pformat(self.state.summary.model_dump())) - for debugging only
         return self.state.summary

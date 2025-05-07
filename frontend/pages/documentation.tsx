@@ -49,6 +49,8 @@ export default function DocumentationPage() {
             <li><strong>Monte Carlo Simulation</strong> — 1,000 projected equity paths over 20 trading days.</li>
             <li><strong>Returns Distribution</strong> — histogram of daily returns compared to a normal distribution.</li>
             <li><strong>Beta Scatterplot</strong> — regression of stock returns versus SPY to visualize β and R².</li>
+            <li><strong>Cummulative returns</strong> — 3Y equity curve against SPY taken as benchmark.</li>
+            <li><strong>Volatility profile</strong> — 3Y profile and risk ratios.</li>
           </ul>
         </div>
 

@@ -13,7 +13,6 @@ New lightweight routes (no new deps):
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import List
 
 import httpx
 import numpy as np
@@ -26,9 +25,10 @@ from core.logger_config import setup_logger
 logger = setup_logger().getChild("equity_sim")
 router = APIRouter(prefix="/equity", tags=["Equity Analysis"])
 
-# ───────────────────────── helpers (unchanged) ────────────────────────────
 _API_BASE = "https://eodhd.com/api/eod"
-_http     = httpx.AsyncClient(timeout=20)
+
+# NOTE: we no longer build the token into the URL!
+_http = httpx.AsyncClient(timeout=20)
 
 
 def _today() -> datetime:
@@ -40,13 +40,20 @@ async def _fetch_close_series(ticker: str, days: int) -> pd.Series:
     end   = _today()
     start = end - timedelta(days=days)
 
-    url = (
-        f"{_API_BASE}/{ticker}.US"
-        f"?api_token={settings.eodhd_api_key}"
-        f"&from={start.date()}&to={end.date()}&period=d&fmt=json&order=a"
-    )
+    url = f"{_API_BASE}/{ticker}.US"
+    params = {
+        "from":  start.date(),
+        "to":    end.date(),
+        "period":"d",
+        "fmt":   "json",
+        "order": "a",
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.eodhd_api_key}"
+    }
+
     try:
-        r = await _http.get(url)
+        r = await _http.get(url, params=params, headers=headers)
         r.raise_for_status()
     except Exception as exc:
         logger.error("EODHD fetch failed for %s (%s)", ticker, exc.__class__.__name__)
