@@ -160,6 +160,11 @@ Workflow:
   <img src="frontend/public/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="800"/>
 </p>
 
+⚠️ Important Note
+
+As of version 1.0.1, all tickers must include their market suffix (e.g., .US, .PA).
+For example, use AAPL.US instead of AAPL, or AIR.PA instead of AIR.
+
 ---
 
 ### Comparative Research
@@ -180,6 +185,10 @@ Workflow:
   <img src="frontend/public/CWF_demo9.png" alt="Comparative Analysis Example" width="800"/>
 </p>
 
+⚠️ Important Note
+
+As of version 1.0.1, all tickers must include their market suffix (e.g., .US, .PA).
+For example, use AAPL.US instead of AAPL, or AIR.PA instead of AIR.
 ---
 
 ### Deep Research with GPT-Researcher
