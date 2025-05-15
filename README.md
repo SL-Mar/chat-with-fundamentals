@@ -262,7 +262,8 @@ print(result.model_dump_json(indent=2))
 
 ## License
 
-This project is for research and personal use. Commercial deployment must comply with OpenAI, EODHD, and GPT-Researcher terms.
+This project is intended for research and personal development use. Commercial deployments must comply with **OpenAI**,**EODHD** and **GPT-Researcher** licensing.
+
 
 ---
 
@@ -285,8 +286,12 @@ Baseline Version: v1.0
 
 ## Disclaimer
 
-This application and its content are for informational purposes only and do not constitute financial advice.
-Users are responsible for their own decisions. No warranty is provided. Use at your own risk.
+This application and its associated research outputs are provided solely for informational and educational purposes. Nothing contained within this repository, its documentation, or its outputs should be construed as financial advice, or as an offer, recommendation, or solicitation to buy or sell any security, product, or service.
+
+Users are solely responsible for their own investment and trading decisions.  
+The author(s) make no representations or warranties as to the accuracy, completeness, or suitability of the content for any purpose.  
+By using this application, you acknowledge that you must exercise independent judgment, conduct your own due diligence, and refer to the Terms of Use and Disclaimer pages provided within the application.
+
 
 ---
 
