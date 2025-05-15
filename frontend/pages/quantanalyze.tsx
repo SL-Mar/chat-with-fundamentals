@@ -1,4 +1,20 @@
-// app/quantanalyze/page.tsx – OHLC, Monte-Carlo fan, returns dist, β-scatter, cumulative return, vol forecast, perf ratios
+// app/quantanalyze/page.tsx
+//--------------------------------------------------------------------
+// Dashboard that fetches & visualises:
+//   • 90-day OHLC combo
+//   • Monte-Carlo fan + VaR(95 %)
+//   • Return histogram + β/α scatter
+//   • Cumulative return vs. benchmark
+//   • EWMA σ + CVaR snapshot
+//   • Performance ratios
+//   • Dispersion & risk
+//   • Momentum & trend
+//   • Seasonality heat-map
+//   • Rolling β / α / R²
+//   • Liquidity & volume
+//   • ATR-% & Channel widths  ← NEW
+//--------------------------------------------------------------------
+
 "use client";
 
 import { useState, useEffect, KeyboardEvent } from "react";
@@ -12,160 +28,217 @@ import {
   EquityCumRetResponse,
   VolForecastResponse,
   PerfRatiosResponse,
+  RiskMetricsResponse,
+  MomentumResponse,
+  SeasonalityResponse,
+  RollingBetaResponse,
+  LiquidityResponse,
+  VolBandResponse,
 } from "../types/equity";
 
-import ComboChartResponsive   from "../components/ComboChartResponsive";
-import EquityChart            from "../components/EquityChart";
-import ReturnsAnalytics       from "../components/ReturnsAnalytics";
-import CumulativeReturnChart  from "../components/CumulativeReturnChart";
-import VolForecastCard        from "../components/VolForecastCard";
-import PerfRatiosPanel        from "../components/PerfRatiosPanel";
+import ComboChartResponsive  from "../components/ComboChartResponsive";
+import EquityChart           from "../components/EquityChart";
+import ReturnsAnalytics      from "../components/ReturnsAnalytics";
+import CumulativeReturnChart from "../components/CumulativeReturnChart";
+import VolForecastCard       from "../components/VolForecastCard";
+import PerfRatiosPanel       from "../components/PerfRatiosPanel";
+import RiskMetricsCard       from "../components/RiskMetricsCard";
+import MomentumSignalsCard   from "../components/MomentumSignalsCard";
+import SeasonalityHeatmap    from "../components/SeasonalityHeatmap";
+import RollingBetaChart      from "../components/RollingBetaChart";
+import LiquidityCard         from "../components/LiquidityCard";
+import VolBandsCard          from "../components/VolBandsCard";      // ← NEW
+
+/* ------------------------------------------------------------------ */
 
 export default function QuantAnalyzePage() {
-  const params = useSearchParams();
-  const initialTicker = params.get("ticker")?.toUpperCase() || "AAPL";
+  const params        = useSearchParams();
+  const initialTicker = (params.get("ticker") || "AAPL").toUpperCase();
 
-  /* ─────────── state ─────────── */
+  /* ───────────────────── state ﹠ refs ──────────────────────────── */
   const [ticker, setTicker] = useState(initialTicker);
   const [input,  setInput]  = useState(initialTicker);
 
-  const [ohlcv,   setOhlcv]   = useState<OLHCV[]>([]);
-  const [sim,     setSim]     = useState<EquitySimulationResponse | null>(null);
-  const [retData, setRetData] = useState<ReturnsResponse | null>(null);
-  const [cumData, setCumData] = useState<EquityCumRetResponse | null>(null);
-  const [volData, setVolData] = useState<VolForecastResponse | null>(null);
-  const [perfData,setPerfData]= useState<PerfRatiosResponse | null>(null);
+  /* payload state */
+  const [ohlcv,  setOhlcv]    = useState<OLHCV[]>([]);
+  const [sim,    setSim]      = useState< EquitySimulationResponse | null>(null);
+  const [ret,    setRet]      = useState< ReturnsResponse        | null>(null);
+  const [cum,    setCum]      = useState< EquityCumRetResponse   | null>(null);
+  const [vSnap,  setVSnap]    = useState< VolForecastResponse    | null>(null);
+  const [perf,   setPerf]     = useState< PerfRatiosResponse     | null>(null);
+  const [risk,   setRisk]     = useState< RiskMetricsResponse    | null>(null);
+  const [mom,    setMom]      = useState< MomentumResponse       | null>(null);
+  const [season, setSeason]   = useState< SeasonalityResponse    | null>(null);
+  const [roll,   setRoll]     = useState< RollingBetaResponse    | null>(null);
+  const [liq,    setLiq]      = useState< LiquidityResponse      | null>(null);
+  const [bands,  setBands]    = useState< VolBandResponse        | null>(null);
 
-  const [loading,    setLoading]    = useState(false);
-  const [simLoading, setSimLoading] = useState(false);
-  const [retLoading, setRetLoading] = useState(false);
-  const [cumLoading, setCumLoading] = useState(false);
-  const [volLoading, setVolLoading] = useState(false);
-  const [perfLoading,setPerfLoading]= useState(false);
+  /* loading flags */
+  const [loading, setLoading] = useState({
+    ohlcv:false, sim:false, ret:false, cum:false, vsnap:false,
+    perf:false, risk:false, mom:false, season:false,
+    roll:false, liq:false, bands:false,
+  });
 
-  const [error,    setError]    = useState<string|null>(null);
-  const [simError, setSimError] = useState<string|null>(null);
-  const [retError, setRetError] = useState<string|null>(null);
-  const [cumError, setCumError] = useState<string|null>(null);
-  const [volError, setVolError] = useState<string|null>(null);
-  const [perfError,setPerfError]= useState<string|null>(null);
+  /* error text */
+  const [err, setErr] = useState< Record<string,string|undefined> >({});
 
-  /* ─────────── fetch helpers ─────────── */
-  const fetchEOD = async (sym: string) => {
-    setLoading(true); setError(null);
-    try   { const { data } = await api.fetchEODData(sym); setOhlcv(data); }
-    catch (e:any){ setError(e.message || "Failed to load EOD"); }
-    finally { setLoading(false); }
+  /* helper to update loading/error maps */
+  const flag = (key:keyof typeof loading, v:boolean)=>setLoading(p=>({...p,[key]:v}));
+  const boom = (key:keyof typeof loading, e:unknown)=> setErr(p=>({...p,[key]:
+                        (e as any)?.message || String(e)}));
+
+  /* ──────────────────── fetch helpers ──────────────────────────── */
+  const fetchAll = (sym:string)=>{
+    /* OHLCV */
+    (async()=>{
+      flag("ohlcv",true); try{
+        const { data } = await api.fetchEODData(sym); setOhlcv(data);
+      } catch(e){ boom("ohlcv",e);} finally{ flag("ohlcv",false);}
+    })();
+    /* Monte-Carlo */
+    (async()=>{
+      flag("sim",true); try{ setSim(await api.simulateEquity(sym)); }
+      catch(e){ boom("sim",e);} finally{ flag("sim",false);}
+    })();
+    /* Daily returns */
+    (async()=>{
+      flag("ret",true); try{ setRet(await api.fetchReturns(sym)); }
+      catch(e){ boom("ret",e);} finally{ flag("ret",false);}
+    })();
+    /* Cumulative */
+    (async()=>{
+      flag("cum",true); try{ setCum(await api.fetchCumRet(sym)); }
+      catch(e){ boom("cum",e);} finally{ flag("cum",false);}
+    })();
+    /* Vol snapshot */
+    (async()=>{
+      flag("vsnap",true); try{ setVSnap(await api.fetchVolForecast(sym)); }
+      catch(e){ boom("vsnap",e);} finally{ flag("vsnap",false);}
+    })();
+    /* Perf ratios */
+    (async()=>{
+      flag("perf",true); try{ setPerf(await api.fetchPerfRatios(sym)); }
+      catch(e){ boom("perf",e);} finally{ flag("perf",false);}
+    })();
+    /* Risk metrics */
+    (async()=>{
+      flag("risk",true); try{ setRisk(await api.fetchRiskMetrics(sym)); }
+      catch(e){ boom("risk",e);} finally{ flag("risk",false);}
+    })();
+    /* Momentum */
+    (async()=>{
+      flag("mom",true); try{ setMom(await api.fetchMomentum(sym)); }
+      catch(e){ boom("mom",e);} finally{ flag("mom",false);}
+    })();
+    /* Seasonality */
+    (async()=>{
+      flag("season",true); try{ setSeason(await api.fetchSeasonality(sym)); }
+      catch(e){ boom("season",e);} finally{ flag("season",false);}
+    })();
+    /* Rolling beta */
+    (async()=>{
+      flag("roll",true); try{ setRoll(await api.fetchRollingBeta(sym)); }
+      catch(e){ boom("roll",e);} finally{ flag("roll",false);}
+    })();
+    /* Liquidity */
+    (async()=>{
+      flag("liq",true); try{ setLiq(await api.fetchLiquidity(sym)); }
+      catch(e){ boom("liq",e);} finally{ flag("liq",false);}
+    })();
+    /* ATR / channel widths */
+    (async()=>{
+      flag("bands",true); try{ setBands(await api.fetchVolBands(sym)); }
+      catch(e){ boom("bands",e);} finally{ flag("bands",false);}
+    })();
   };
 
-  const fetchSim = async (sym: string) => {
-    setSimLoading(true); setSimError(null);
-    try   { setSim(await api.simulateEquity(sym)); }
-    catch (e:any){ setSimError(e.message || "Simulation error"); }
-    finally { setSimLoading(false); }
-  };
+  /* trigger fetch on ticker change */
+  useEffect(()=>{ fetchAll(ticker); },[ticker]);
 
-  const fetchReturns = async (sym: string) => {
-    setRetLoading(true); setRetError(null);
-    try   { setRetData(await api.fetchReturns(sym)); }
-    catch (e:any){ setRetError(e.message || "Returns error"); }
-    finally { setRetLoading(false); }
-  };
-
-  const fetchCum = async (sym: string) => {
-    setCumLoading(true); setCumError(null);
-    try   { setCumData(await api.fetchCumRet(sym)); }
-    catch (e:any){ setCumError(e.message || "Cum-return error"); }
-    finally { setCumLoading(false); }
-  };
-
-  /* NEW ─ fetch next-day vol & EVT CVaR */
-  const fetchVol = async (sym: string) => {
-    setVolLoading(true); setVolError(null);
-    try   { setVolData(await api.fetchVolForecast(sym)); }
-    catch (e:any){ setVolError(e.message || "Volatility error"); }
-    finally { setVolLoading(false); }
-  };
-
-  /* NEW ─ fetch Sharpe, Sortino, max-DD, Calmar */
-  const fetchPerf = async (sym: string) => {
-    setPerfLoading(true); setPerfError(null);
-    try   { setPerfData(await api.fetchPerfRatios(sym)); }
-    catch (e:any){ setPerfError(e.message || "Perf ratios error"); }
-    finally { setPerfLoading(false); }
-  };
-
-  /* ─────────── side-effects ─────────── */
-  useEffect(() => {
-    fetchEOD(ticker);
-    fetchSim(ticker);
-    fetchReturns(ticker);
-    fetchCum(ticker);
-    fetchVol(ticker);      // ← new
-    fetchPerf(ticker);     // ← new
-  }, [ticker]);
-
-  /* ─────────── handlers ─────────── */
-  const onTickerKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+  /* ───────── input handler ───────── */
+  const onKey = (e:KeyboardEvent<HTMLInputElement>)=>{
+    if(e.key==="Enter"){
       const next = input.trim().toUpperCase();
-      if (next && next !== ticker) setTicker(next);
+      if(next && next!==ticker) setTicker(next);
     }
   };
 
-  /* ─────────── render ─────────── */
+  /* convenient helpers */
+  const wait = (k:keyof typeof loading)=>
+      loading[k] && <p className="text-center text-blue-400">🔄 Loading…</p>;
+  const fail = (k:keyof typeof loading)=>
+      err[k] && <p className="text-center text-red-400">❌ {err[k]}</p>;
+
+  /* ───────── JSX ───────── */
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-white overflow-hidden">
-      {/* search bar */}
+      {/* top-bar */}
       <div className="p-4 flex items-end gap-4">
         <input
           className="rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white w-48"
-          placeholder="Enter ticker (e.g. TSLA)"
           value={input}
-          onChange={(e) => setInput(e.target.value.toUpperCase())}
-          onKeyDown={onTickerKey}
+          placeholder="Enter ticker (e.g. TSLA)"
+          onChange={e=>setInput(e.target.value.toUpperCase())}
+          onKeyDown={onKey}
         />
         <span className="text-slate-400 text-sm">Press Enter to load</span>
       </div>
 
-      {/* layout */}
       <div className="flex flex-1 overflow-hidden divide-x divide-slate-700">
-        {/* left – 90-day OHLC combo chart */}
+        {/* left column */}
         <div className="w-1/2 p-4 overflow-auto">
-          <ComboChartResponsive data={ohlcv} ticker={ticker} interval="1d" />
-          {loading && <p className="text-center text-blue-400 mt-4">🔄 Loading…</p>}
-          {error   && <p className="text-center text-red-400  mt-4">❌ {error}</p>}
+          <ComboChartResponsive data={ohlcv} ticker={ticker} interval="1d"/>
+          {wait("ohlcv")}{fail("ohlcv")}
         </div>
 
-        {/* right – analytics */}
+        {/* right column */}
         <div className="w-1/2 p-4 overflow-auto space-y-6">
-          {sim && (
-            <EquityChart
-              equityCurve={sim.equity_curve}
-              monteCarlo={sim.monte_carlo}
-              var95={sim.var_95}
-            />
-          )}
-          {simLoading && <p className="text-center text-blue-400">🔄 Simulating…</p>}
-          {simError   && <p className="text-center text-red-400">❌ {simError}</p>}
+          {/* Monte-Carlo */}
+          {sim && <EquityChart equityCurve={sim.equity_curve}
+                               monteCarlo={sim.monte_carlo}
+                               var95={sim.var_95}/>}
+          {wait("sim")}{fail("sim")}
 
-          {retData && <ReturnsAnalytics data={retData} />}
-          {retLoading && <p className="text-center text-blue-400">🔄 Loading returns…</p>}
-          {retError   && <p className="text-center text-red-400">❌ {retError}</p>}
+          {/* Returns */}
+          {ret && <ReturnsAnalytics data={ret}/>}
+          {wait("ret")}{fail("ret")}
 
-          {cumData && <CumulativeReturnChart data={cumData} />}
-          {cumLoading && <p className="text-center text-blue-400">🔄 Loading cum-returns…</p>}
-          {cumError   && <p className="text-center text-red-400">❌ {cumError}</p>}
+          {/* Cumulative */}
+          {cum && <CumulativeReturnChart data={cum}/>}
+          {wait("cum")}{fail("cum")}
 
-          {/* NEW – volatility snapshot */}
-          {volData && <VolForecastCard ticker={ticker} lookback={250} />}
-          {volLoading && <p className="text-center text-blue-400">🔄 Loading vol forecast…</p>}
-          {volError   && <p className="text-center text-red-400">❌ {volError}</p>}
+          {/* Vol snapshot */}
+          {vSnap && <VolForecastCard data={vSnap} ticker={ticker} lookback={250}/>}
+          {wait("vsnap")}{fail("vsnap")}
 
-          {/* NEW – performance scorecard */}
-          {perfData && <PerfRatiosPanel ticker={ticker} years={3} />}
-          {perfLoading && <p className="text-center text-blue-400">🔄 Loading perf ratios…</p>}
-          {perfError   && <p className="text-center text-red-400">❌ {perfError}</p>}
+          {/* Performance */}
+          {perf && <PerfRatiosPanel data={perf} ticker={ticker} years={3}/>}
+          {wait("perf")}{fail("perf")}
+
+          {/* Risk */}
+          {risk && <RiskMetricsCard data={risk} ticker={ticker}/>}
+          {wait("risk")}{fail("risk")}
+
+          {/* Momentum */}
+          {mom && <MomentumSignalsCard data={mom} ticker={ticker}/>}
+          {wait("mom")}{fail("mom")}
+
+          {/* Seasonality */}
+          {season && <SeasonalityHeatmap data={season} ticker={ticker}/>}
+          {wait("season")}{fail("season")}
+
+          {/* Rolling β */}
+          {roll && <RollingBetaChart data={roll}/>}
+          {wait("roll")}{fail("roll")}
+
+          {/* Liquidity */}
+          {liq && <LiquidityCard data={liq} ticker={ticker}/>}
+          {wait("liq")}{fail("liq")}
+
+          {/* ATR-% / Channel widths */}
+          {bands && <VolBandsCard data={bands} ticker={ticker}/>}
+          {wait("bands")}{fail("bands")}
         </div>
       </div>
     </div>

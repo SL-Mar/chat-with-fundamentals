@@ -1,8 +1,6 @@
-// VolForecastCard.tsx
-
+// components/VolForecastCard.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
 import {
   Chart as ChartJS,
   LineElement,
@@ -16,33 +14,18 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import type { VolForecastResponse } from "../types/equity";
-import { api } from "../lib/api";
 
-// register Chart.js components
+// register the bits of Chart.js we need
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend);
 
 interface Props {
-  ticker: string;
-  lookback?: number; // how many days of EWMA history to chart
+  data:    VolForecastResponse;   // ← pre-fetched
+  ticker:  string;
+  lookback: number;
 }
 
-export default function VolForecastCard({ ticker, lookback = 250 }: Props) {
-  const [data, setData]   = useState<VolForecastResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setData(null);
-    setError(null);
-    api
-      .fetchVolForecast(ticker, lookback)
-      .then(setData)
-      .catch(e => setError(e.message));
-  }, [ticker, lookback]);
-
-  if (error) return <div className="text-red-400">{error}</div>;
-  if (!data)  return <div>Loading volatility…</div>;
-
-  // build the sparkline
+export default function VolForecastCard({ data, ticker, lookback }: Props) {
+  // build the spark-line
   const chartData: ChartData<"line", number[], string> = {
     labels: data.ewma_vol.map((_, i) => `${i + 1}`),
     datasets: [
@@ -51,7 +34,7 @@ export default function VolForecastCard({ ticker, lookback = 250 }: Props) {
         data: data.ewma_vol,
         borderColor: "#0ea5e9",
         pointRadius: 0,
-        tension: 0.2,
+        tension: 0.25,
       },
     ],
   };
@@ -77,8 +60,7 @@ export default function VolForecastCard({ ticker, lookback = 250 }: Props) {
     },
   };
 
-  // convert decimals to percent strings
-  const toPct = (v: number) => (v * 100).toFixed(2) + "%";
+  const pct = (v: number) => (v * 100).toFixed(2) + "%";
 
   return (
     <div className="bg-gray-900 border border-slate-700 rounded p-4 h-64">
@@ -91,12 +73,8 @@ export default function VolForecastCard({ ticker, lookback = 250 }: Props) {
       </div>
 
       <div className="flex justify-between text-sm text-slate-200">
-        <div>
-          <strong>σₜ₊₁:</strong> {toPct(data.sigma_t1)}
-        </div>
-        <div>
-          <strong>CVaR 99 %:</strong> {toPct(data.evt_cvar_99)}
-        </div>
+        <div><strong>σₜ₊₁:</strong> {pct(data.sigma_t1)}</div>
+        <div><strong>CVaR&nbsp;99 %:</strong> {pct(data.evt_cvar_99)}</div>
       </div>
     </div>
   );

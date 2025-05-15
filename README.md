@@ -189,6 +189,7 @@ Workflow:
 
 As of version 1.0.1, all tickers must include their market suffix (e.g., .US, .PA).
 For example, use AAPL.US instead of AAPL, or AIR.PA instead of AIR.
+
 ---
 
 ### Deep Research with GPT-Researcher

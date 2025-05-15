@@ -1,16 +1,31 @@
-import { Executive_Summary, EODResult } from "../types/models";
+// lib/api.ts – front-end REST helpers for the 8001 backend
+//-----------------------------------------------------------------------
+
+import {
+  Executive_Summary,
+  EODResult,
+} from "../types/models";
 import {
   EquitySimulationResponse,
   ReturnsResponse,
   EquityCumRetResponse,
   VolForecastResponse,
   PerfRatiosResponse,
+  RiskMetricsResponse,
+  MomentumResponse,
+  SeasonalityResponse,
+  RollingBetaResponse,
+  LiquidityResponse,
+  VolBandResponse,
 } from "../types/equity";
 import { AcademicResponse } from "../types/research";
 
-const BASE = "http://localhost:8001";
+/* ───────────────── base URL (env-override → 8001 default) ───────────────── */
+const BASE =
+  (process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") ||
+    "http://localhost:8001") as string;
 
-/* ──────────────── Helpers ──────────────── */
+/* ─────────────────── internal JSON helpers ──────────────────────────────── */
 const getJSON = async <T>(url: string): Promise<T> => {
   const res = await fetch(url);
   if (!res.ok) throw new Error(await res.text());
@@ -23,11 +38,12 @@ const postJSON = async <T>(url: string, body: object): Promise<T> => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
   if (!res.ok) {
     let msg = "Request failed";
     try {
       const { detail } = await res.json();
-      msg = detail || msg;
+      if (detail) msg = detail;
     } catch {
       msg = await res.text();
     }
@@ -36,64 +52,179 @@ const postJSON = async <T>(url: string, body: object): Promise<T> => {
   return res.json() as Promise<T>;
 };
 
-/* ──────────────── API ──────────────── */
+/* ───────────────────────── public API wrapper ───────────────────────────── */
 export const api = {
-  /* ───── Fundamentals Chat ───── */
+  /* ───── Fundamentals chat ───── */
   chatWithFundamentals(question: string): Promise<Executive_Summary> {
     return postJSON(`${BASE}/analyzer/chat`, { user_query: question });
   },
 
-  /* ───── Academic Research Report ───── */
+  /* ───── Academic research ───── */
   fetchResearchReport(query: string): Promise<AcademicResponse> {
     return postJSON(`${BASE}/researcher/report`, { user_query: query });
   },
 
-  /* ───── Export Report as PDF ───── */
+  /* ───── Export report as PDF ───── */
   async exportPDF(reportMarkdown: string): Promise<Blob> {
-    if (typeof reportMarkdown !== "string" || reportMarkdown.trim() === "") {
-      throw new Error("Invalid reportMarkdown: must be a non-empty string");
-    }
+    if (!reportMarkdown.trim())
+      throw new Error("reportMarkdown is empty");
 
     const res = await fetch(`${BASE}/researcher/export-pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ report_md: reportMarkdown }), // ✅ MATCHES backend ReportInput
+      body: JSON.stringify({ report_md: reportMarkdown }),
     });
 
-    if (!res.ok) {
-      throw new Error(`Export failed: ${await res.text()}`);
-    }
-
+    if (!res.ok) throw new Error(`Export failed: ${await res.text()}`);
     return res.blob();
   },
 
-  /* ───── EOD Quote Fetch ───── */
+  /* ───── EOD OHLCV quote fetch (served by the other micro-service) ───── */
   fetchEODData(ticker: string): Promise<EODResult> {
-    return getJSON(`${BASE}/quantanalyzer/eod?ticker=${ticker}`);
+    const qs = new URLSearchParams({ ticker: ticker.toUpperCase() });
+    return getJSON(`${BASE}/quantanalyzer/eod?${qs.toString()}`);
   },
 
-  /* ───── Monte Carlo Simulation ───── */
-  simulateEquity(ticker: string, horizon = 20): Promise<EquitySimulationResponse> {
-    return getJSON(`${BASE}/equity/simulate?ticker=${ticker}&horizon=${horizon}`);
+  /* ───────────────────── /equity analytics ───────────────────── */
+
+  /* Monte-Carlo simulation */
+  simulateEquity(
+    ticker: string,
+    horizon = 20,
+    seed?: number
+  ): Promise<EquitySimulationResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      horizon: String(horizon),
+      ...(seed !== undefined ? { seed: String(seed) } : {}),
+    });
+    return getJSON(`${BASE}/equity/simulate?${qs.toString()}`);
   },
 
-  /* ───── Returns Distribution & Beta ───── */
-  fetchReturns(ticker: string, years = 3, benchmark = "SPY"): Promise<ReturnsResponse> {
-    return getJSON(`${BASE}/equity/returns?ticker=${ticker}&years=${years}&benchmark=${benchmark}`);
+  /* Daily returns + CAPM β/α scatter */
+  fetchReturns(
+    ticker: string,
+    years = 3,
+    benchmark = "SPY"
+  ): Promise<ReturnsResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      years: String(years),
+      benchmark: benchmark.toUpperCase(),
+    });
+    return getJSON(`${BASE}/equity/returns?${qs.toString()}`);
   },
 
-  /* ───── Cumulative Return Curve ───── */
-  fetchCumRet(ticker: string, years = 3, benchmark = "SPY"): Promise<EquityCumRetResponse> {
-    return getJSON(`${BASE}/equity/cumret?ticker=${ticker}&years=${years}&benchmark=${benchmark}`);
+  /* Cumulative gross return curves */
+  fetchCumRet(
+    ticker: string,
+    years = 3,
+    benchmark = "SPY"
+  ): Promise<EquityCumRetResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      years: String(years),
+      benchmark: benchmark.toUpperCase(),
+    });
+    return getJSON(`${BASE}/equity/cumret?${qs.toString()}`);
   },
 
-  /* ───── Volatility Forecast Snapshot ───── */
-  fetchVolForecast(ticker: string, lookback = 250): Promise<VolForecastResponse> {
-    return getJSON(`${BASE}/equity/vol?ticker=${ticker}&lookback=${lookback}`);
+  /* EWMA σ forecast + empirical CVaR(99 %) */
+  fetchVolForecast(
+    ticker: string,
+    lookback = 250
+  ): Promise<VolForecastResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      lookback: String(lookback),
+    });
+    return getJSON(`${BASE}/equity/vol?${qs.toString()}`);
   },
 
-  /* ───── Performance Ratios Snapshot ───── */
-  fetchPerfRatios(ticker: string, years = 3): Promise<PerfRatiosResponse> {
-    return getJSON(`${BASE}/equity/perf?ticker=${ticker}&years=${years}`);
+  /* Sharpe / Sortino / Max-DD / Calmar */
+  fetchPerfRatios(
+    ticker: string,
+    years = 3
+  ): Promise<PerfRatiosResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      years: String(years),
+    });
+    return getJSON(`${BASE}/equity/perf?${qs.toString()}`);
+  },
+
+  /* Dispersion & tail-risk snapshot */
+  fetchRiskMetrics(
+    ticker: string,
+    lookback = 252
+  ): Promise<RiskMetricsResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      lookback: String(lookback),
+    });
+    return getJSON(`${BASE}/equity/risk?${qs.toString()}`);
+  },
+
+  /* Momentum & trend snapshot */
+  fetchMomentum(
+    ticker: string,
+    lookback = 300
+  ): Promise<MomentumResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      lookback: String(lookback),
+    });
+    return getJSON(`${BASE}/equity/momentum?${qs.toString()}`);
+  },
+
+  /* Seasonality heat-map */
+  fetchSeasonality(
+    ticker: string,
+    years = 10
+  ): Promise<SeasonalityResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      years: String(years),
+    });
+    return getJSON(`${BASE}/equity/seasonality?${qs.toString()}`);
+  },
+
+  /* Rolling β / α / R² */
+  fetchRollingBeta(
+    ticker: string,
+    benchmark = "SPY",
+    window = 252
+  ): Promise<RollingBetaResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      benchmark: benchmark.toUpperCase(),
+      window: String(window),
+    });
+    return getJSON(`${BASE}/equity/rolling_beta?${qs.toString()}`);
+  },
+
+  /* Volume + liquidity metrics */
+  fetchLiquidity(
+    ticker: string,
+    lookback = 260
+  ): Promise<LiquidityResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      lookback: String(lookback),
+    });
+    return getJSON(`${BASE}/equity/liquidity?${qs.toString()}`);
+  },
+
+  /* ATR-%  +  Channel-widths (Keltner & Donchian) */
+  fetchVolBands(
+    ticker: string,
+    lookback = 260
+  ): Promise<VolBandResponse> {
+    const qs = new URLSearchParams({
+      ticker: ticker.toUpperCase(),
+      lookback: String(lookback),
+    });
+    /* ✅ underscore matches FastAPI router */
+    return getJSON(`${BASE}/equity/vol_bands?${qs.toString()}`);
   },
 };
