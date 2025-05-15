@@ -4,7 +4,9 @@
   <img src="frontend/public/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
 </p>
 
-# Chat with Fundamentals — AI-powered Fundamental Analysis and Stock Research
+<h1 align="center">Chat with Fundamentals</h1>
+<h3 align="center">AI-powered Fundamental Analysis and Stock Research</h3>
+
 
 **Chat with Fundamentals** is an application that generates executive summaries about stocks using fundamental data fetched via EODHD APIs.
 It integrates financial metrics, historical stock prices, recent company news, and AI-written executive summaries into a single orchestrated workflow — designed to streamline the fundamental analysis of securities.
