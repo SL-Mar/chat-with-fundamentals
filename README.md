@@ -190,7 +190,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
   - Provides clickable links to the source used.
 
 <p align="center">
-  <img src="frontend/public/CWF_DR.png" alt="Deep Research" width="500"/>
+  <img src="frontend/public/CWF_DR.png" alt="Deep Research" width="800"/>
 </p>
 
 ---
