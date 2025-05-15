@@ -1,7 +1,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sl-mar/chat-with-fundamentals/main/frontend/public/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
+  <img src="frontend/public/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
 </p>
 
 # Chat with Fundamentals — AI-powered Fundamental Analysis and Stock Research
@@ -12,7 +12,7 @@ It integrates financial metrics, historical stock prices, recent company news, a
 Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market data.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sl-mar/chat-with-fundamentals/main/frontend/public/CWF_demo8.png" alt="Application Overview" width="800"/>
+  <img src="frontend/public/CWF_demo8.png" alt="Application Overview" width="800"/>
 </p>
 
 ---
@@ -25,7 +25,7 @@ It is built to be **self-hosted** and **tailored to user needs** through the ref
 All LLM interactions are logged and saved for reproducibility.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sl-mar/chat-with-fundamentals/main/frontend/public/CWF_demoi1.png" alt="Demo view" width="800"/>
+  <img src="frontend/public/CWF_demoi1.png" alt="Demo view" width="800"/>
 </p>
 
 **Key principles:**
@@ -155,7 +155,7 @@ Workflow:
   * 3-year cumulative return comparison
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sl-mar/chat-with-fundamentals/main/frontend/public/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="800"/>
+  <img src="frontend/public/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="800"/>
 </p>
 
 ---
@@ -175,7 +175,7 @@ Workflow:
 * Displays side-by-side analytics
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sl-mar/chat-with-fundamentals/main/frontend/public/CWF_demo9.png" alt="Comparative Analysis Example" width="800"/>
+  <img src="frontend/public/CWF_demo9.png" alt="Comparative Analysis Example" width="800"/>
 </p>
 
 ---
@@ -191,7 +191,7 @@ Workflow:
 * Provides source links
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sl-mar/chat-with-fundamentals/main/frontend/public/CWF_DR.png" alt="Deep Research" width="800"/>
+  <img src="frontend/public/CWF_DR.png" alt="Deep Research" width="800"/>
 </p>
 
 ---
@@ -205,7 +205,7 @@ Workflow:
 * 3-year cumulative return comparison
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sl-mar/chat-with-fundamentals/main/frontend/public/CWF_demo3.png" alt="Quant Analysis Example" width="800"/>
+  <img src="frontend/public/CWF_demo3.png" alt="Quant Analysis Example" width="800"/>
 </p>
 
 Planned features include:
