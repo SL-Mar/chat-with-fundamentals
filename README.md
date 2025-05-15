@@ -1,7 +1,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 <p align="center">
-  <img src="frontend/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
+  <img src="frontend/public/logocwf.png" alt="Chat with Fundamentals Logo" width="100"/>
 </p>
 
 # Chat with Fundamentals — AI-powered Fundamental Analysis and Stock Research
@@ -12,7 +12,7 @@ It integrates financial metrics, historical stock prices, recent company news, a
 Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market data.
 
 <p align="center">
-  <img src="frontend/public/CWF_demo8.png" alt="Application Overview" width="400"/>
+  <img src="frontend/public/CWF_demo8.png" alt="Application Overview" width="500"/>
 </p>
 
 ---
@@ -25,7 +25,7 @@ It is built to be **self-hosted** and **tailored to user needs** through the ref
 All LLM interactions are logged and saved for reproducibility.
 
 <p align="center">
-  <img src="frontend/public/CWF_demoi1.png" alt="Demo view" width="400"/>
+  <img src="frontend/public/CWF_demoi1.png" alt="Demo view" width="500"/>
 </p>
 
 **Key principles:**
@@ -159,7 +159,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
     - 3-year cumulative returns comparison with the benchmark.
 
 <p align="center">
-  <img src="frontend/public/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="400"/>
+  <img src="frontend/public/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="500"/>
 </p>
 
 ---
@@ -177,7 +177,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
   - Provides side-by-side analytics for both tickers.
 
 <p align="center">
-  <img src="frontend/public/CWF_demo9.png" alt="Comparative Analysis Example" width="400"/>
+  <img src="frontend/public/CWF_demo9.png" alt="Comparative Analysis Example" width="500"/>
 </p>
 
 ---
@@ -190,7 +190,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
   - Provides clickable links to the source used.
 
 <p align="center">
-  <img src="frontend/public/CWF_DR.png" alt="Deep Research" width="400"/>
+  <img src="frontend/public/CWF_DR.png" alt="Deep Research" width="500"/>
 </p>
 
 ---
@@ -206,7 +206,7 @@ Chat with Fundamentals includes a fully local-first analytics suite, extending b
 - **3-Year Cumulative Return Comparison**: Ticker vs benchmark over multiple years.
 
 <p align="center">
-  <img src="frontend/public/CWF_demo3.png" alt="Quant Analysis Example" width="400"/>
+  <img src="frontend/public/CWF_demo3.png" alt="Quant Analysis Example" width="500"/>
 </p>
 
 
