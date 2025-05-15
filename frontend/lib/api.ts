@@ -1,91 +1,99 @@
-// lib/api.ts – wrapper for backend endpoints
-
 import { Executive_Summary, EODResult } from "../types/models";
 import {
   EquitySimulationResponse,
   ReturnsResponse,
   EquityCumRetResponse,
-  VolForecastResponse,      // ← NEW interface
-  PerfRatiosResponse        // ← NEW interface
+  VolForecastResponse,
+  PerfRatiosResponse,
 } from "../types/equity";
+import { AcademicResponse } from "../types/research";
 
-const BASE = "http://localhost:8000";
+const BASE = "http://localhost:8001";
 
+/* ──────────────── Helpers ──────────────── */
 const getJSON = async <T>(url: string): Promise<T> => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(await r.text());
-  return r.json() as Promise<T>;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T>;
 };
 
+const postJSON = async <T>(url: string, body: object): Promise<T> => {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let msg = "Request failed";
+    try {
+      const { detail } = await res.json();
+      msg = detail || msg;
+    } catch {
+      msg = await res.text();
+    }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<T>;
+};
+
+/* ──────────────── API ──────────────── */
 export const api = {
-  /* ────────── Fundamentals chat ────────── */
-  async chatWithFundamentals(question: string): Promise<Executive_Summary> {
-    const r = await fetch(`${BASE}/analyzer/chat`, {
+  /* ───── Fundamentals Chat ───── */
+  chatWithFundamentals(question: string): Promise<Executive_Summary> {
+    return postJSON(`${BASE}/analyzer/chat`, { user_query: question });
+  },
+
+  /* ───── Academic Research Report ───── */
+  fetchResearchReport(query: string): Promise<AcademicResponse> {
+    return postJSON(`${BASE}/researcher/report`, { user_query: query });
+  },
+
+  /* ───── Export Report as PDF ───── */
+  async exportPDF(reportMarkdown: string): Promise<Blob> {
+    if (typeof reportMarkdown !== "string" || reportMarkdown.trim() === "") {
+      throw new Error("Invalid reportMarkdown: must be a non-empty string");
+    }
+
+    const res = await fetch(`${BASE}/researcher/export-pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_query: question }),
+      body: JSON.stringify({ report_md: reportMarkdown }), // ✅ MATCHES backend ReportInput
     });
-    if (!r.ok) {
-      const { detail } = await r.json();
-      throw new Error(detail || "Fundamentals error");
+
+    if (!res.ok) {
+      throw new Error(`Export failed: ${await res.text()}`);
     }
-    return r.json() as Promise<Executive_Summary>;
+
+    return res.blob();
   },
 
-  /* ────────── End-of-Day quotes ────────── */
+  /* ───── EOD Quote Fetch ───── */
   fetchEODData(ticker: string): Promise<EODResult> {
-    return getJSON<EODResult>(`${BASE}/quantanalyzer/eod?ticker=${ticker}`);
+    return getJSON(`${BASE}/quantanalyzer/eod?ticker=${ticker}`);
   },
 
-  /* ────────── Monte-Carlo simulation ───── */
-  simulateEquity(
-    ticker: string,
-    horizon = 20
-  ): Promise<EquitySimulationResponse> {
-    return getJSON<EquitySimulationResponse>(
-      `${BASE}/equity/simulate?ticker=${ticker}&horizon=${horizon}`
-    );
+  /* ───── Monte Carlo Simulation ───── */
+  simulateEquity(ticker: string, horizon = 20): Promise<EquitySimulationResponse> {
+    return getJSON(`${BASE}/equity/simulate?ticker=${ticker}&horizon=${horizon}`);
   },
 
-  /* ────────── Returns distribution & beta */
-  fetchReturns(
-    ticker: string,
-    years = 3,
-    benchmark = "SPY"
-  ): Promise<ReturnsResponse> {
-    return getJSON<ReturnsResponse>(
-      `${BASE}/equity/returns?ticker=${ticker}&years=${years}&benchmark=${benchmark}`
-    );
+  /* ───── Returns Distribution & Beta ───── */
+  fetchReturns(ticker: string, years = 3, benchmark = "SPY"): Promise<ReturnsResponse> {
+    return getJSON(`${BASE}/equity/returns?ticker=${ticker}&years=${years}&benchmark=${benchmark}`);
   },
 
-  /* ────────── Cumulative curve ─────────── */
-  fetchCumRet(
-    ticker: string,
-    years = 3,
-    benchmark = "SPY"
-  ): Promise<EquityCumRetResponse> {
-    return getJSON<EquityCumRetResponse>(
-      `${BASE}/equity/cumret?ticker=${ticker}&years=${years}&benchmark=${benchmark}`
-    );
+  /* ───── Cumulative Return Curve ───── */
+  fetchCumRet(ticker: string, years = 3, benchmark = "SPY"): Promise<EquityCumRetResponse> {
+    return getJSON(`${BASE}/equity/cumret?ticker=${ticker}&years=${years}&benchmark=${benchmark}`);
   },
 
-  /* ────────── NEW • Volatility snapshot ── */
-  fetchVolForecast(
-    ticker: string,
-    lookback = 250
-  ): Promise<VolForecastResponse> {
-    return getJSON<VolForecastResponse>(
-      `${BASE}/equity/vol?ticker=${ticker}&lookback=${lookback}`
-    );
+  /* ───── Volatility Forecast Snapshot ───── */
+  fetchVolForecast(ticker: string, lookback = 250): Promise<VolForecastResponse> {
+    return getJSON(`${BASE}/equity/vol?ticker=${ticker}&lookback=${lookback}`);
   },
 
-  /* ────────── NEW • Performance ratios ─── */
-  fetchPerfRatios(
-    ticker: string,
-    years = 3
-  ): Promise<PerfRatiosResponse> {
-    return getJSON<PerfRatiosResponse>(
-      `${BASE}/equity/perf?ticker=${ticker}&years=${years}`
-    );
+  /* ───── Performance Ratios Snapshot ───── */
+  fetchPerfRatios(ticker: string, years = 3): Promise<PerfRatiosResponse> {
+    return getJSON(`${BASE}/equity/perf?ticker=${ticker}&years=${years}`);
   },
 };

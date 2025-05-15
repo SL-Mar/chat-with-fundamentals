@@ -40,7 +40,7 @@ export default function ChatPromptForm({ onSubmit, resetTrigger }: ChatPromptFor
       <div className="flex items-end gap-4">
         <input
           type="text"
-          placeholder="Ask a question about a stock..."
+          placeholder="Ask a question..."
           value={query}
           onChange={handleChange}
           className="h-12 p-2 w-full bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none"

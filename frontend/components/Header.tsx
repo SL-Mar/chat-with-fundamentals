@@ -1,41 +1,46 @@
-// Header.tsx
+// components/Header.tsx
 
-'use client';
+'use client'
 
-import React from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import React from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faHome, faInfoCircle, faEnvelope,
-  faBookOpen, faCog, faCodeBranch, faSignOutAlt, faHandshake
-} from '@fortawesome/free-solid-svg-icons';
-// import { api } from '../lib/api'; // in case function are called
+  faHome,
+  faInfoCircle,
+  faEnvelope,
+  faBookOpen,
+  faCog,
+  faCodeBranch,
+  faSignOutAlt,
+  faHandshake,
+  faMagnifyingGlassChart
+} from '@fortawesome/free-solid-svg-icons'
 
 const Header = () => {
-  const router = useRouter();
+  const router = useRouter()
 
   const handleLogout = async () => {
     try {
-      fetch('http://localhost:8000/shutdown', { method: 'POST' });
-  
+      fetch('http://localhost:8000/shutdown', { method: 'POST' })
+
       setTimeout(() => {
-        window.location.href = '/goodbye';
-      }, 300);
+        window.location.href = '/goodbye'
+      }, 300)
     } catch (error) {
-      console.error('Shutdown failed', error);
-      window.location.href = '/goodbye';
+      console.error('Shutdown failed', error)
+      window.location.href = '/goodbye'
     }
-  };
-  
-  
+  }
+
   return (
     <header className="flex flex-col items-center p-4 bg-gray-200 dark:bg-gray-800">
       <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">
         Chat with Fundamentals
       </h1>
       <p className="text-sm text-gray-600 dark:text-gray-400">
-        Equity Research with EODHD APIs
+        Equity Research with EODHD and GPT-researcher
       </p>
 
       <nav className="mt-2 w-full flex justify-center">
@@ -83,6 +88,12 @@ const Header = () => {
             </Link>
           </li>
           <li>
+            <Link href="/research" className="text-blue-500 dark:text-blue-400 hover:underline">
+              <FontAwesomeIcon icon={faMagnifyingGlassChart} className="mr-1" />
+              Deep Research
+            </Link>
+          </li>
+          <li>
             <button
               onClick={handleLogout}
               className="text-red-500 dark:text-red-400 hover:underline flex items-center"
@@ -94,7 +105,7 @@ const Header = () => {
         </ul>
       </nav>
     </header>
-  );
-};
+  )
+}
 
-export default Header;
+export default Header

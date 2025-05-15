@@ -12,7 +12,7 @@ It integrates financial metrics, historical stock prices, recent company news, a
 Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market data.
 
 <p align="center">
-  <img src="Documentation/CWF_demo8.png" alt="Application Overview" width="400"/>
+  <img src="frontend/public/CWF_demo8.png" alt="Application Overview" width="400"/>
 </p>
 
 ---
@@ -25,7 +25,7 @@ It is built to be **local-first** and **tailored to user needs** through the ref
 All LLM interactions are logged and saved for reproducibility.
 
 <p align="center">
-  <img src="Documentation/CWF_demoi1.png" alt="Demo view" width="400"/>
+  <img src="frontend/public/CWF_demoi1.png" alt="Demo view" width="400"/>
 </p>
 
 **Key principles:**
@@ -38,6 +38,8 @@ All LLM interactions are logged and saved for reproducibility.
 ---
 
 ## Project Structure
+
+Backend is built on Python and FastAPI.
 
 
 ```
@@ -54,6 +56,29 @@ backend/
 ├── .gitignore
 └── chatwithfundamentals.log
 ```
+
+Frontend is built on Next.js
+
+```
+frontend/
+├── components/         # Reusable React components (UI, layout, forms)
+├── Icons/              # Custom icon components
+├── lib/                # Client-side utilities and API routes
+├── pages/              # Next.js pages 
+├── public/             # Static assets (images, fonts)
+├── styles/             # Global and modular CSS/Tailwind styles
+├── types/              # TypeScript type declarations
+├── LICENSE.md          # Project license information
+├── NOTICE.txt          # Legal and attribution notices
+├── next.config.js      # Next.js configuration
+├── next-env.d.ts       # Next.js environment type definitions
+├── package.json        # Project metadata and dependencies
+├── package-lock.json   # Exact dependency tree
+├── postcss.config.js   # PostCSS configuration (used with Tailwind)
+├── tailwind.config.js  # Tailwind CSS configuration
+└── tsconfig.json       # TypeScript compiler configuration
+```
+
 
 ---
 ## Deployment
@@ -81,9 +106,10 @@ These scripts will:
 ✅ After setup, open your `.env` file and enter your API keys:
 
 ```env
-OPENAI_API_KEY=your-openai-key
-EODHD_API_KEY=your-eodhd-key
-MODEL_NAME=gpt-4o
+OPENAI_API_KEY='your_openai_key_here'
+EODHD_API_KEY='your_eodhd_key_here'
+TAVILY_API_KEY='your_tavily_key_here'
+
 ```
 
 ---
@@ -140,7 +166,7 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
     - 3-year cumulative returns comparison with the benchmark.
 
 <p align="center">
-  <img src="Documentation/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="400"/>
+  <img src="frontend/public/CWF_demoi1.png" alt="Single Ticker Analysis Example" width="400"/>
 </p>
 
 ---
@@ -158,7 +184,20 @@ Chat with Fundamentals enables multiple forms of AI-supported equity research wo
   - Provides side-by-side analytics for both tickers.
 
 <p align="center">
-  <img src="Documentation/CWF_demo9.png" alt="Comparative Analysis Example" width="400"/>
+  <img src="frontend/public/CWF_demo9.png" alt="Comparative Analysis Example" width="400"/>
+</p>
+
+---
+### 🔹 Deep Research with GPT-researcher
+
+- **Example Query**: `"What are the last articles about AI and Quant Finance from ArXiv"`
+- **Workflow**:
+  - Performs a deep research using Tavily/GPT-researcher.
+  - Constructs a comprehensive financial research report addressing the user query.
+  - Provides clickable links to the source used.
+
+<p align="center">
+  <img src="frontend/public/CWF_DR.png" alt="Deep Research" width="400"/>
 </p>
 
 ---
@@ -174,7 +213,7 @@ Chat with Fundamentals includes a fully local-first analytics suite, extending b
 - **3-Year Cumulative Return Comparison**: Ticker vs benchmark over multiple years.
 
 <p align="center">
-  <img src="Documentation/CWF_demo3.png" alt="Quant Analysis Example" width="400"/>
+  <img src="frontend/public/CWF_demo3.png" alt="Quant Analysis Example" width="400"/>
 </p>
 
 
@@ -207,10 +246,8 @@ MODEL_NAME=gpt-4o
 ### 3. Run FastAPI server
 
 ```bash
-uvicorn backend.routers.simulater:router --reload
+uvicorn main:app --reload
 ```
-
-(or integrate all routers into a main FastAPI app)
 
 ### 4. Run the analysis programmatically
 
@@ -224,33 +261,31 @@ print(result.model_dump_json(indent=2))
 
 ---
 
-## Example API Usage
-
-- `GET /equity/simulate?ticker=TSLA&horizon=20` — Simulate future price paths.
-- `GET /equity/returns?ticker=AAPL&years=3&benchmark=SPY` — Daily returns & beta.
-- `GET /equity/cumret?ticker=GOOG&years=5&benchmark=SPY` — Cumulative return vs benchmark.
-
----
-
 ## Future Enhancements
 
+- Intraday and real-time data integration
+- Quantitative analytics and visualizations
 - Alpha extraction with Alphalens.
 - Sentiment analysis integration from news.
-- Expanded technical indicator analytics (MACD, RSI, etc.).
-
----
-## Changelog
-
-### 5 May 2025
-- Added volatility and performance ratios.
-- Still in **dev** branch.
-- Began refactoring backend with SmolAgents architecture. Moving to local-first model with Hugging Face.
 
 ---
 
 ## License
 
-This project is intended for research and personal development use. Commercial deployments must comply with **OpenAI** and **EODHD** licensing.
+This project is intended for research and personal development use. Commercial deployments must comply with **OpenAI**,**EODHD** and **GPT-Researcher** licensing.
+
+---
+
+## Changelog
+
+**Current Version:** v1.0.1
+- Added Deep Research function with GPT-researcher
+- Added volatility and performance ratios.
+- Still in **dev** branch.
+
+**Baseline Version:** v1.0 (AI Workflow)
+
+This release establishes the software baseline, aligned with version 1.0 of the agentic workflow. It includes 4 of the 10 identified quantitative analysis modules and supports multi-ticker comparisons. A stock scanner is not yet included but is planned as part of the upcoming QuantAgents project. Future versions will reflect significant updates to agent logic or orchestration.
 
 ---
 
@@ -268,8 +303,7 @@ By using this application, you acknowledge that you must exercise independent ju
 <p align="center">
   <b>S.M. Laignel</b><br>
   Founder of <b>SL MAR</b> consultancy<br>
-  Quant Developer — modular automation for research workflows in quantitative finance.<br><br>
-  🌐 <a href="https://quantcoderfs.substack.com">Substack — QuantCoderFS R&D</a><br>
+  AI and Quant Finance<br><br>
   💻 <a href="https://github.com/sl-mar/chat-with-fundamentals">GitHub Repository</a>
 </p>
 

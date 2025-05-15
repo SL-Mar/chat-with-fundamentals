@@ -28,6 +28,7 @@ from routers.analyzer      import router as chatfundamentals
 from routers.quantanalyzer import router as quantanalyzer
 from routers.llmloader     import router as llmloader
 from routers.simulater     import router as equity_router      # Monte-Carlo simulation
+from routers.researcher    import router as researcher 
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -63,7 +64,7 @@ app = FastAPI(
 # ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,6 +77,7 @@ app.include_router(chatfundamentals)
 app.include_router(quantanalyzer)
 app.include_router(llmloader)
 app.include_router(equity_router)
+app.include_router(researcher)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream

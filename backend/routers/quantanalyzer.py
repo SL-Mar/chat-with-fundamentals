@@ -15,10 +15,10 @@ logger = setup_logger().getChild("quantanalyzer")
 
 @router.get("/eod", response_model=EODResult)
 async def get_eod_data(
-    ticker: str = Query(..., description="Ticker symbol, e.g., TSLA"),
+    ticker: str = Query(..., description="Ticker symbol, e.g., TSLA.US"),
     limit:  int  = Query(100,  description="Number of recent rows to return (max 5 000)"),
 ):
-    url = f"https://eodhd.com/api/eod/{ticker}.US"
+    url = f"https://eodhd.com/api/eod/{ticker}"
     params = {
       "fmt":   "json",   # ← JSON, not CSV
       "order": "d",      # ← newest → oldest

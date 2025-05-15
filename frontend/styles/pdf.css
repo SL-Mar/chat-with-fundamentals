@@ -1,0 +1,105 @@
+@page {
+  size: A4;
+  margin: 1in;
+}
+
+body {
+  font-family: "Georgia", serif;
+  color: #222;
+  line-height: 1.6;
+  font-size: 11pt;
+}
+
+h1, h2, h3, h4 {
+  color: #111;
+  font-weight: bold;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 20pt;
+  border-bottom: 2px solid #ccc;
+  padding-bottom: 0.2em;
+}
+
+h2 {
+  font-size: 16pt;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.1em;
+}
+
+h3 {
+  font-size: 13pt;
+}
+
+h4 {
+  font-size: 12pt;
+  font-style: italic;
+}
+
+p {
+  margin-bottom: 1em;
+}
+
+ul, ol {
+  margin-left: 1.2em;
+  margin-bottom: 1em;
+}
+
+li {
+  margin-bottom: 0.4em;
+}
+
+code {
+  font-family: "Courier New", monospace;
+  font-size: 10pt;
+  background: #f5f5f5;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+pre {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  padding: 0.8em;
+  overflow-x: auto;
+  font-family: "Courier New", monospace;
+  font-size: 10pt;
+  line-height: 1.4;
+  border-radius: 6px;
+  margin-bottom: 1em;
+}
+
+blockquote {
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 4px solid #ccc;
+  color: #555;
+  font-style: italic;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 10pt;
+}
+
+table th, table td {
+  border: 1px solid #ddd;
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+
+table th {
+  background: #f2f2f2;
+  font-weight: bold;
+}
+
+img {
+  max-width: 100%;
+  margin: 1em 0;
+  display: block;
+}

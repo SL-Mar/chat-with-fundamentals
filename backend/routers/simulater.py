@@ -40,7 +40,7 @@ async def _fetch_close_series(ticker: str, days: int) -> pd.Series:
     end   = _today()
     start = end - timedelta(days=days)
 
-    url = f"{_API_BASE}/{ticker}.US"
+    url = f"{_API_BASE}/{ticker}"  # Enter the .US or .PA as part of the ticker
     params = {
         "from":  start.date(),
         "to":    end.date(),

@@ -137,7 +137,7 @@ Instructions:
 
                 try:
                     resp = _http_client.get(
-                        f"/fundamentals/{ticker}.US",
+                        f"/fundamentals/{ticker}", # Exchange must be entered as AAPL.US for example 
                         params={"filter": filter_path, "fmt": "json"}
                     )
                     resp.raise_for_status()
