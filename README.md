@@ -21,7 +21,7 @@ Built with **CrewAI**, **LangChain**, **FastAPI**, and **EODHD APIs** market dat
 
 Chat with Fundamentals is not intended to be a SaaS platform.  
 It is a **research engine** designed to explore how autonomous agents and AI can automate and enhance financial analysis.  
-It is built to be **local-first** and **tailored to user needs** through the refinement and upgrade of AI and quantitative workflows.  
+It is built to be **self-hosted** and **tailored to user needs** through the refinement and upgrade of AI and quantitative workflows.  
 All LLM interactions are logged and saved for reproducibility.
 
 <p align="center">
@@ -33,7 +33,7 @@ All LLM interactions are logged and saved for reproducibility.
 - **Modularity**: Workflows and agents are designed independently.
 - **Reproducibility**: All steps (query, fetch, summarize) are transparent and testable.
 - **Minimal Overhead**: Lightweight backend with no complex infrastructure.
-- **User Ownership**: Users bring their own API keys (OpenAI, EODHD).
+- **User Ownership**: Users bring their own API keys (OpenAI, EODHD, Tavily).
 
 ---
 
@@ -103,14 +103,7 @@ These scripts will:
 - Install Python and frontend (Node.js) dependencies  
 - Copy `.env.model` to `.env` if it doesn’t exist  
 
-✅ After setup, open your `.env` file and enter your API keys:
-
-```env
-OPENAI_API_KEY='your_openai_key_here'
-EODHD_API_KEY='your_eodhd_key_here'
-TAVILY_API_KEY='your_tavily_key_here'
-
-```
+✅ After setup, refer to 'Getting Started' below.
 
 ---
 
@@ -238,9 +231,9 @@ pip install -r requirements.txt
 ### 2. Set up environment variables
 
 ```env
-OPENAI_API_KEY=your-openai-key
-EODHD_API_KEY=your-eodhd-key
-MODEL_NAME=gpt-4o
+OPENAI_API_KEY='your_openai_key_here' (Required)
+EODHD_API_KEY='your_eodhd_key_here'   (Required for the automated fundamental analysis) 
+TAVILY_API_KEY='your_tavily_key_here' (Optional)
 ```
 
 ### 3. Run FastAPI server
