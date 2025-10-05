@@ -37,13 +37,18 @@ def get_active_llm_setting() -> dict:
 
 # === Update manager or store ===
 def set_active_llm(field: str, model_name: str):
-    if field not in ("manager", "store"):
-        raise ValueError("Field must be 'manager' or 'store'")
+    # Validate field to prevent SQL injection
+    allowed_fields = {"manager": "manager", "store": "store"}
+    if field not in allowed_fields:
+        raise ValueError(f"Invalid field: {field}. Must be 'manager' or 'store'.")
+
+    column = allowed_fields[field]
 
     with sqlite3.connect(DB_PATH) as conn:
+        # Use validated column name - safe from SQL injection
         conn.execute(f"""
             UPDATE llm_settings
-            SET {field} = ?
+            SET {column} = ?
         """, (model_name,))
     print(f"✅ Updated {field} to {model_name}")
 

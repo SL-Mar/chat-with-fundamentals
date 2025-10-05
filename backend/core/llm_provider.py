@@ -11,12 +11,18 @@ def get_llm(role: str = "store") -> ChatOpenAI:
 
     Falls back to .env MODEL_NAME if not found in DB.
     """
-    assert role in ("manager", "store"), "role must be 'manager' or 'store'"
+    # Validate role to prevent SQL injection
+    allowed_roles = {"manager": "manager", "store": "store"}
+    if role not in allowed_roles:
+        raise ValueError(f"Invalid role: {role}. Must be 'manager' or 'store'.")
+
+    column = allowed_roles[role]
 
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute(f"SELECT {role} FROM llm_settings LIMIT 1")
+            # Use validated column name - safe from SQL injection
+            cursor.execute(f"SELECT {column} FROM llm_settings LIMIT 1")
             row = cursor.fetchone()
             model_name = row[0] if row and row[0] else settings.model_name
     except Exception:

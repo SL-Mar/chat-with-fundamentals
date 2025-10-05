@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import os
+from pathlib import Path
 
 from core.logger_config import setup_logger
 import mimetypes
@@ -30,6 +31,20 @@ def validate_folder(folder: str):
         raise HTTPException(status_code=400, detail=f"Invalid folder '{folder}'. Must be one of {ALLOWED_FOLDERS}.")
 
 
+def sanitize_path(base_dir: str, folder: str, filename: str) -> str:
+    """Sanitize and validate file path to prevent directory traversal attacks."""
+    # Resolve the absolute path
+    safe_path = Path(base_dir) / folder / filename
+    safe_path = safe_path.resolve()
+
+    # Ensure the resolved path is within the base directory
+    base_path = Path(base_dir).resolve()
+    if not str(safe_path).startswith(str(base_path)):
+        raise HTTPException(status_code=400, detail="Invalid path: directory traversal detected")
+
+    return str(safe_path)
+
+
 # List all files in a folder
 @router.get("/")
 def list_files(folder: str = Query(...)):
@@ -54,7 +69,7 @@ def get_pdf(filename: str, folder: str = Query("articles")):
     validate_folder(folder)
     if folder != "articles":
         raise HTTPException(status_code=400, detail="PDFs can only be served from the 'articles' folder.")
-    file_path = os.path.join(BASE_DIR, folder, filename)
+    file_path = sanitize_path(BASE_DIR, folder, filename)
     logger.info(f"[PDF] Serving PDF: {file_path}")
 
     if not os.path.exists(file_path):
@@ -66,7 +81,7 @@ def get_pdf(filename: str, folder: str = Query("articles")):
 @router.get("/load/{filename}")
 def load_file(filename: str, folder: str = Query(...)):
     validate_folder(folder)
-    file_path = os.path.join(BASE_DIR, folder, filename)
+    file_path = sanitize_path(BASE_DIR, folder, filename)
     logger.info(f"[LOAD] Requested file: {file_path}")
 
     if not os.path.exists(file_path):
@@ -100,10 +115,10 @@ def save_file(
     folder_path = os.path.join(BASE_DIR, folder)
     os.makedirs(folder_path, exist_ok=True)
 
-    # Manually set the project root path and calculate lean folder path
-    project_root_path = "/home/slmar/projects"  # Directly define your project root path
+    # Use environment variable for project root path with fallback
+    project_root_path = os.getenv("PROJECT_ROOT", os.path.expanduser("~/projects"))
     lean_folder_path = os.path.join(project_root_path, "lean", "Algorithm.Python")
-    logger.info(f"[SAVE] Corrected lean folder path: {lean_folder_path}")  # Log the corrected lean folder path
+    logger.info(f"[SAVE] Lean folder path: {lean_folder_path}")
     
     # Check if the lean folder exists and log the result
     if not os.path.exists(lean_folder_path):
@@ -153,7 +168,7 @@ def save_file(
 @router.delete("/{filename}")
 def delete_file(filename: str, folder: str = Query(...)):
     validate_folder(folder)
-    file_path = os.path.join(BASE_DIR, folder, filename)
+    file_path = sanitize_path(BASE_DIR, folder, filename)
     logger.info(f"[DELETE] Requested file delete: {file_path}")
 
     if os.path.exists(file_path):

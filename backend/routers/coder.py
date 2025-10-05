@@ -22,12 +22,27 @@ async def process_pdf_and_generate_code(
     """
     Upload a PDF, run the unified Extract+Code Crew flow, and return the generated code.
     """
+    # Security: Validate file upload
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+    # Validate content type
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # Read and validate file size
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB")
+
+    # Validate PDF magic bytes (PDF files start with %PDF)
+    if not content.startswith(b'%PDF'):
+        raise HTTPException(status_code=400, detail="Invalid PDF file")
+
     # 1️⃣ Save the uploaded PDF
     downloads_dir = os.path.join(settings.USER_WORKDIR, "downloads")
     os.makedirs(downloads_dir, exist_ok=True)
     pdf_path = os.path.join(downloads_dir, file.filename)
     try:
-        content = await file.read()
         with open(pdf_path, "wb") as f:
             f.write(content)
         logger.info(f"[CODER] Saved PDF to {pdf_path}")

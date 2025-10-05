@@ -39,14 +39,14 @@ app = FastAPI(
 )
 
 # ──────────────────────────────────────────────
-# 4️⃣ Enable frontend CORS
+# 4️⃣ Enable frontend CORS (Security hardened)
 # ──────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3003"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE"],  # Explicit methods only
+    allow_headers=["Content-Type", "Authorization"],  # Explicit headers only
 )
 
 # ──────────────────────────────────────────────
