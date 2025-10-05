@@ -2,6 +2,7 @@
 
 import os
 import re
+import json
 import pprint
 from typing import Optional
 
@@ -105,9 +106,24 @@ class CodingFlow(Flow[CodingState]):
         raw = crew.kickoff(inputs={"pdf_path": pdf_path})
 
         try:
-            self.state.result = GeneratedCode.model_validate_json(raw.raw)
-        except ValidationError:
+            # Clean the raw output to handle control characters
+            raw_str = raw.raw
+            logger.debug(f"[CODING_FLOW] Raw output length: {len(raw_str)}")
+
+            # Try direct JSON parsing first
+            try:
+                parsed = json.loads(raw_str)
+                self.state.result = GeneratedCode.model_validate(parsed)
+            except json.JSONDecodeError as e:
+                logger.warning(f"[CODING_FLOW] JSON decode failed: {e}. Attempting cleanup...")
+                # If that fails, try cleaning control characters
+                clean_str = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', raw_str)
+                parsed = json.loads(clean_str)
+                self.state.result = GeneratedCode.model_validate(parsed)
+
+        except (ValidationError, json.JSONDecodeError) as e:
             logger.exception("Validation to GeneratedCode failed")
+            logger.error(f"Raw output snippet: {raw.raw[:500]}...")
             raise
 
         return self.finalize()

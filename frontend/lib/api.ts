@@ -38,15 +38,30 @@ const api = {
     const form = new FormData()
     form.append('file', pdfBlob, filename)
 
-    const res = await fetch(`${CODER_BASE_URL}/process`, {
-      method: 'POST',
-      body: form,
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to generate code')
+    // Use AbortController with 5-minute timeout for long-running PDF processing
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000) // 5 minutes
+
+    try {
+      const res = await fetch(`${CODER_BASE_URL}/process`, {
+        method: 'POST',
+        body: form,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || 'Failed to generate code')
+      }
+      return res.json()
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - code generation is taking too long. Check the backend logs or codes folder.')
+      }
+      throw error
     }
-    return res.json()
   },
 
   /** 4️⃣ Load a text/code file (.py, .txt) */

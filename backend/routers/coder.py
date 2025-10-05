@@ -55,10 +55,25 @@ async def process_pdf_and_generate_code(
     flow.inputs = {"pdf_path": pdf_path}
 
     try:
+        logger.info("[CODER] Starting flow.kickoff()")
         result: GeneratedCode = await asyncio.to_thread(flow.kickoff)
-        logger.info(f"[CODER] Generated code file: {result.filename}")
+        logger.info(f"[CODER] Flow completed. Generated code file: {result.filename}")
+        logger.info(f"[CODER] Code length: {len(result.code)} chars")
+
+        # 3️⃣ Save the generated code to codes/ directory
+        codes_dir = os.path.join(settings.USER_WORKDIR, "codes")
+        logger.info(f"[CODER] Saving to directory: {codes_dir}")
+        os.makedirs(codes_dir, exist_ok=True)
+        code_path = os.path.join(codes_dir, result.filename)
+
+        with open(code_path, "w") as f:
+            f.write(result.code)
+        logger.info(f"[CODER] ✅ Successfully saved code to {code_path}")
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.exception("[CODER] Flow execution failed")
+        logger.exception("[CODER] Flow execution or file save failed")
         raise HTTPException(status_code=500, detail=str(e))
 
     return result
