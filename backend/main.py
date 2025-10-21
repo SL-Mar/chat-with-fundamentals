@@ -14,6 +14,10 @@
 
 # main.py – FastAPI entry-point
 
+# Load environment variables FIRST (before any other imports)
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file into os.environ
+
 import asyncio
 import logging                          # Ensure logging is always in scope
 from contextlib import asynccontextmanager
