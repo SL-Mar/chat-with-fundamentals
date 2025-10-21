@@ -87,7 +87,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # 4) CORS configuration (local Next.js front-end + production)
 # ──────────────────────────────────────────────────────────────────────
 # Get allowed origins from environment variable for production
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3003").split(",")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3003,http://localhost:3005").split(",")
 
 app.add_middleware(
     CORSMiddleware,
