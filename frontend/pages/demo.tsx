@@ -1,6 +1,4 @@
 // pages/demo.tsx - Demo page for dynamic panel rendering
-'use client';
-
 import { useState } from 'react';
 import { api } from '../lib/api';
 import { renderPanel } from '../lib/panelRegistry';
