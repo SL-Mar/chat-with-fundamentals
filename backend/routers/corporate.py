@@ -96,5 +96,7 @@ async def get_insider_transactions(
         return transactions
 
     except Exception as e:
-        logger.error(f"[INSIDER] Failed to fetch insider transactions for {ticker}: {e}")
-        raise HTTPException(status_code=502, detail=f"Failed to fetch insider transactions: {str(e)}")
+        # Insider transactions may not be available for all stocks or from certain IPs
+        # Return empty result instead of error to allow page to load gracefully
+        logger.warning(f"[INSIDER] Insider transactions not available for {ticker}: {e}")
+        return {"ticker": ticker, "data": [], "note": "Insider transactions not available for this stock or current API subscription"}

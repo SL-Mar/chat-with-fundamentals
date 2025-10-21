@@ -49,8 +49,10 @@ async def get_analyst_ratings(ticker: str = Query(..., description="Stock symbol
         return ratings
 
     except Exception as e:
-        logger.error(f"[ANALYST] Failed to fetch ratings for {ticker}: {e}")
-        raise HTTPException(status_code=502, detail=f"Failed to fetch analyst ratings: {str(e)}")
+        # Analyst ratings may not be available for all stocks or from certain IPs
+        # Return empty result instead of error to allow page to load gracefully
+        logger.warning(f"[ANALYST] Analyst ratings not available for {ticker}: {e}")
+        return {"ticker": ticker, "AnalystRatings": None, "note": "Analyst ratings not available for this stock or current API subscription"}
 
 
 @router.get("/esg")

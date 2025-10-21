@@ -76,8 +76,10 @@ async def get_sentiment_analysis(
         return sentiment
 
     except Exception as e:
-        logger.error(f"[SENTIMENT] Failed to fetch sentiment for {ticker}: {e}")
-        raise HTTPException(status_code=502, detail=f"Failed to fetch sentiment: {str(e)}")
+        # Sentiment data may not be available for all stocks or from certain IPs
+        # Return empty result instead of error to allow page to load gracefully
+        logger.warning(f"[SENTIMENT] Sentiment analysis not available for {ticker}: {e}")
+        return {"ticker": ticker, "sentiment": None, "score": 0, "note": "Sentiment analysis not available for this stock or current API subscription"}
 
 
 @router.get("/twitter-mentions")
