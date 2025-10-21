@@ -27,22 +27,23 @@ export default function ETFHoldings({ ticker, maxHoldings = 10 }: ETFHoldingsPro
       setLoading(true);
       setError(null);
 
+      console.log('[ETFHoldings] Fetching holdings for', ticker);
+
       const data = await api.fetchETFHoldings(ticker);
 
-      // Extract holdings and ETF info from response
-      const holdingsArray = data?.holdings || data?.data?.holdings || [];
-      const info = {
-        name: data?.name || data?.data?.name || ticker,
-        totalAssets: data?.totalAssets || data?.data?.totalAssets,
-        expenseRatio: data?.expenseRatio || data?.data?.expenseRatio,
-        inception: data?.inception || data?.data?.inception,
-        category: data?.category || data?.data?.category,
-      };
+      console.log('[ETFHoldings] Received response:', data);
+
+      // Extract holdings and ETF info from NEW response structure
+      const holdingsArray = data?.holdings || [];
+      const info = data?.etf_info || {};
+
+      console.log('[ETFHoldings] Extracted', holdingsArray.length, 'holdings');
+      console.log('[ETFHoldings] ETF info:', info);
 
       setHoldings(holdingsArray);
       setETFInfo(info);
     } catch (err: any) {
-      console.error('Failed to fetch ETF holdings:', err);
+      console.error('[ETFHoldings] Failed to fetch ETF holdings:', err);
       setError(err.message);
     } finally {
       setLoading(false);

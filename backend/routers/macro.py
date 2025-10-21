@@ -97,50 +97,43 @@ async def get_economic_events(
 
 @router.get("/indicators-bulk")
 async def get_indicators_bulk(
-    country: str = Query("USA", description="Country code"),
+    country: str = Query("USA", description="Country code (USA, UK, DE, FR, IT, JP, CN)"),
     from_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     to_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)")
 ):
-    """Get multiple key economic indicators at once for convenience.
+    """Get government bond 10Y yield data (proxy for interest rates).
+
+    NOTE: EODHD only provides government bond yields via EOD API.
+    Other macro indicators (GDP, inflation, unemployment) are not available.
 
     Returns:
-    - GDP (current USD)
-    - Inflation rate
-    - Unemployment rate
-    - Real interest rate
+    - government_bond_10y: 10-year government bond yield
 
     Example: /macro/indicators-bulk?country=USA
     """
     try:
         client = EODHDClient()
 
-        indicators = {
-            "gdp": "gdp_current_usd",
-            "inflation": "inflation_consumer_prices_annual",
-            "unemployment": "unemployment_total",
-            "interest_rate": "real_interest_rate"
-        }
+        logger.info(f"[MACRO_BULK] Fetching government bond 10Y for {country}")
 
-        results = {}
-        for key, indicator_code in indicators.items():
-            try:
-                data = client.macro.get_macro_indicator(
-                    country=country,
-                    indicator=indicator_code,
-                    from_date=from_date,
-                    to_date=to_date
-                )
-                results[key] = data
-            except Exception as e:
-                logger.warning(f"[MACRO] Failed to fetch {indicator_code}: {e}")
-                results[key] = None
+        try:
+            bond_data = client.macro.get_macro_indicator(
+                country=country,
+                indicator="government_bond_10y",
+                from_date=from_date,
+                to_date=to_date
+            )
+            results = {"government_bond_10y": bond_data}
+            logger.info(f"[MACRO_BULK] Successfully fetched bond data for {country}, {len(bond_data)} records")
+        except Exception as e:
+            logger.error(f"[MACRO_BULK] Failed to fetch bond data for {country}: {e}")
+            results = {"government_bond_10y": None}
 
-        logger.info(f"[MACRO] Fetched bulk indicators for {country}")
         return {
             "country": country,
             "indicators": results
         }
 
     except Exception as e:
-        logger.error(f"[MACRO] Failed to fetch bulk indicators: {e}")
+        logger.error(f"[MACRO_BULK] Failed to fetch bulk indicators: {e}")
         raise HTTPException(status_code=502, detail=f"Failed to fetch bulk indicators: {str(e)}")

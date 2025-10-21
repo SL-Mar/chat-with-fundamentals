@@ -1,4 +1,4 @@
-// components/MacroIndicators.tsx - Key macroeconomic indicators dashboard
+// components/MacroIndicators.tsx - Government bond yields (interest rate proxy)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,139 +9,92 @@ interface MacroIndicatorsProps {
   years?: number;
 }
 
-interface IndicatorData {
-  name: string;
-  code: string;
-  data: any[];
-  current: number;
-  previous: number;
-  change: number;
-  changePercent: number;
-  unit: string;
-  loading: boolean;
-  error: string | null;
-}
-
-const INDICATORS = [
-  { name: 'GDP', code: 'gdp_current_usd', unit: 'USD', format: 'billions' },
-  { name: 'Inflation', code: 'inflation_consumer_prices_annual', unit: '%', format: 'percent' },
-  { name: 'Unemployment', code: 'unemployment_total', unit: '%', format: 'percent' },
-  { name: 'Interest Rate', code: 'real_interest_rate', unit: '%', format: 'percent' },
-];
-
 export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIndicatorsProps) {
   const [selectedCountry, setSelectedCountry] = useState(country);
-  const [indicators, setIndicators] = useState<Map<string, IndicatorData>>(new Map());
-  const [selectedIndicator, setSelectedIndicator] = useState<string>('gdp_current_usd');
+  const [bondData, setBondData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{
+    current: number;
+    previous: number;
+    change: number;
+    changePercent: number;
+    max: number;
+    min: number;
+  } | null>(null);
 
   useEffect(() => {
-    fetchAllIndicators();
+    fetchBondData();
   }, [selectedCountry]);
 
-  const fetchAllIndicators = async () => {
-    const newData = new Map<string, IndicatorData>();
+  const fetchBondData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    // Initialize with loading state
-    INDICATORS.forEach((ind) => {
-      newData.set(ind.code, {
-        name: ind.name,
-        code: ind.code,
-        data: [],
-        current: 0,
-        previous: 0,
-        change: 0,
-        changePercent: 0,
-        unit: ind.unit,
-        loading: true,
-        error: null,
-      });
-    });
-    setIndicators(new Map(newData));
+      console.log('[MacroIndicators] Fetching government bond 10Y for', selectedCountry);
 
-    // Calculate date range
-    const yearsAgo = new Date();
-    yearsAgo.setFullYear(yearsAgo.getFullYear() - years);
-    const from_date = yearsAgo.toISOString().split('T')[0];
+      // Calculate date range
+      const yearsAgo = new Date();
+      yearsAgo.setFullYear(yearsAgo.getFullYear() - years);
+      const from_date = yearsAgo.toISOString().split('T')[0];
 
-    // Fetch each indicator
-    for (const ind of INDICATORS) {
-      try {
-        const response = await api.fetchMacroIndicator(
-          selectedCountry,
-          ind.code,
-          from_date
-        );
+      const response = await api.fetchMacroIndicator(
+        selectedCountry,
+        'government_bond_10y',
+        from_date
+      );
 
-        const dataArray = response?.data || [];
+      console.log('[MacroIndicators] Received response:', response);
 
-        if (dataArray.length > 0) {
-          // Sort by date
-          const sortedData = dataArray.sort((a: any, b: any) => {
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
-          });
+      const dataArray = response?.data || [];
 
-          const current = parseFloat(sortedData[sortedData.length - 1]?.value || 0);
-          const previous = sortedData.length > 1 ? parseFloat(sortedData[sortedData.length - 2]?.value || 0) : 0;
-          const change = current - previous;
-          const changePercent = previous !== 0 ? (change / previous) * 100 : 0;
-
-          newData.set(ind.code, {
-            name: ind.name,
-            code: ind.code,
-            data: sortedData,
-            current,
-            previous,
-            change,
-            changePercent,
-            unit: ind.unit,
-            loading: false,
-            error: null,
-          });
-        } else {
-          newData.set(ind.code, {
-            ...newData.get(ind.code)!,
-            loading: false,
-            error: 'No data available',
-          });
-        }
-      } catch (err: any) {
-        console.error(`Failed to fetch ${ind.name}:`, err);
-        newData.set(ind.code, {
-          ...newData.get(ind.code)!,
-          loading: false,
-          error: err.message,
+      if (dataArray.length > 0) {
+        // Sort by date
+        const sortedData = dataArray.sort((a: any, b: any) => {
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
         });
+
+        setBondData(sortedData);
+
+        // Calculate stats
+        const current = parseFloat(sortedData[sortedData.length - 1]?.close || 0);
+        const previous = sortedData.length > 1 ? parseFloat(sortedData[sortedData.length - 2]?.close || 0) : 0;
+        const change = current - previous;
+        const changePercent = previous !== 0 ? (change / previous) * 100 : 0;
+        const max = Math.max(...sortedData.map((d: any) => parseFloat(d.close || 0)));
+        const min = Math.min(...sortedData.map((d: any) => parseFloat(d.close || 0)));
+
+        setStats({
+          current,
+          previous,
+          change,
+          changePercent,
+          max,
+          min,
+        });
+
+        console.log('[MacroIndicators] Stats:', { current, previous, change, changePercent, max, min });
+      } else {
+        console.warn('[MacroIndicators] No data received for', selectedCountry);
+        setError('No data available for selected country');
       }
-
-      setIndicators(new Map(newData));
+    } catch (err: any) {
+      console.error('[MacroIndicators] Failed to fetch bond data:', err);
+      setError(err.message || 'Failed to load data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatValue = (value: number, format: string): string => {
-    if (!value) return 'N/A';
-
-    switch (format) {
-      case 'billions':
-        if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-        if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-        return `$${value.toFixed(0)}`;
-      case 'percent':
-        return `${value.toFixed(2)}%`;
-      default:
-        return value.toFixed(2);
-    }
+  const formatPercent = (value: number): string => {
+    if (!value && value !== 0) return 'N/A';
+    return `${value.toFixed(2)}%`;
   };
-
-  const selectedData = indicators.get(selectedIndicator);
-  const selectedIndicatorInfo = INDICATORS.find((i) => i.code === selectedIndicator);
 
   // Calculate chart dimensions
-  const maxValue = selectedData?.data.length
-    ? Math.max(...selectedData.data.map((d: any) => parseFloat(d.value || 0)))
-    : 0;
-  const minValue = selectedData?.data.length
-    ? Math.min(...selectedData.data.map((d: any) => parseFloat(d.value || 0)))
-    : 0;
+  const maxValue = stats?.max || 0;
+  const minValue = stats?.min || 0;
   const valueRange = maxValue - minValue;
 
   const getY = (value: number): number => {
@@ -152,7 +105,7 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
   return (
     <div className="bg-slate-800 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Macroeconomic Indicators</h3>
+        <h3 className="text-lg font-semibold">Government Bond Yields (10Y)</h3>
 
         {/* Country Selector */}
         <select
@@ -161,72 +114,55 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
           className="px-3 py-2 bg-slate-700 text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="USA">United States</option>
-          <option value="GBR">United Kingdom</option>
-          <option value="JPN">Japan</option>
-          <option value="DEU">Germany</option>
-          <option value="FRA">France</option>
-          <option value="CAN">Canada</option>
-          <option value="CHN">China</option>
-          <option value="IND">India</option>
+          <option value="UK">United Kingdom</option>
+          <option value="DE">Germany</option>
+          <option value="FR">France</option>
+          <option value="IT">Italy</option>
+          <option value="JP">Japan</option>
+          <option value="CN">China</option>
         </select>
       </div>
 
-      {/* Indicator Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        {INDICATORS.map((ind) => {
-          const data = indicators.get(ind.code);
-          const isSelected = selectedIndicator === ind.code;
+      {loading && (
+        <div className="animate-pulse">
+          <div className="h-48 bg-slate-700 rounded mb-4"></div>
+          <div className="grid grid-cols-3 gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 bg-slate-700 rounded"></div>
+            ))}
+          </div>
+        </div>
+      )}
 
-          return (
-            <button
-              key={ind.code}
-              onClick={() => setSelectedIndicator(ind.code)}
-              className={`p-3 rounded transition-colors text-left ${
-                isSelected
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-slate-700 hover:bg-slate-600'
-              }`}
-            >
-              <div className="text-xs opacity-75 mb-1">{ind.name}</div>
-              {data?.loading ? (
-                <div className="text-sm">Loading...</div>
-              ) : data?.error ? (
-                <div className="text-xs text-red-400">Error</div>
-              ) : (
-                <>
-                  <div className="text-lg font-bold">
-                    {formatValue(data?.current || 0, ind.format)}
-                  </div>
-                  <div
-                    className={`text-xs ${
-                      (data?.change || 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                    }`}
-                  >
-                    {(data?.change || 0) >= 0 ? '+' : ''}
-                    {data?.changePercent.toFixed(2)}% YoY
-                  </div>
-                </>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {error && (
+        <div className="text-center py-8 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
 
-      {/* Selected Indicator Chart */}
-      {selectedData && !selectedData.loading && !selectedData.error && selectedData.data.length > 0 && (
+      {!loading && !error && bondData.length > 0 && stats && (
         <div>
+          {/* Current Rate Card */}
+          <div className="mb-4 p-4 bg-slate-700 rounded">
+            <div className="text-sm text-slate-400 mb-1">Current 10Y Yield</div>
+            <div className="text-3xl font-bold text-white">{formatPercent(stats.current)}</div>
+            <div className={`text-sm ${stats.change >= 0 ? 'text-red-400' : 'text-green-400'}`}>
+              {stats.change >= 0 ? '+' : ''}{formatPercent(Math.abs(stats.change))} ({stats.changePercent >= 0 ? '+' : ''}{stats.changePercent.toFixed(2)}% from prev)
+            </div>
+          </div>
+
+          {/* Chart */}
           <div className="mb-4">
             <div className="text-sm text-slate-400 mb-2">
-              {selectedData.name} Historical Trend ({years} Years)
+              {years} Year Historical Trend
             </div>
 
-            {/* Line Chart */}
             <div className="relative h-48 bg-slate-900 rounded p-2">
               {/* Y-axis */}
               <div className="absolute left-0 top-0 bottom-0 w-16 flex flex-col justify-between text-xs text-slate-400 pr-1">
-                <span>{formatValue(maxValue, selectedIndicatorInfo?.format || '')}</span>
-                <span>{formatValue((maxValue + minValue) / 2, selectedIndicatorInfo?.format || '')}</span>
-                <span>{formatValue(minValue, selectedIndicatorInfo?.format || '')}</span>
+                <span>{formatPercent(maxValue)}</span>
+                <span>{formatPercent((maxValue + minValue) / 2)}</span>
+                <span>{formatPercent(minValue)}</span>
               </div>
 
               {/* Chart area */}
@@ -238,32 +174,24 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
                   ))}
                 </div>
 
-                {/* Line chart with area fill */}
+                {/* Line chart */}
                 <svg className="absolute inset-0 w-full h-full">
                   <defs>
-                    <linearGradient id={`gradient-${selectedIndicator}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop
-                        offset="0%"
-                        stopColor={selectedData.change >= 0 ? '#3b82f6' : '#f87171'}
-                        stopOpacity="0.3"
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={selectedData.change >= 0 ? '#3b82f6' : '#f87171'}
-                        stopOpacity="0"
-                      />
+                    <linearGradient id="gradient-bonds" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
                     </linearGradient>
                   </defs>
 
                   {/* Area fill */}
                   <polyline
-                    fill={`url(#gradient-${selectedIndicator})`}
+                    fill="url(#gradient-bonds)"
                     stroke="none"
                     points={
-                      selectedData.data
+                      bondData
                         .map((d: any, idx: number) => {
-                          const x = (idx / (selectedData.data.length - 1)) * 100;
-                          const y = getY(parseFloat(d.value || 0));
+                          const x = (idx / (bondData.length - 1)) * 100;
+                          const y = getY(parseFloat(d.close || 0));
                           return `${x}%,${y}%`;
                         })
                         .join(' ') + ` 100%,100% 0%,100%`
@@ -273,12 +201,12 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
                   {/* Line */}
                   <polyline
                     fill="none"
-                    stroke={selectedData.change >= 0 ? '#3b82f6' : '#f87171'}
+                    stroke="#3b82f6"
                     strokeWidth="2"
-                    points={selectedData.data
+                    points={bondData
                       .map((d: any, idx: number) => {
-                        const x = (idx / (selectedData.data.length - 1)) * 100;
-                        const y = getY(parseFloat(d.value || 0));
+                        const x = (idx / (bondData.length - 1)) * 100;
+                        const y = getY(parseFloat(d.close || 0));
                         return `${x}%,${y}%`;
                       })
                       .join(' ')}
@@ -289,17 +217,11 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
 
             {/* Time axis */}
             <div className="ml-16 flex justify-between mt-2 text-xs text-slate-400">
+              <span>{new Date(bondData[0]?.date).getFullYear()}</span>
               <span>
-                {new Date(selectedData.data[0]?.date).getFullYear()}
+                {new Date(bondData[Math.floor(bondData.length / 2)]?.date).getFullYear()}
               </span>
-              <span>
-                {new Date(
-                  selectedData.data[Math.floor(selectedData.data.length / 2)]?.date
-                ).getFullYear()}
-              </span>
-              <span>
-                {new Date(selectedData.data[selectedData.data.length - 1]?.date).getFullYear()}
-              </span>
+              <span>{new Date(bondData[bondData.length - 1]?.date).getFullYear()}</span>
             </div>
           </div>
 
@@ -307,50 +229,23 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-slate-700 rounded px-3 py-2">
               <div className="text-xs text-slate-400">Current</div>
-              <div className="text-sm font-semibold text-white">
-                {formatValue(selectedData.current, selectedIndicatorInfo?.format || '')}
-              </div>
+              <div className="text-sm font-semibold text-white">{formatPercent(stats.current)}</div>
             </div>
             <div className="bg-slate-700 rounded px-3 py-2">
-              <div className="text-xs text-slate-400">YoY Change</div>
-              <div
-                className={`text-sm font-semibold ${
-                  selectedData.change >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}
-              >
-                {selectedData.change >= 0 ? '+' : ''}
-                {formatValue(Math.abs(selectedData.change), selectedIndicatorInfo?.format || '')}
-              </div>
+              <div className="text-xs text-slate-400">Peak ({years}Y)</div>
+              <div className="text-sm font-semibold text-red-400">{formatPercent(stats.max)}</div>
             </div>
             <div className="bg-slate-700 rounded px-3 py-2">
-              <div className="text-xs text-slate-400">% Change</div>
-              <div
-                className={`text-sm font-semibold ${
-                  selectedData.changePercent >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}
-              >
-                {selectedData.changePercent >= 0 ? '+' : ''}
-                {selectedData.changePercent.toFixed(2)}%
-              </div>
+              <div className="text-xs text-slate-400">Low ({years}Y)</div>
+              <div className="text-sm font-semibold text-green-400">{formatPercent(stats.min)}</div>
             </div>
           </div>
-        </div>
-      )}
 
-      {selectedData?.loading && (
-        <div className="animate-pulse">
-          <div className="h-48 bg-slate-700 rounded mb-4"></div>
-          <div className="grid grid-cols-3 gap-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-slate-700 rounded"></div>
-            ))}
+          {/* Educational Note */}
+          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded text-xs text-slate-300">
+            <strong className="text-blue-400">Note:</strong> 10-year government bond yields serve as a proxy for long-term interest rates.
+            Higher yields indicate expectations of higher growth/inflation or increased credit risk.
           </div>
-        </div>
-      )}
-
-      {selectedData?.error && (
-        <div className="text-center py-8 text-red-400 text-sm">
-          Failed to load {selectedData.name} data
         </div>
       )}
     </div>

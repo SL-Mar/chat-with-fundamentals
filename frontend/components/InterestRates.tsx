@@ -1,4 +1,4 @@
-// components/InterestRates.tsx - Interest rates and monetary policy tracker
+// components/InterestRates.tsx - Interest rates via government bond yields
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,12 +21,12 @@ interface RateData {
 }
 
 const COUNTRIES = [
-  { name: 'United States', code: 'USA', label: 'Fed Funds' },
-  { name: 'United Kingdom', code: 'GBR', label: 'Bank Rate' },
-  { name: 'Euro Area', code: 'EMU', label: 'ECB Rate' },
-  { name: 'Japan', code: 'JPN', label: 'BoJ Rate' },
-  { name: 'Canada', code: 'CAN', label: 'BoC Rate' },
-  { name: 'Australia', code: 'AUS', label: 'RBA Rate' },
+  { name: 'United States', code: 'USA', label: 'US 10Y' },
+  { name: 'United Kingdom', code: 'UK', label: 'UK 10Y' },
+  { name: 'Germany', code: 'DE', label: 'DE 10Y' },
+  { name: 'France', code: 'FR', label: 'FR 10Y' },
+  { name: 'Italy', code: 'IT', label: 'IT 10Y' },
+  { name: 'Japan', code: 'JP', label: 'JP 10Y' },
 ];
 
 export default function InterestRates({ years = 10 }: InterestRatesProps) {
@@ -61,14 +61,18 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
     yearsAgo.setFullYear(yearsAgo.getFullYear() - years);
     const from_date = yearsAgo.toISOString().split('T')[0];
 
-    // Fetch each country's interest rate
+    // Fetch each country's government bond yield
     for (const country of COUNTRIES) {
       try {
+        console.log('[InterestRates] Fetching government bond 10Y for', country.code);
+
         const response = await api.fetchMacroIndicator(
           country.code,
-          'real_interest_rate',
+          'government_bond_10y',
           from_date
         );
+
+        console.log('[InterestRates] Response for', country.code, ':', response);
 
         const dataArray = response?.data || [];
 
@@ -78,14 +82,14 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
             return new Date(a.date).getTime() - new Date(b.date).getTime();
           });
 
-          const current = parseFloat(sortedData[sortedData.length - 1]?.value || 0);
-          const previous = sortedData.length > 1 ? parseFloat(sortedData[sortedData.length - 2]?.value || 0) : 0;
+          const current = parseFloat(sortedData[sortedData.length - 1]?.close || 0);
+          const previous = sortedData.length > 1 ? parseFloat(sortedData[sortedData.length - 2]?.close || 0) : 0;
           const change = current - previous;
 
           // Determine trend
           let trend: 'rising' | 'falling' | 'stable' = 'stable';
           if (sortedData.length >= 3) {
-            const last3 = sortedData.slice(-3).map((d: any) => parseFloat(d.value || 0));
+            const last3 = sortedData.slice(-3).map((d: any) => parseFloat(d.close || 0));
             if (last3[2] > last3[1] && last3[1] > last3[0]) trend = 'rising';
             else if (last3[2] < last3[1] && last3[1] < last3[0]) trend = 'falling';
           }
@@ -101,7 +105,10 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
             loading: false,
             error: null,
           });
+
+          console.log('[InterestRates] Stats for', country.code, ':', { current, previous, change, trend });
         } else {
+          console.warn('[InterestRates] No data for', country.code);
           newData.set(country.code, {
             ...newData.get(country.code)!,
             loading: false,
@@ -109,7 +116,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
           });
         }
       } catch (err: any) {
-        console.error(`Failed to fetch ${country.name} rates:`, err);
+        console.error(`[InterestRates] Failed to fetch ${country.name} rates:`, err);
         newData.set(country.code, {
           ...newData.get(country.code)!,
           loading: false,
@@ -126,10 +133,10 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
 
   // Calculate chart dimensions
   const maxRate = selectedData?.data.length
-    ? Math.max(...selectedData.data.map((d: any) => parseFloat(d.value || 0)))
+    ? Math.max(...selectedData.data.map((d: any) => parseFloat(d.close || 0)))
     : 0;
   const minRate = selectedData?.data.length
-    ? Math.min(...selectedData.data.map((d: any) => parseFloat(d.value || 0)))
+    ? Math.min(...selectedData.data.map((d: any) => parseFloat(d.close || 0)))
     : 0;
   const rateRange = maxRate - minRate;
 
@@ -162,7 +169,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
 
   return (
     <div className="bg-slate-800 rounded-lg p-4">
-      <h3 className="text-lg font-semibold mb-4">Central Bank Interest Rates</h3>
+      <h3 className="text-lg font-semibold mb-4">Government Bond Yields (10Y)</h3>
 
       {/* Rates Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
@@ -199,7 +206,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
                     }`}
                   >
                     {(data?.change || 0) >= 0 ? '+' : ''}
-                    {data?.change.toFixed(2)}% YoY
+                    {data?.change.toFixed(2)}% chg
                   </div>
                 </>
               )}
@@ -275,7 +282,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
                       selectedData.data
                         .map((d: any, idx: number) => {
                           const x = (idx / (selectedData.data.length - 1)) * 100;
-                          const y = getY(parseFloat(d.value || 0));
+                          const y = getY(parseFloat(d.close || 0));
                           return `${x}%,${y}%`;
                         })
                         .join(' ') + ` 100%,100% 0%,100%`
@@ -290,7 +297,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
                     points={selectedData.data
                       .map((d: any, idx: number) => {
                         const x = (idx / (selectedData.data.length - 1)) * 100;
-                        const y = getY(parseFloat(d.value || 0));
+                        const y = getY(parseFloat(d.close || 0));
                         return `${x}%,${y}%`;
                       })
                       .join(' ')}
@@ -322,7 +329,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
               </div>
             </div>
             <div className="bg-slate-700 rounded px-3 py-2">
-              <div className="text-xs text-slate-400">YoY Change</div>
+              <div className="text-xs text-slate-400">Change</div>
               <div
                 className={`text-sm font-semibold ${
                   selectedData.change >= 0 ? 'text-red-400' : 'text-green-400'
@@ -357,22 +364,22 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
 
       {selectedData?.error && (
         <div className="text-center py-8 text-red-400 text-sm">
-          Failed to load {selectedData.country} interest rate data
+          Failed to load {selectedData.country} bond yield data
         </div>
       )}
 
       {/* Policy Context */}
       <div className="mt-4 pt-4 border-t border-slate-700">
-        <div className="text-sm text-slate-400 mb-2">Understanding Interest Rates</div>
+        <div className="text-sm text-slate-400 mb-2">Understanding Bond Yields</div>
         <div className="text-xs text-slate-300 space-y-1">
           <p>
-            📈 <span className="text-red-400">Rising rates:</span> Central banks tighten to fight inflation (negative for stocks/bonds)
+            📈 <span className="text-red-400">Rising yields:</span> Higher borrowing costs, often seen during growth/inflation expectations
           </p>
           <p>
-            📉 <span className="text-green-400">Falling rates:</span> Central banks ease to stimulate growth (positive for stocks/bonds)
+            📉 <span className="text-green-400">Falling yields:</span> Lower borrowing costs, often seen during economic slowdown or flight-to-safety
           </p>
           <p>
-            ➡️ <span className="text-yellow-400">Stable rates:</span> Central banks pause to assess economic data
+            ➡️ <span className="text-yellow-400">Stable yields:</span> Market equilibrium, balanced growth and inflation expectations
           </p>
         </div>
       </div>
