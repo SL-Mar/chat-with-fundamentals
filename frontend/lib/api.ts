@@ -175,4 +175,113 @@ export const api = {
     if (to_date) url += `to_date=${to_date}&`;
     return getJSON<any>(url);
   },
+
+  /* ═══════════ NEW: SPECIAL DATA ENDPOINTS ═══════════ */
+
+  /* ────────── Company Logo ─────────────── */
+  fetchCompanyLogo(ticker: string): Promise<{ ticker: string; logo_url: string }> {
+    return getJSON<{ ticker: string; logo_url: string }>(
+      `${BASE}/special/logo?ticker=${ticker}`
+    );
+  },
+
+  /* ────────── Analyst Ratings ──────────── */
+  fetchAnalystRatings(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/analyst-ratings?ticker=${ticker}`);
+  },
+
+  /* ────────── ESG Scores ───────────────── */
+  fetchESG(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/esg?ticker=${ticker}`);
+  },
+
+  /* ────────── Shareholders ─────────────── */
+  fetchShareholders(
+    ticker: string,
+    holder_type: "institutions" | "funds" = "institutions"
+  ): Promise<any> {
+    return getJSON<any>(
+      `${BASE}/special/shareholders?ticker=${ticker}&holder_type=${holder_type}`
+    );
+  },
+
+  /* ────────── Market Cap History ───────── */
+  fetchMarketCapHistory(
+    ticker: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/special/market-cap-history?ticker=${ticker}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── ETF Holdings ─────────────── */
+  fetchETFHoldings(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/etf-holdings?ticker=${ticker}`);
+  },
+
+  /* ────────── Index Constituents ────────── */
+  fetchIndexConstituents(index: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/index-constituents?index=${index}`);
+  },
+
+  /* ═══════════ NEW: CORPORATE ACTIONS ═══════════ */
+
+  /* ────────── Dividend History ─────────── */
+  fetchDividendHistory(
+    ticker: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/corporate/dividends?ticker=${ticker}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Split History ────────────── */
+  fetchSplitHistory(
+    ticker: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/corporate/splits?ticker=${ticker}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Insider Transactions ──────── */
+  fetchInsiderTransactions(ticker: string, limit = 50): Promise<any> {
+    return getJSON<any>(
+      `${BASE}/corporate/insider-transactions?ticker=${ticker}&limit=${limit}`
+    );
+  },
+
+  /* ═══════════ NEW: NEWS & SENTIMENT ═══════════ */
+
+  /* ────────── News Articles ────────────── */
+  fetchNewsArticles(
+    symbol?: string,
+    tag?: string,
+    limit = 10,
+    offset = 0
+  ): Promise<any> {
+    let url = `${BASE}/news/articles?limit=${limit}&offset=${offset}`;
+    if (symbol) url += `&symbol=${symbol}`;
+    if (tag) url += `&tag=${tag}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Sentiment Analysis ────────── */
+  fetchSentiment(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/news/sentiment?ticker=${ticker}`);
+  },
+
+  /* ────────── Twitter Mentions ──────────── */
+  fetchTwitterMentions(symbol: string): Promise<any> {
+    return getJSON<any>(`${BASE}/news/twitter-mentions?symbol=${symbol}`);
+  },
 };

@@ -33,6 +33,9 @@ from routers.llmloader     import router as llmloader
 from routers.simulater     import router as equity_router      # Monte-Carlo simulation
 from routers.technical     import router as technical_router   # Technical indicators & screener
 from routers.calendar      import router as calendar_router    # Earnings, IPOs, splits calendar
+from routers.special       import router as special_router     # Logos, analyst ratings, ESG, ETFs
+from routers.corporate     import router as corporate_router   # Dividends, splits, insider transactions
+from routers.news          import router as news_router        # News articles, sentiment, social
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -98,6 +101,9 @@ app.include_router(llmloader, dependencies=[Depends(verify_api_key)])
 app.include_router(equity_router, dependencies=[Depends(verify_api_key)])
 app.include_router(technical_router, dependencies=[Depends(verify_api_key)])
 app.include_router(calendar_router, dependencies=[Depends(verify_api_key)])
+app.include_router(special_router, dependencies=[Depends(verify_api_key)])      # NEW: Special data
+app.include_router(corporate_router, dependencies=[Depends(verify_api_key)])    # NEW: Corporate actions
+app.include_router(news_router, dependencies=[Depends(verify_api_key)])         # NEW: News & sentiment
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream
