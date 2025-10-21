@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     openai_api_key: str
-    model_name: str = "gpt-4o"
+    model_name: str = "gpt-4o-mini"  # Cheapest OpenAI model (90% cheaper than gpt-4o)
 
     eodhd_api_key: Optional[str] = None
     serper_api_key: Optional[str] = None

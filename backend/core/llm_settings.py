@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Tuple, Dict
 
 DB_PATH = Path(__file__).parent / "llm_config.db"
-DEFAULT_MANAGER = "gpt-4o"
-DEFAULT_STORE = "gpt-4o"
+DEFAULT_MANAGER = "gpt-4o-mini"  # Cheapest OpenAI model (90% cheaper than gpt-4o)
+DEFAULT_STORE = "gpt-4o-mini"  # Cheapest OpenAI model (90% cheaper than gpt-4o)
 
 # ---------------------------------------------------------------------------
 # DB initialisation

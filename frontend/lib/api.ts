@@ -9,10 +9,31 @@ import {
   PerfRatiosResponse        // ← NEW interface
 } from "../types/equity";
 
-const BASE = "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Get API key from environment variable (set in .env.local for development)
+const API_KEY = process.env.NEXT_PUBLIC_APP_API_KEY || "";
+
+/**
+ * Helper function to create authenticated fetch headers
+ */
+const getHeaders = (): HeadersInit => {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  // Add API key header if available
+  if (API_KEY) {
+    headers["X-API-Key"] = API_KEY;
+  }
+
+  return headers;
+};
 
 const getJSON = async <T>(url: string): Promise<T> => {
-  const r = await fetch(url);
+  const r = await fetch(url, {
+    headers: getHeaders(),
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json() as Promise<T>;
 };
@@ -22,7 +43,7 @@ export const api = {
   async chatWithFundamentals(question: string): Promise<Executive_Summary> {
     const r = await fetch(`${BASE}/analyzer/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getHeaders(),
       body: JSON.stringify({ user_query: question }),
     });
     if (!r.ok) {
