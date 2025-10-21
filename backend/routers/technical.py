@@ -40,7 +40,9 @@ async def get_technical_indicator(
     - williams: Williams %R
     - and more...
     """
-    url = f"https://eodhd.com/api/technical/{ticker}.US"
+    # Add .US suffix only if ticker doesn't already have an exchange
+    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
+    url = f"https://eodhd.com/api/technical/{ticker_with_exchange}"
     params = {
         "function": function,
         "period": period,

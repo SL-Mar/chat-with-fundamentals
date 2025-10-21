@@ -18,7 +18,9 @@ async def get_eod_data(
     ticker: str = Query(..., description="Ticker symbol, e.g., TSLA"),
     limit:  int  = Query(100,  description="Number of recent rows to return (max 5 000)"),
 ):
-    url = f"https://eodhd.com/api/eod/{ticker}.US"
+    # Add .US suffix only if ticker doesn't already have an exchange
+    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
+    url = f"https://eodhd.com/api/eod/{ticker_with_exchange}"
     params = {
       "fmt":   "json",   # ← JSON, not CSV
       "order": "d",      # ← newest → oldest
