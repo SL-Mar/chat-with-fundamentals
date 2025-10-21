@@ -35,6 +35,7 @@ from slowapi.errors import RateLimitExceeded
 # from routers.analyzer      import router as chatfundamentals
 # from routers.quantanalyzer import router as quantanalyzer
 # from routers.llmloader     import router as llmloader
+from routers.chat_panels   import router as chat_panels_router # NEW: Chat with dynamic panels
 from routers.simulater     import router as equity_router      # Monte-Carlo simulation
 from routers.technical     import router as technical_router   # Technical indicators & screener
 from routers.calendar      import router as calendar_router    # Earnings, IPOs, splits calendar
@@ -106,6 +107,7 @@ app.add_middleware(
 # app.include_router(chatfundamentals, dependencies=[Depends(verify_api_key)])
 # app.include_router(quantanalyzer, dependencies=[Depends(verify_api_key)])
 # app.include_router(llmloader, dependencies=[Depends(verify_api_key)])
+app.include_router(chat_panels_router, dependencies=[Depends(verify_api_key)]) # NEW: Chat with dynamic panels
 app.include_router(equity_router, dependencies=[Depends(verify_api_key)])
 app.include_router(technical_router, dependencies=[Depends(verify_api_key)])
 app.include_router(calendar_router, dependencies=[Depends(verify_api_key)])

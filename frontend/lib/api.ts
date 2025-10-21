@@ -365,4 +365,15 @@ export const api = {
     if (to_date) url += `&to_date=${to_date}`;
     return getJSON<any>(url);
   },
+
+  /* ═══════════ NEW: CHAT WITH DYNAMIC PANELS ═══════════ */
+
+  /* ────────── Chat with Panels ──────────── */
+  chatWithPanels(message: string, history: any[] = []): Promise<{message: string; panels: any[]}> {
+    return fetch(`${BASE}/chat/panels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, history })
+    }).then(res => res.json());
+  },
 };
