@@ -130,8 +130,10 @@ async def get_market_cap_history(
         return market_cap
 
     except Exception as e:
-        logger.error(f"[MARKET_CAP] Failed to fetch market cap history for {ticker}: {e}")
-        raise HTTPException(status_code=502, detail=f"Failed to fetch market cap history: {str(e)}")
+        # Market cap history endpoint not available in all EODHD subscriptions
+        # Return empty result instead of error to allow page to load
+        logger.warning(f"[MARKET_CAP] Market cap endpoint not available for {ticker}: {e}")
+        return {"ticker": ticker, "data": [], "note": "Market cap history not available in current API subscription"}
 
 
 @router.get("/etf-holdings")
