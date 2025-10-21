@@ -34,11 +34,21 @@ export default function IntradayChart({ ticker, defaultInterval = '5m' }: Intrad
       setLoading(true);
       setError(null);
 
+      console.log('[IntradayChart] Fetching intraday data for', ticker, 'interval:', interval);
+
       // Fetch intraday data for selected interval
       const data = await api.fetchIntradayData(ticker, interval);
 
+      console.log('[IntradayChart] Raw API response:', data);
+
       // Data could be nested or an array - adjust based on actual response
       const dataArray = Array.isArray(data) ? data : data?.data || [];
+
+      console.log('[IntradayChart] Extracted data array length:', dataArray.length);
+      if (dataArray.length > 0) {
+        console.log('[IntradayChart] First data point:', dataArray[0]);
+        console.log('[IntradayChart] Last data point:', dataArray[dataArray.length - 1]);
+      }
 
       // Sort by timestamp ascending
       const sortedData = dataArray.sort((a: any, b: any) => {
@@ -59,7 +69,7 @@ export default function IntradayChart({ ticker, defaultInterval = '5m' }: Intrad
         const change = (last.close || 0) - (first.open || 0);
         const changePercent = first.open ? (change / first.open) * 100 : 0;
 
-        setStats({
+        const statsData = {
           open: first.open || 0,
           high,
           low,
@@ -67,10 +77,15 @@ export default function IntradayChart({ ticker, defaultInterval = '5m' }: Intrad
           volume: totalVolume,
           change,
           changePercent,
-        });
+        };
+
+        console.log('[IntradayChart] Calculated stats:', statsData);
+        setStats(statsData);
+      } else {
+        console.warn('[IntradayChart] No data points to display');
       }
     } catch (err: any) {
-      console.error('Failed to fetch intraday data:', err);
+      console.error('[IntradayChart] Failed to fetch intraday data:', err);
       setError(err.message);
     } finally {
       setLoading(false);
