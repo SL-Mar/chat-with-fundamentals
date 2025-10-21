@@ -175,7 +175,7 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
                 </div>
 
                 {/* Line chart */}
-                <svg className="absolute inset-0 w-full h-full">
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="gradient-bonds" x1="0%" y1="0%" x2="0%" y2="100%">
                       <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />

@@ -258,7 +258,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
                 )}
 
                 {/* Line chart with area fill */}
-                <svg className="absolute inset-0 w-full h-full">
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id={`gradient-rates-${selectedCountry}`} x1="0%" y1="0%" x2="0%" y2="100%">
                       <stop
