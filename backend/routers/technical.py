@@ -107,7 +107,33 @@ async def screen_stocks(
     }
 
     if filters:
-        params["filters"] = filters
+        # Convert frontend array format to EODHD object format
+        # Frontend sends: [["field","op",value],...]
+        # EODHD expects: [{"left":"field","operation":"op","right":value},...]
+        import json
+        try:
+            filter_array = json.loads(filters)
+            if isinstance(filter_array, list) and len(filter_array) > 0:
+                # Check if first element is array (frontend format)
+                if isinstance(filter_array[0], list):
+                    eodhd_filters = []
+                    for f in filter_array:
+                        if len(f) == 3:
+                            eodhd_filters.append({
+                                "left": f[0],
+                                "operation": f[1],
+                                "right": f[2]
+                            })
+                    params["filters"] = json.dumps(eodhd_filters)
+                    logger.info(f"[SCREENER] Converted {len(eodhd_filters)} filters to EODHD format")
+                else:
+                    # Already in object format
+                    params["filters"] = filters
+            else:
+                params["filters"] = filters
+        except json.JSONDecodeError:
+            # Not valid JSON, pass as-is
+            params["filters"] = filters
     if signals:
         params["signals"] = signals
     if sort:
