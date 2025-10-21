@@ -135,44 +135,146 @@ async def get_market_cap_history(
 
 
 @router.get("/etf-holdings")
-async def get_etf_holdings(ticker: str = Query(..., description="ETF symbol (e.g., SPY.US)")):
+async def get_etf_holdings(symbol: str = Query(..., description="ETF symbol (e.g., SPY, SPY.US)")):
     """Get ETF holdings breakdown.
 
     Returns list of holdings with weights for an ETF.
 
-    Example: /special/etf-holdings?ticker=SPY.US
+    Example: /special/etf-holdings?symbol=SPY.US
     """
     try:
-        client = EODHDClient()
-        holdings = client.special.get_etf_holdings(ticker)
+        # Ensure symbol has exchange suffix
+        if '.' not in symbol:
+            symbol = f"{symbol}.US"
 
-        logger.info(f"[ETF] Fetched holdings for {ticker}")
-        return holdings
+        client = EODHDClient()
+        raw_data = client.special.get_etf_holdings(symbol)
+
+        # Extract and format holdings data
+        etf_data = raw_data.get("ETF_Data", {})
+        general_data = raw_data.get("General", {})
+
+        # Holdings is a dict with ticker as key, convert to list
+        holdings_dict = etf_data.get("Holdings", {})
+        holdings_list = []
+
+        if isinstance(holdings_dict, dict):
+            for ticker, info in holdings_dict.items():
+                holdings_list.append({
+                    "code": info.get("Code", ticker),
+                    "exchange": info.get("Exchange", ""),
+                    "name": info.get("Name", ""),
+                    "sector": info.get("Sector", ""),
+                    "industry": info.get("Industry", ""),
+                    "country": info.get("Country", ""),
+                    "region": info.get("Region", ""),
+                    "assets_pct": info.get("Assets_%", 0),
+                    "weight": info.get("Assets_%", 0)  # Alias for compatibility
+                })
+        elif isinstance(holdings_dict, list):
+            # Handle if API returns list format
+            holdings_list = holdings_dict
+
+        # Extract and format sector weights
+        sector_weights_raw = etf_data.get("Sector_Weights", {})
+        sector_weights = {}
+        for sector, data in sector_weights_raw.items():
+            if isinstance(data, dict):
+                # Extract Equity_% field
+                sector_weights[sector] = data.get("Equity_%", 0)
+            else:
+                sector_weights[sector] = data
+
+        # Extract and format top 10 holdings
+        top_10_dict = etf_data.get("Top_10_Holdings", {})
+        top_10_list = []
+        for ticker, info in top_10_dict.items():
+            top_10_list.append({
+                "code": info.get("Code", ticker),
+                "exchange": info.get("Exchange", ""),
+                "name": info.get("Name", ""),
+                "sector": info.get("Sector", ""),
+                "industry": info.get("Industry", ""),
+                "country": info.get("Country", ""),
+                "region": info.get("Region", ""),
+                "assets_pct": info.get("Assets_%", 0),
+                "weight": info.get("Assets_%", 0)
+            })
+
+        # Format response
+        response = {
+            "symbol": symbol,
+            "etf_info": {
+                "name": general_data.get("Name", ""),
+                "isin": general_data.get("ISIN", ""),
+                "total_assets": etf_data.get("Net_Assets", None),
+                "expense_ratio": etf_data.get("Expense_Ratio", None),
+                "category": etf_data.get("Category", None),
+                "inception_date": general_data.get("IPODate", None),
+                "holdings_count": len(holdings_list)
+            },
+            "holdings": holdings_list,
+            "sector_weights": sector_weights,
+            "top_10_holdings": top_10_list
+        }
+
+        logger.info(f"[ETF] Fetched {len(holdings_list)} holdings for {symbol}")
+        return response
 
     except Exception as e:
-        logger.error(f"[ETF] Failed to fetch holdings for {ticker}: {e}")
+        logger.error(f"[ETF] Failed to fetch holdings for {symbol}: {e}")
         raise HTTPException(status_code=502, detail=f"Failed to fetch ETF holdings: {str(e)}")
 
 
 @router.get("/index-constituents")
 async def get_index_constituents(
-    index: str = Query(..., description="Index symbol (e.g., GSPC.INDX for S&P 500)")
+    index: str = Query(..., description="Index symbol (e.g., GSPC, GSPC.INDX for S&P 500)")
 ):
     """Get index constituents (member companies).
 
     Common indices:
-    - GSPC.INDX: S&P 500
-    - DJI.INDX: Dow Jones
-    - IXIC.INDX: Nasdaq Composite
+    - GSPC or GSPC.INDX: S&P 500
+    - DJI or DJI.INDX: Dow Jones
+    - IXIC or IXIC.INDX: Nasdaq Composite
 
-    Example: /special/index-constituents?index=GSPC.INDX
+    Example: /special/index-constituents?index=GSPC
     """
     try:
-        client = EODHDClient()
-        constituents = client.special.get_index_constituents(index)
+        # Ensure index has .INDX suffix
+        if not index.endswith('.INDX'):
+            index = f"{index}.INDX"
 
-        logger.info(f"[INDEX] Fetched constituents for {index}")
-        return constituents
+        client = EODHDClient()
+        raw_data = client.special.get_index_constituents(index)
+
+        # Extract constituents list
+        constituents_data = raw_data.get("Components", {})
+
+        # Convert dict to list format for easier frontend consumption
+        constituents_list = []
+        for ticker, info in constituents_data.items():
+            # Weight comes as decimal (0.0784), multiply by 100 to get percentage (7.84)
+            weight = info.get("Weight", None)
+            if weight is not None:
+                weight = float(weight) * 100
+
+            constituents_list.append({
+                "code": ticker,
+                "name": info.get("Name", ""),
+                "sector": info.get("Sector", ""),
+                "industry": info.get("Industry", ""),
+                "country": info.get("Country", ""),
+                "weight": weight
+            })
+
+        response = {
+            "index": index,
+            "constituents": constituents_list,
+            "count": len(constituents_list)
+        }
+
+        logger.info(f"[INDEX] Fetched {len(constituents_list)} constituents for {index}")
+        return response
 
     except Exception as e:
         logger.error(f"[INDEX] Failed to fetch constituents for {index}: {e}")

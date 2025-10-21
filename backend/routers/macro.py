@@ -12,23 +12,23 @@ logger = logging.getLogger("macro")
 
 @router.get("/indicator")
 async def get_macro_indicator(
-    country: str = Query(..., description="Country code (e.g., USA, GBR, JPN)"),
-    indicator: str = Query(..., description="Indicator code (gdp_current_usd, inflation_consumer_prices_annual, unemployment_total, etc.)"),
+    country: str = Query(..., description="Country code (USA, UK, DE, FR, IT, JP, CN, EUR, USD, GBP)"),
+    indicator: str = Query(..., description="Indicator type"),
     from_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     to_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)")
 ):
-    """Get macroeconomic indicator data for a country.
+    """Get macroeconomic indicator data using EODHD's EOD API.
 
     Available indicators:
-    - gdp_current_usd: GDP in current US dollars
-    - gdp_per_capita_usd: GDP per capita
-    - inflation_consumer_prices_annual: Annual inflation rate
-    - unemployment_total: Total unemployment rate
-    - population_total: Total population
-    - real_interest_rate: Real interest rate
-    - And many more...
+    - government_bond_10y: 10-year government bond yields (USA, UK, DE, FR, IT, JP, CN)
+    - euribor_3m: 3-month EURIBOR rate (EUR)
+    - euribor_6m: 6-month EURIBOR rate (EUR)
+    - euribor_12m: 12-month EURIBOR rate (EUR)
+    - libor_usd_3m: 3-month USD LIBOR (USD)
+    - libor_eur_3m: 3-month EUR LIBOR (EUR)
+    - libor_gbp_3m: 3-month GBP LIBOR (GBP)
 
-    Example: /macro/indicator?country=USA&indicator=gdp_current_usd
+    Example: /macro/indicator?country=USA&indicator=government_bond_10y&from_date=2020-01-01
     """
     try:
         client = EODHDClient()

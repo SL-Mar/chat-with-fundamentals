@@ -40,7 +40,9 @@ async def _fetch_close_series(ticker: str, days: int) -> pd.Series:
     end   = _today()
     start = end - timedelta(days=days)
 
-    url = f"{_API_BASE}/{ticker}.US"
+    # Add .US suffix only if ticker doesn't already have an exchange
+    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
+    url = f"{_API_BASE}/{ticker_with_exchange}"
     params = {
         "from":  start.date(),
         "to":    end.date(),

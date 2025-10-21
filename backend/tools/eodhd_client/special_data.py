@@ -29,7 +29,8 @@ class SpecialDataClient(EODHDBaseClient):
             >>> top_10 = holdings['Holdings'][:10] if 'Holdings' in holdings else []
         """
         symbol = self._validate_symbol(symbol)
-        return self._make_request(f"fundamentals/{symbol}", {"filter": "ETF_Data"})
+        # Get full fundamentals data (without filter to get all sections)
+        return self._make_request(f"fundamentals/{symbol}")
 
     def get_index_constituents(
         self,
@@ -48,7 +49,8 @@ class SpecialDataClient(EODHDBaseClient):
             >>> sp500 = client.special.get_index_constituents("GSPC.INDX")
             >>> dow_jones = client.special.get_index_constituents("DJI.INDX")
         """
-        return self._make_request(f"fundamentals/{symbol}", {"filter": "Components"})
+        # Get full fundamentals data (without filter to get all sections)
+        return self._make_request(f"fundamentals/{symbol}")
 
     def get_index_historical_constituents(
         self,
@@ -111,6 +113,10 @@ class SpecialDataClient(EODHDBaseClient):
         """
         symbol = self._validate_symbol(symbol)
         data = self._make_request(f"fundamentals/{symbol}", {"filter": "General::LogoURL"})
+
+        # Handle case where API returns string directly or nested dict
+        if isinstance(data, str):
+            return data
         return data.get("General", {}).get("LogoURL", "")
 
     def get_market_cap_history(
