@@ -323,4 +323,46 @@ export const api = {
     if (to_date) url += `&to_date=${to_date}`;
     return getJSON<any>(url);
   },
+
+  /* ═══════════ NEW: MACROECONOMIC DATA ═══════════ */
+
+  /* ────────── Macro Indicator ───────────── */
+  fetchMacroIndicator(
+    country: string,
+    indicator: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/macro/indicator?country=${country}&indicator=${indicator}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Economic Events ───────────── */
+  fetchEconomicEvents(
+    from_date?: string,
+    to_date?: string,
+    country?: string,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<any> {
+    let url = `${BASE}/macro/economic-events?limit=${limit}&offset=${offset}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    if (country) url += `&country=${country}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Bulk Indicators ───────────── */
+  fetchIndicatorsBulk(
+    country: string = "USA",
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/macro/indicators-bulk?country=${country}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
 };
