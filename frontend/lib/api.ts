@@ -284,4 +284,43 @@ export const api = {
   fetchTwitterMentions(symbol: string): Promise<any> {
     return getJSON<any>(`${BASE}/news/twitter-mentions?symbol=${symbol}`);
   },
+
+  /* ═══════════ NEW: HISTORICAL PRICE DATA ═══════════ */
+
+  /* ────────── Intraday Prices ──────────── */
+  fetchIntradayData(
+    ticker: string,
+    interval: string = "5m",
+    from_timestamp?: number,
+    to_timestamp?: number
+  ): Promise<any> {
+    let url = `${BASE}/historical/intraday?ticker=${ticker}&interval=${interval}`;
+    if (from_timestamp) url += `&from_timestamp=${from_timestamp}`;
+    if (to_timestamp) url += `&to_timestamp=${to_timestamp}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Live Price (Single) ──────── */
+  fetchLivePrice(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/historical/live-price?ticker=${ticker}`);
+  },
+
+  /* ────────── Live Prices (Bulk) ────────── */
+  fetchLivePricesBulk(symbols: string[]): Promise<any> {
+    const symbolsStr = symbols.join(',');
+    return getJSON<any>(`${BASE}/historical/live-prices-bulk?symbols=${symbolsStr}`);
+  },
+
+  /* ────────── EOD Extended ──────────────── */
+  fetchEODExtended(
+    ticker: string,
+    period: string = "d",
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/historical/eod-extended?ticker=${ticker}&period=${period}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
 };
