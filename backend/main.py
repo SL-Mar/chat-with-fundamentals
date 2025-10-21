@@ -27,9 +27,10 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # ─── Routers ──────────────────────────────────────────────────────────
-from routers.analyzer      import router as chatfundamentals
-from routers.quantanalyzer import router as quantanalyzer
-from routers.llmloader     import router as llmloader
+# Temporarily disabled - requires OpenAI API key
+# from routers.analyzer      import router as chatfundamentals
+# from routers.quantanalyzer import router as quantanalyzer
+# from routers.llmloader     import router as llmloader
 from routers.simulater     import router as equity_router      # Monte-Carlo simulation
 from routers.technical     import router as technical_router   # Technical indicators & screener
 from routers.calendar      import router as calendar_router    # Earnings, IPOs, splits calendar
@@ -97,9 +98,10 @@ app.add_middleware(
 # ──────────────────────────────────────────────────────────────────────
 # All routers require API key authentication to protect OpenAI/EODHD API keys
 # If APP_API_KEY is not set, runs in dev mode (no auth required - local only!)
-app.include_router(chatfundamentals, dependencies=[Depends(verify_api_key)])
-app.include_router(quantanalyzer, dependencies=[Depends(verify_api_key)])
-app.include_router(llmloader, dependencies=[Depends(verify_api_key)])
+# Temporarily disabled - requires OpenAI API key
+# app.include_router(chatfundamentals, dependencies=[Depends(verify_api_key)])
+# app.include_router(quantanalyzer, dependencies=[Depends(verify_api_key)])
+# app.include_router(llmloader, dependencies=[Depends(verify_api_key)])
 app.include_router(equity_router, dependencies=[Depends(verify_api_key)])
 app.include_router(technical_router, dependencies=[Depends(verify_api_key)])
 app.include_router(calendar_router, dependencies=[Depends(verify_api_key)])
