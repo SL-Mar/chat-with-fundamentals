@@ -219,7 +219,7 @@ export const api = {
 
   /* ────────── ETF Holdings ─────────────── */
   fetchETFHoldings(ticker: string): Promise<any> {
-    return getJSON<any>(`${BASE}/special/etf-holdings?ticker=${ticker}`);
+    return getJSON<any>(`${BASE}/special/etf-holdings?symbol=${ticker}`);
   },
 
   /* ────────── Index Constituents ────────── */
