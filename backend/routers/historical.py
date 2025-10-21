@@ -53,8 +53,10 @@ async def get_intraday_prices(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[INTRADAY] Failed to fetch intraday data for {ticker}: {e}")
-        raise HTTPException(status_code=502, detail=f"Failed to fetch intraday data: {str(e)}")
+        # Intraday data may not be available in all subscriptions or from certain IPs
+        # Return empty result instead of error to allow page to load gracefully
+        logger.warning(f"[INTRADAY] Intraday endpoint not available for {ticker}: {e}")
+        return {"ticker": ticker, "data": [], "note": "Intraday data not available in current API subscription or from this location"}
 
 
 @router.get("/live-price")

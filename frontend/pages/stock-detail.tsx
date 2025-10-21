@@ -12,7 +12,7 @@ import MarketCapHistory from '../components/MarketCapHistory';
 import SentimentAnalysis from '../components/SentimentAnalysis';
 import TechnicalIndicators from '../components/TechnicalIndicators';
 import EarningsCalendar from '../components/EarningsCalendar';
-import EquityChart from '../components/EquityChart';
+import IntradayChart from '../components/IntradayChart';
 
 export default function StockDetailPage() {
   const router = useRouter();
@@ -123,7 +123,7 @@ export default function StockDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Chart and Key Metrics */}
             <div className="lg:col-span-2 space-y-6">
-              <EquityChart ticker={tickerStr} />
+              <IntradayChart ticker={tickerStr} />
               <div className="grid grid-cols-2 gap-6">
                 <TechnicalIndicators ticker={tickerStr} />
                 <EarningsCalendar ticker={tickerStr} />
@@ -150,7 +150,7 @@ export default function StockDetailPage() {
 
         {activeTab === 'technicals' && (
           <div className="space-y-6">
-            <EquityChart ticker={tickerStr} />
+            <IntradayChart ticker={tickerStr} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <TechnicalIndicators ticker={tickerStr} />
               <div className="bg-slate-800 rounded-lg p-4">
