@@ -46,7 +46,10 @@ backend/
 ├── core/             # Configuration, logging, LLM settings
 ├── models/           # Pydantic models for finance data
 ├── routers/          # API routes (analyzer, simulater, quantanalyzer)
-├── tools/            # EODHD API tools (data, news fetching)
+├── tools/            # EODHD API tools
+│   ├── eodhd_client/ # 🆕 Comprehensive EODHD API client (50+ endpoints)
+│   ├── EODHDTool.py  # Legacy tool (backward compatible)
+│   └── EODHDNewsTool.py
 ├── utils/            # Helper functions (e.g., schema generation)
 ├── workflows/        # CrewAI-based orchestration (e.g., analyze.py)
 ├── venv/             # Virtual environment (optional)
@@ -54,6 +57,53 @@ backend/
 ├── .gitignore
 └── chatwithfundamentals.log
 ```
+
+---
+
+## 🆕 Comprehensive EODHD API Integration
+
+Chat with Fundamentals now features a **complete EODHD API client** with access to **50+ endpoints** across **9 categories**:
+
+- 📈 **Historical Data** — EOD, Intraday (1m/5m/1h), Live prices, Tick data, Options
+- 📊 **Fundamental Data** — Company fundamentals, Earnings/IPO calendars, Insider transactions, Bonds, Crypto
+- 🏦 **Exchange Data** — 60+ global exchanges, Symbol search, Trading hours
+- 💰 **Corporate Actions** — Dividends, Splits, Bulk data downloads
+- 📉 **Technical Analysis** — 30+ indicators (RSI, MACD, SMA, Bollinger Bands), Stock screener
+- 📰 **News & Sentiment** — Financial news, Sentiment analysis, Social media mentions
+- 🌟 **Special Data** — ETF holdings, ESG scores, Analyst ratings, Company logos
+- 🌍 **Macro Data** — Economic indicators (GDP, inflation), Economic calendar
+- 👤 **Account API** — Usage tracking, API limits
+
+### Quick Start with EODHD Client
+
+```python
+from backend.tools.eodhd_client import EODHDClient
+
+client = EODHDClient()  # Uses EODHD_API_KEY env var
+
+# Get historical data
+eod = client.historical.get_eod("AAPL.US", from_date="2024-01-01")
+
+# Get live price
+live = client.historical.get_live_price("TSLA.US")
+
+# Get fundamentals
+fundamentals = client.fundamental.get_fundamentals("AAPL.US")
+
+# Get news
+news = client.news.get_news("AAPL", limit=10)
+
+# Technical indicators
+rsi = client.technical.get_technical_indicator("AAPL.US", "rsi", period=14)
+
+# Screen stocks
+stocks = client.technical.screen_stocks(
+    filters=["market_capitalization>10000000000", "pe_ratio<30"],
+    limit=20
+)
+```
+
+📖 **Full Documentation:** See [`backend/tools/eodhd_client/README.md`](backend/tools/eodhd_client/README.md)
 
 ---
 ## Deployment
@@ -240,6 +290,14 @@ print(result.model_dump_json(indent=2))
 
 ---
 ## Changelog
+
+### 21 October 2025
+- 🚀 **Major Update**: Comprehensive EODHD API client with 50+ endpoints
+- Added 9 endpoint categories: Historical, Fundamental, Exchange, Corporate, Technical, News, Special, Macro, User
+- Complete documentation and testing guides
+- 30+ technical indicators available
+- Stock screener functionality
+- Full backward compatibility maintained
 
 ### 5 May 2025
 - Added volatility and performance ratios.
