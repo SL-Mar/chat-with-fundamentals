@@ -192,9 +192,9 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
                         .map((d: any, idx: number) => {
                           const x = (idx / (bondData.length - 1)) * 100;
                           const y = getY(parseFloat(d.close || 0));
-                          return `${x}%,${y}%`;
+                          return `${x},${y}`;
                         })
-                        .join(' ') + ` 100%,100% 0%,100%`
+                        .join(' ') + ` 100,100 0,100`
                     }
                   />
 
@@ -207,7 +207,7 @@ export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIn
                       .map((d: any, idx: number) => {
                         const x = (idx / (bondData.length - 1)) * 100;
                         const y = getY(parseFloat(d.close || 0));
-                        return `${x}%,${y}%`;
+                        return `${x},${y}`;
                       })
                       .join(' ')}
                   />

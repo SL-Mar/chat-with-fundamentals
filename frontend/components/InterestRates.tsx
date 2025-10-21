@@ -283,9 +283,9 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
                         .map((d: any, idx: number) => {
                           const x = (idx / (selectedData.data.length - 1)) * 100;
                           const y = getY(parseFloat(d.close || 0));
-                          return `${x}%,${y}%`;
+                          return `${x},${y}`;
                         })
-                        .join(' ') + ` 100%,100% 0%,100%`
+                        .join(' ') + ` 100,100 0,100`
                     }
                   />
 
@@ -298,7 +298,7 @@ export default function InterestRates({ years = 10 }: InterestRatesProps) {
                       .map((d: any, idx: number) => {
                         const x = (idx / (selectedData.data.length - 1)) * 100;
                         const y = getY(parseFloat(d.close || 0));
-                        return `${x}%,${y}%`;
+                        return `${x},${y}`;
                       })
                       .join(' ')}
                   />
