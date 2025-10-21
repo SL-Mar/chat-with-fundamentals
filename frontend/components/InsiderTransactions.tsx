@@ -69,9 +69,13 @@ export default function InsiderTransactions({ ticker, limit = 20 }: InsiderTrans
 
   // Calculate net insider sentiment
   const netShares = transactions.reduce((acc, tx) => {
-    const shares = tx.transactionShares || tx.shares || 0;
+    const shares = tx.transactionShares || tx.shares || tx.transactionAmount || 0;
+    // EODHD uses transactionCode: P=purchase, S=sale
+    // Or transactionAcquiredDisposed: A=acquired, D=disposed
     const isBuy = tx.transactionType?.toLowerCase().includes('buy') ||
-                  tx.transactionType?.toLowerCase().includes('purchase');
+                  tx.transactionType?.toLowerCase().includes('purchase') ||
+                  tx.transactionCode === 'P' ||
+                  tx.transactionAcquiredDisposed === 'A';
     return acc + (isBuy ? shares : -shares);
   }, 0);
 
@@ -121,27 +125,36 @@ export default function InsiderTransactions({ ticker, limit = 20 }: InsiderTrans
           </thead>
           <tbody>
             {transactions.slice(0, 10).map((tx, idx) => {
+              // EODHD uses transactionCode: P=purchase, S=sale
+              // Or transactionAcquiredDisposed: A=acquired, D=disposed
               const isBuy = tx.transactionType?.toLowerCase().includes('buy') ||
-                           tx.transactionType?.toLowerCase().includes('purchase');
+                           tx.transactionType?.toLowerCase().includes('purchase') ||
+                           tx.transactionCode === 'P' ||
+                           tx.transactionAcquiredDisposed === 'A';
               const transactionColor = isBuy ? 'text-green-400' : 'text-red-400';
+
+              // EODHD field names: ownerName, ownerTitle, transactionAmount, transactionPrice, transactionDate
+              const shares = tx.transactionShares || tx.shares || tx.transactionAmount || 0;
+              const price = tx.transactionPrice || tx.price || 0;
+              const value = tx.transactionValue || tx.value || (shares * price);
 
               return (
                 <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                   <td className="py-2 px-2 text-xs text-slate-300">
-                    {formatDate(tx.filingDate || tx.date)}
+                    {formatDate(tx.filingDate || tx.date || tx.transactionDate)}
                   </td>
                   <td className="py-2 px-2 text-xs">
-                    <div className="text-white">{tx.fullName || tx.reportingName || 'Unknown'}</div>
-                    <div className="text-slate-400 text-xs">{tx.position || tx.title || ''}</div>
+                    <div className="text-white">{tx.fullName || tx.reportingName || tx.ownerName || 'Unknown'}</div>
+                    <div className="text-slate-400 text-xs">{tx.position || tx.title || tx.ownerTitle || ''}</div>
                   </td>
                   <td className={`py-2 px-2 text-xs font-semibold ${transactionColor}`}>
-                    {tx.transactionType || tx.type || 'N/A'}
+                    {tx.transactionType || tx.type || (tx.transactionCode === 'P' ? 'Purchase' : tx.transactionCode === 'S' ? 'Sale' : tx.transactionAcquiredDisposed === 'A' ? 'Acquired' : tx.transactionAcquiredDisposed === 'D' ? 'Disposed' : 'N/A')}
                   </td>
                   <td className="py-2 px-2 text-xs text-right text-white">
-                    {formatShares(tx.transactionShares || tx.shares)}
+                    {formatShares(shares)}
                   </td>
                   <td className="py-2 px-2 text-xs text-right text-white">
-                    {formatValue(tx.transactionValue || tx.value)}
+                    {formatValue(value)}
                   </td>
                 </tr>
               );
