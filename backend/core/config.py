@@ -1,7 +1,7 @@
 # File: core/config.py
 
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     openai_api_key: str
@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     NOTION_DATABASE_ID: str = ""
 
     local_mode: bool = True
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False
+    )
 
 settings = Settings()
 

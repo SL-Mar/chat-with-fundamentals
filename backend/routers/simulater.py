@@ -47,13 +47,11 @@ async def _fetch_close_series(ticker: str, days: int) -> pd.Series:
         "period":"d",
         "fmt":   "json",
         "order": "a",
-    }
-    headers = {
-        "Authorization": f"Bearer {settings.eodhd_api_key}"
+        "api_token": settings.eodhd_api_key,  # Use query parameter instead of Bearer auth
     }
 
     try:
-        r = await _http.get(url, params=params, headers=headers)
+        r = await _http.get(url, params=params)
         r.raise_for_status()
     except Exception as exc:
         logger.error("EODHD fetch failed for %s (%s)", ticker, exc.__class__.__name__)

@@ -4,8 +4,9 @@
 from crewai.tools import BaseTool
 from pydantic import Field
 from datetime import datetime, timedelta
-import os, requests
+import requests
 from typing import Dict, Any
+from core.config import settings
 
 class EODTool(BaseTool):
     name: str = "EOD Tool"
@@ -21,7 +22,7 @@ class EODTool(BaseTool):
     def _run(self, symbol: str) -> Dict[str, Any]:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=90)
-        api_token = os.getenv("EODHD_API_KEY")
+        api_token = settings.eodhd_api_key
         url = f"https://eodhd.com/api/eod/{symbol}?from={start_date:%Y-%m-%d}&to={end_date:%Y-%m-%d}&api_token={api_token}&fmt=json"
         if (cached := self.get_from_cache(symbol)):
             return cached

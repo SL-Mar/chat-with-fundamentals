@@ -88,4 +88,70 @@ export const api = {
       `${BASE}/equity/perf?ticker=${ticker}&years=${years}`
     );
   },
+
+  /* ────────── Technical Indicators ──────── */
+  fetchTechnicalIndicator(
+    ticker: string,
+    function_name: string,
+    period = 50,
+    options?: { from_date?: string; to_date?: string; fastperiod?: number; slowperiod?: number; signalperiod?: number }
+  ): Promise<any> {
+    let url = `${BASE}/technical/indicator?ticker=${ticker}&function=${function_name}&period=${period}`;
+    if (options?.from_date) url += `&from_date=${options.from_date}`;
+    if (options?.to_date) url += `&to_date=${options.to_date}`;
+    if (options?.fastperiod) url += `&fastperiod=${options.fastperiod}`;
+    if (options?.slowperiod) url += `&slowperiod=${options.slowperiod}`;
+    if (options?.signalperiod) url += `&signalperiod=${options.signalperiod}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Stock Screener ──────────── */
+  screenStocks(
+    filters?: string,
+    signals?: string,
+    sort?: string,
+    limit = 50,
+    offset = 0
+  ): Promise<any> {
+    let url = `${BASE}/technical/screener?limit=${limit}&offset=${offset}`;
+    if (filters) url += `&filters=${encodeURIComponent(filters)}`;
+    if (signals) url += `&signals=${encodeURIComponent(signals)}`;
+    if (sort) url += `&sort=${encodeURIComponent(sort)}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Earnings Calendar ─────────── */
+  fetchEarningsCalendar(
+    from_date?: string,
+    to_date?: string,
+    symbols?: string
+  ): Promise<any> {
+    let url = `${BASE}/calendar/earnings?`;
+    if (from_date) url += `from_date=${from_date}&`;
+    if (to_date) url += `to_date=${to_date}&`;
+    if (symbols) url += `symbols=${symbols}&`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── IPO Calendar ─────────────── */
+  fetchIPOCalendar(
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/calendar/ipos?`;
+    if (from_date) url += `from_date=${from_date}&`;
+    if (to_date) url += `to_date=${to_date}&`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Splits Calendar ──────────── */
+  fetchSplitsCalendar(
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/calendar/splits?`;
+    if (from_date) url += `from_date=${from_date}&`;
+    if (to_date) url += `to_date=${to_date}&`;
+    return getJSON<any>(url);
+  },
 };

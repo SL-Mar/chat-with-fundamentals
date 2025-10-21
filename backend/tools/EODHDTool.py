@@ -3,8 +3,9 @@
 
 from crewai.tools import BaseTool
 from pydantic import Field
-import os, requests
+import requests
 from typing import Optional, Dict
+from core.config import settings
 
 class EODHDTool(BaseTool):
     name: str = "EODHD Fundamentals Tool"
@@ -19,7 +20,7 @@ class EODHDTool(BaseTool):
         self.cache[symbol] = data
 
     def _run(self, symbol: str) -> str:
-        api_token = os.getenv("EODHD_API_KEY")
+        api_token = settings.eodhd_api_key
         FilterSelection = (
             "General::Name,General::Sector,General::Industry,"
             "Highlights::MarketCapitalization,Highlights::PERatio,"

@@ -20,6 +20,8 @@ import ReturnsAnalytics       from "../components/ReturnsAnalytics";
 import CumulativeReturnChart  from "../components/CumulativeReturnChart";
 import VolForecastCard        from "../components/VolForecastCard";
 import PerfRatiosPanel        from "../components/PerfRatiosPanel";
+import TechnicalIndicators    from "../components/TechnicalIndicators";
+import EarningsCalendar       from "../components/EarningsCalendar";
 
 export default function QuantAnalyzePage() {
   const params = useSearchParams();
@@ -166,6 +168,12 @@ export default function QuantAnalyzePage() {
           {perfData && <PerfRatiosPanel ticker={ticker} years={3} />}
           {perfLoading && <p className="text-center text-blue-400">🔄 Loading perf ratios…</p>}
           {perfError   && <p className="text-center text-red-400">❌ {perfError}</p>}
+
+          {/* NEW – Technical Indicators */}
+          <TechnicalIndicators ticker={ticker} />
+
+          {/* NEW – Earnings Calendar */}
+          <EarningsCalendar ticker={ticker} />
         </div>
       </div>
     </div>

@@ -22,14 +22,12 @@ async def get_eod_data(
     params = {
       "fmt":   "json",   # ← JSON, not CSV
       "order": "d",      # ← newest → oldest
-    }
-    headers = {
-      "Authorization": f"Bearer {settings.eodhd_api_key}"
+      "api_token": settings.eodhd_api_key,  # Use query parameter instead of Bearer auth
     }
 
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params, headers=headers, timeout=20)
+            resp = await client.get(url, params=params, timeout=20)
             resp.raise_for_status()
             raw: list[dict] = resp.json()
     except Exception as e:

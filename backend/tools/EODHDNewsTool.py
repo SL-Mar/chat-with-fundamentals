@@ -3,8 +3,9 @@
 
 from crewai.tools import BaseTool
 from pydantic import Field
-import os, requests
+import requests
 from typing import Dict, Any, List
+from core.config import settings
 
 class EODHDNewsTool(BaseTool):
     name: str = "EODHD News Tool"
@@ -18,7 +19,7 @@ class EODHDNewsTool(BaseTool):
         self.cache[symbol] = data
 
     def _run(self, symbol: str) -> str:
-        api_token = os.getenv("EODHD_API_KEY")
+        api_token = settings.eodhd_api_key
         url = f'https://eodhd.com/api/news?s={symbol}&offset=0&limit=10&api_token={api_token}&fmt=json'
         if (cached := self.get_from_cache(symbol)):
             return cached

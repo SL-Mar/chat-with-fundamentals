@@ -31,13 +31,15 @@ from core.config import settings
 from core.llm_provider import get_llm
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Create a single HTTP client that never exposes the API key in logs or URLs
+# HTTP client creation function (creates fresh client with current API key)
 # ──────────────────────────────────────────────────────────────────────────────
-_http_client = httpx.Client(
-    base_url="https://eodhd.com/api",
-    headers={"Authorization": f"Bearer {settings.eodhd_api_key}"},
-    timeout=10.0,
-)
+def _get_http_client():
+    """Create HTTP client with current API key from settings"""
+    return httpx.Client(
+        base_url="https://eodhd.com/api",
+        params={"api_token": settings.eodhd_api_key, "fmt": "json"},
+        timeout=10.0,
+    )
 
 class FundamentalState(BaseModel):
     plan: Optional[DataFetchPlan] = None
@@ -73,10 +75,15 @@ You are given a user query for financial analysis: {user_query}
 
 Instructions:
 1. Identify company tickers in the query.
-2. Decide if fundamental data is needed. If yes, return a list of dicts with "path" and "label" for each selected metric, using the schema above.
-3. For EOD data, today is {current_date_str}. Default to the last 3 months if no date is specified.
-4. Indicate if news is relevant.
-5. Return your reasoning and a full JSON conforming to the DataFetchPlan model.
+2. ALWAYS fetch fundamental data unless explicitly told not to. Return a list of dicts with "path" and "label" for at least these key metrics:
+   - General::Name
+   - Highlights::MarketCapitalization
+   - Highlights::PERatio
+   - Valuation::TrailingPE
+   - Highlights::DividendYield
+3. ALWAYS fetch EOD price data. Today is {current_date_str}. Default to the last 3 months if no date is specified.
+4. ALWAYS fetch news data unless explicitly told not to.
+5. Return a full JSON conforming to the DataFetchPlan model with fetch=True for fundamentals and news.
 """
         task = Task(
             description=task_prompt,
@@ -101,6 +108,11 @@ Instructions:
         try:
             self.state.plan = DataFetchPlan.model_validate_json(result.raw)
             self.logger.info("[RESULT] DataFetchPlan parsed successfully")
+            self.logger.info(f"[PLAN] Tickers: {self.state.plan.tickers}")
+            self.logger.info(f"[PLAN] Fundamentals.fetch: {self.state.plan.fundamentals.fetch}")
+            self.logger.info(f"[PLAN] Fundamentals.metrics: {self.state.plan.fundamentals.metrics}")
+            self.logger.info(f"[PLAN] EOD.fetch: {self.state.plan.eod.fetch}")
+            self.logger.info(f"[PLAN] News: {self.state.plan.news}")
         except ValidationError as ve:
             self.logger.error("[ERROR] Failed to parse DataFetchPlan", exc_info=True)
             raise
@@ -136,10 +148,13 @@ Instructions:
                     continue
 
                 try:
-                    resp = _http_client.get(
-                        f"/fundamentals/{ticker}.US",
-                        params={"filter": filter_path, "fmt": "json"}
-                    )
+                    # Don't append .US if ticker already has a suffix
+                    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
+                    with _get_http_client() as client:
+                        resp = client.get(
+                            f"/fundamentals/{ticker_with_exchange}",
+                            params={"filter": filter_path, "fmt": "json"}
+                        )
                     resp.raise_for_status()
                     val = resp.json()
                     self.logger.debug(f"[FETCH] {ticker}::{label} = {val!r}")
@@ -172,14 +187,15 @@ Instructions:
         quotes: List[EODResult] = []
         for ticker in self.state.plan.tickers:
             try:
-                resp = _http_client.get(
-                    f"/eod/{ticker}",
-                    params={
-                        "from": self.state.plan.eod.start_date,
-                        "to":   self.state.plan.eod.end_date,
-                        "fmt":  "json"
-                    }
-                )
+                with _get_http_client() as client:
+                    resp = client.get(
+                        f"/eod/{ticker}",
+                        params={
+                            "from": self.state.plan.eod.start_date,
+                            "to":   self.state.plan.eod.end_date,
+                            "fmt":  "json"
+                        }
+                    )
                 resp.raise_for_status()
                 json_data = resp.json()
 
@@ -216,10 +232,11 @@ Instructions:
         news_sets: List[Set_News] = []
         for ticker in self.state.plan.tickers:
             try:
-                resp = _http_client.get(
-                    "/news",
-                    params={"s": ticker, "offset": 0, "limit": 10, "fmt": "json"}
-                )
+                with _get_http_client() as client:
+                    resp = client.get(
+                        "/news",
+                        params={"s": ticker, "offset": 0, "limit": 10, "fmt": "json"}
+                    )
                 resp.raise_for_status()
                 json_data = resp.json()
                 items = [

@@ -51,6 +51,12 @@ export default function ComboChartResponsive({
   const [lastReturn, setLastReturn] = useState<number | null>(null);
   const [hoveredCandle, setHoveredCandle] = useState<any>(null);
 
+  // Indicator visibility toggles
+  const [showSMA20, setShowSMA20] = useState(true);
+  const [showSMA50, setShowSMA50] = useState(true);
+  const [showSMA200, setShowSMA200] = useState(true);
+  const [showBB, setShowBB] = useState(true);
+
   useLayoutEffect(() => {
     if (!chartRef.current) return;
 
@@ -143,13 +149,33 @@ export default function ComboChartResponsive({
       parsedData.map(({ time, volume, open, close }) => ({ time, value: volume, color: close >= open ? "#4ade80" : "#f87171" }))
     );
 
-    sma20.current?.setData(calculateSMA(parsedData, BB_PERIOD));
-    sma50.current?.setData(calculateSMA(parsedData, 50));
-    sma200.current?.setData(calculateSMA(parsedData, 200));
+    // Update indicator data based on visibility
+    if (showSMA20) {
+      sma20.current?.setData(calculateSMA(parsedData, BB_PERIOD));
+    } else {
+      sma20.current?.setData([]);
+    }
 
-    const bb = calculateBollingerBands(parsedData, BB_PERIOD, BB_MULTIPLIER);
-    bbUpper.current?.setData(bb.upper);
-    bbLower.current?.setData(bb.lower);
+    if (showSMA50) {
+      sma50.current?.setData(calculateSMA(parsedData, 50));
+    } else {
+      sma50.current?.setData([]);
+    }
+
+    if (showSMA200) {
+      sma200.current?.setData(calculateSMA(parsedData, 200));
+    } else {
+      sma200.current?.setData([]);
+    }
+
+    if (showBB) {
+      const bb = calculateBollingerBands(parsedData, BB_PERIOD, BB_MULTIPLIER);
+      bbUpper.current?.setData(bb.upper);
+      bbLower.current?.setData(bb.lower);
+    } else {
+      bbUpper.current?.setData([]);
+      bbLower.current?.setData([]);
+    }
 
     if (parsedData.length >= 2) {
       const prev = parsedData[parsedData.length - 2].close;
@@ -173,7 +199,7 @@ export default function ComboChartResponsive({
 
     chartApi.current.subscribeCrosshairMove(handler);
     return () => chartApi.current?.unsubscribeCrosshairMove(handler);
-  }, [data]);
+  }, [data, showSMA20, showSMA50, showSMA200, showBB]);
 
   return (
     <div ref={wrapperRef} className="rounded-xl border border-slate-700 bg-slate-900 p-4 mx-auto w-full max-w-[1400px] overflow-x-auto">
@@ -190,11 +216,39 @@ export default function ComboChartResponsive({
       <div className="flex gap-3 mb-2 text-sm text-slate-300">
         <button className="px-3 py-1 rounded border border-slate-600 bg-slate-700 text-white cursor-default" disabled>1D</button>
       </div>
-      <div className="flex gap-3 text-xs text-slate-300 mb-1">
-        <span className="text-pink-400">SMA 20</span>
-        <span className="text-orange-400">SMA 50</span>
-        <span className="text-yellow-300">SMA 200</span>
-        <span className="text-blue-400">Bollinger ±2σ</span>
+      <div className="flex gap-2 text-xs text-slate-300 mb-1 flex-wrap">
+        <button
+          onClick={() => setShowSMA20(!showSMA20)}
+          className={`px-2 py-1 rounded border ${
+            showSMA20 ? "border-pink-400 bg-pink-900/30 text-pink-400" : "border-slate-600 bg-slate-800 text-slate-400"
+          }`}
+        >
+          SMA 20
+        </button>
+        <button
+          onClick={() => setShowSMA50(!showSMA50)}
+          className={`px-2 py-1 rounded border ${
+            showSMA50 ? "border-orange-400 bg-orange-900/30 text-orange-400" : "border-slate-600 bg-slate-800 text-slate-400"
+          }`}
+        >
+          SMA 50
+        </button>
+        <button
+          onClick={() => setShowSMA200(!showSMA200)}
+          className={`px-2 py-1 rounded border ${
+            showSMA200 ? "border-yellow-300 bg-yellow-900/30 text-yellow-300" : "border-slate-600 bg-slate-800 text-slate-400"
+          }`}
+        >
+          SMA 200
+        </button>
+        <button
+          onClick={() => setShowBB(!showBB)}
+          className={`px-2 py-1 rounded border ${
+            showBB ? "border-blue-400 bg-blue-900/30 text-blue-400" : "border-slate-600 bg-slate-800 text-slate-400"
+          }`}
+        >
+          Bollinger ±2σ
+        </button>
       </div>
       {hoveredCandle && (
         <div className="text-xs text-slate-300 mb-2 font-mono whitespace-nowrap">
