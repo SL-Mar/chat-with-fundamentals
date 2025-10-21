@@ -119,8 +119,9 @@ async def screen_stocks(
             resp.raise_for_status()
             data = resp.json()
     except Exception as e:
-        logger.error("EODHD screener failed (%s)", e.__class__.__name__)
-        raise HTTPException(502, "Data provider error")
+        logger.error(f"[SCREENER] EODHD screener failed: {e}")
+        logger.error(f"[SCREENER] URL: {url}, Params: {params}")
+        raise HTTPException(502, f"Data provider error: {str(e)}")
 
     logger.info("[SCREENER] fetched %d results", len(data.get('data', [])))
     return data
