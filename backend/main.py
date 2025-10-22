@@ -68,10 +68,41 @@ limiter = Limiter(key_func=get_remote_address)
 # ──────────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup
     loop = asyncio.get_event_loop()
     set_main_event_loop(loop)
     logging.getLogger("main").info("🔧 AsyncIO event loop initialized for WebSocket logging")
+
+    # Start background services
+    from services.cache_warming_service import start_cache_warming
+    from services.data_refresh_pipeline import start_data_refresh_pipeline
+
+    try:
+        # Start cache warming service (Phase 2C)
+        logging.getLogger("main").info("🚀 Starting cache warming service...")
+        start_cache_warming()
+
+        # Start data refresh pipeline (Phase 2D - Incremental Refresh)
+        logging.getLogger("main").info("🚀 Starting data refresh pipeline...")
+        start_data_refresh_pipeline()
+
+        logging.getLogger("main").info("✅ All background services started successfully")
+    except Exception as e:
+        logging.getLogger("main").error(f"⚠️  Failed to start background services: {e}")
+
     yield
+
+    # Shutdown
+    from services.cache_warming_service import stop_cache_warming
+    from services.data_refresh_pipeline import stop_data_refresh_pipeline
+
+    logging.getLogger("main").info("⏹️  Stopping background services...")
+    try:
+        stop_cache_warming()
+        stop_data_refresh_pipeline()
+        logging.getLogger("main").info("✅ Background services stopped successfully")
+    except Exception as e:
+        logging.getLogger("main").error(f"⚠️  Error stopping background services: {e}")
 
 # ──────────────────────────────────────────────────────────────────────
 # 3) FastAPI application

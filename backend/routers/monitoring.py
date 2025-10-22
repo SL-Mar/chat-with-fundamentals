@@ -13,6 +13,7 @@ import os
 from database.models.base import SessionLocal, engine
 from database.queries_improved import DatabaseQueries
 from services.cache_warming_service import get_cache_warming_service
+from services.data_refresh_pipeline import get_data_refresh_pipeline
 from cache.redis_cache import RedisCache
 
 router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
@@ -411,3 +412,180 @@ async def trigger_cache_warming():
     except Exception as e:
         logger.error(f"Failed to trigger cache warming: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to trigger cache warming: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Data Refresh Pipeline Endpoints
+# ──────────────────────────────────────────────────────────────────────
+
+@router.get("/refresh-pipeline/status")
+async def get_refresh_pipeline_status():
+    """
+    Get data refresh pipeline status
+
+    Returns:
+        - Pipeline running status
+        - Scheduled jobs
+        - Last refresh times for each data type
+    """
+    try:
+        pipeline = get_data_refresh_pipeline()
+        status = pipeline.get_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get refresh pipeline status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get refresh pipeline status: {str(e)}")
+
+
+@router.post("/refresh-pipeline/start")
+async def start_refresh_pipeline():
+    """Start data refresh pipeline service"""
+    try:
+        pipeline = get_data_refresh_pipeline()
+        pipeline.start()
+        return {"status": "success", "message": "Data refresh pipeline started"}
+    except Exception as e:
+        logger.error(f"Failed to start refresh pipeline: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start refresh pipeline: {str(e)}")
+
+
+@router.post("/refresh-pipeline/stop")
+async def stop_refresh_pipeline():
+    """Stop data refresh pipeline service"""
+    try:
+        pipeline = get_data_refresh_pipeline()
+        pipeline.stop()
+        return {"status": "success", "message": "Data refresh pipeline stopped"}
+    except Exception as e:
+        logger.error(f"Failed to stop refresh pipeline: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to stop refresh pipeline: {str(e)}")
+
+
+@router.post("/refresh-pipeline/trigger-daily")
+async def trigger_daily_refresh():
+    """
+    Manually trigger daily data refresh
+
+    Runs:
+    - OHLCV incremental refresh
+    - Fundamentals smart refresh
+    - News refresh
+    """
+    try:
+        pipeline = get_data_refresh_pipeline()
+        # Run in background (don't wait for completion)
+        import threading
+        thread = threading.Thread(target=pipeline.run_daily_refresh)
+        thread.daemon = True
+        thread.start()
+
+        return {
+            "status": "success",
+            "message": "Daily data refresh triggered in background",
+            "details": "This will refresh OHLCV, fundamentals, and news for all companies"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger daily refresh: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger daily refresh: {str(e)}")
+
+
+@router.post("/refresh-pipeline/trigger-weekly")
+async def trigger_weekly_refresh():
+    """
+    Manually trigger weekly data refresh
+
+    Runs:
+    - Dividends refresh
+    """
+    try:
+        pipeline = get_data_refresh_pipeline()
+        # Run in background (don't wait for completion)
+        import threading
+        thread = threading.Thread(target=pipeline.run_weekly_refresh)
+        thread.daemon = True
+        thread.start()
+
+        return {
+            "status": "success",
+            "message": "Weekly data refresh triggered in background",
+            "details": "This will refresh dividends for all companies"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger weekly refresh: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger weekly refresh: {str(e)}")
+
+
+@router.post("/refresh-pipeline/trigger-ohlcv")
+async def trigger_ohlcv_refresh():
+    """Manually trigger OHLCV incremental refresh only"""
+    try:
+        pipeline = get_data_refresh_pipeline()
+        import threading
+        thread = threading.Thread(target=pipeline.refresh_ohlcv)
+        thread.daemon = True
+        thread.start()
+
+        return {
+            "status": "success",
+            "message": "OHLCV refresh triggered in background"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger OHLCV refresh: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger OHLCV refresh: {str(e)}")
+
+
+@router.post("/refresh-pipeline/trigger-fundamentals")
+async def trigger_fundamentals_refresh():
+    """Manually trigger fundamentals smart refresh only"""
+    try:
+        pipeline = get_data_refresh_pipeline()
+        import threading
+        thread = threading.Thread(target=pipeline.refresh_fundamentals)
+        thread.daemon = True
+        thread.start()
+
+        return {
+            "status": "success",
+            "message": "Fundamentals refresh triggered in background"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger fundamentals refresh: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger fundamentals refresh: {str(e)}")
+
+
+@router.post("/refresh-pipeline/trigger-news")
+async def trigger_news_refresh():
+    """Manually trigger news incremental refresh only"""
+    try:
+        pipeline = get_data_refresh_pipeline()
+        import threading
+        thread = threading.Thread(target=pipeline.refresh_news)
+        thread.daemon = True
+        thread.start()
+
+        return {
+            "status": "success",
+            "message": "News refresh triggered in background"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger news refresh: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger news refresh: {str(e)}")
+
+
+@router.post("/refresh-pipeline/trigger-dividends")
+async def trigger_dividends_refresh():
+    """Manually trigger dividends refresh only"""
+    try:
+        pipeline = get_data_refresh_pipeline()
+        import threading
+        thread = threading.Thread(target=pipeline.refresh_dividends)
+        thread.daemon = True
+        thread.start()
+
+        return {
+            "status": "success",
+            "message": "Dividends refresh triggered in background"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger dividends refresh: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger dividends refresh: {str(e)}")
