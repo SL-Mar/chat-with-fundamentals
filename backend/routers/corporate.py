@@ -1,13 +1,18 @@
 # File: routers/corporate.py
 # Corporate actions endpoints: dividends, splits, insider transactions
+# NOW WITH DATABASE-FIRST APPROACH (Phase 2B)
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import logging
 from tools.eodhd_client import EODHDClient
+from services.data_service import DataService
 
 router = APIRouter(prefix="/corporate", tags=["Corporate Actions"])
 logger = logging.getLogger("corporate")
+
+# Initialize data service (database-first)
+data_service = DataService()
 
 
 @router.get("/dividends")
@@ -24,17 +29,22 @@ async def get_dividend_history(
     - Ex-dividend dates
     - Record dates
 
+    **NEW: Database-First Approach (Phase 2B)**
+    - Checks database first (7 day cache)
+    - Falls back to EODHD API if stale
+    - Automatically stores API response for future queries
+
     Example: /corporate/dividends?ticker=AAPL.US&from_date=2020-01-01
     """
     try:
-        client = EODHDClient()
-        dividends = client.corporate.get_dividends(
-            ticker,
+        # DATABASE-FIRST: Check DB, fallback to API, auto-store
+        dividends = data_service.get_dividends(
+            ticker=ticker,
             from_date=from_date,
             to_date=to_date
         )
 
-        logger.info(f"[DIVIDENDS] Fetched dividend history for {ticker}")
+        logger.info(f"[DIVIDENDS] Fetched dividend history for {ticker} ({len(dividends)} records)")
         return {"ticker": ticker, "dividends": dividends}
 
     except Exception as e:
@@ -86,11 +96,16 @@ async def get_insider_transactions(
     - Transaction value
     - Filing date
 
+    **NEW: Database-First Approach (Phase 2B)**
+    - Checks database first (1 day cache)
+    - Falls back to EODHD API if stale
+    - Automatically stores API response for future queries
+
     Example: /corporate/insider-transactions?ticker=AAPL.US&limit=50
     """
     try:
-        client = EODHDClient()
-        transactions = client.fundamental.get_insider_transactions(ticker, limit=limit)
+        # DATABASE-FIRST: Check DB, fallback to API, auto-store
+        transactions = data_service.get_insider_transactions(ticker=ticker, limit=limit)
 
         logger.info(f"[INSIDER] Fetched {limit} insider transactions for {ticker}")
         return transactions

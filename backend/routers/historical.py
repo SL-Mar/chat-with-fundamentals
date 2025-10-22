@@ -1,13 +1,18 @@
 # File: routers/historical.py
 # Historical price data endpoints: intraday, live prices, EOD
+# NOW WITH DATABASE-FIRST APPROACH (Phase 2B)
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
 import logging
 from tools.eodhd_client import EODHDClient
+from services.data_service import DataService
 
 router = APIRouter(prefix="/historical", tags=["Historical Data"])
 logger = logging.getLogger("historical")
+
+# Initialize data service (database-first)
+data_service = DataService()
 
 
 @router.get("/intraday")
@@ -72,11 +77,15 @@ async def get_live_price(
     - Previous close
     - Change and change percentage
 
+    **NEW: Database-First Approach (Phase 2B)**
+    - Checks database for recent price (15 second cache)
+    - Falls back to EODHD API if stale
+
     Example: /historical/live-price?ticker=AAPL.US
     """
     try:
-        client = EODHDClient()
-        live_price = client.historical.get_live_price(ticker)
+        # DATABASE-FIRST: Check DB with 15s TTL, fallback to API
+        live_price = data_service.get_live_price(ticker)
 
         logger.info(f"[LIVE] Fetched live price for {ticker}")
         return live_price
@@ -131,11 +140,14 @@ async def get_eod_extended(
 
     Returns OHLCV data with adjusted close prices.
 
+    **NEW: Database-First Approach (Phase 2B)**
+    - Checks database first for cached data
+    - Falls back to EODHD API if data missing/stale
+    - Automatically stores API response in database for future queries
+
     Example: /historical/eod-extended?ticker=AAPL.US&period=d&from_date=2024-01-01
     """
     try:
-        client = EODHDClient()
-
         # Validate period
         valid_periods = ["d", "w", "m"]
         if period not in valid_periods:
@@ -144,14 +156,15 @@ async def get_eod_extended(
                 detail=f"Invalid period. Must be one of: {', '.join(valid_periods)}"
             )
 
-        eod_data = client.historical.get_eod(
-            ticker,
+        # DATABASE-FIRST: Check DB, fallback to API, auto-store
+        eod_data = data_service.get_eod_data(
+            ticker=ticker,
             from_date=from_date,
             to_date=to_date,
             period=period
         )
 
-        logger.info(f"[EOD] Fetched {period} data for {ticker}")
+        logger.info(f"[EOD] Fetched {period} data for {ticker} ({len(eod_data)} records)")
         return eod_data
 
     except HTTPException:

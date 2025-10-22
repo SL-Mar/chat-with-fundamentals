@@ -1,18 +1,23 @@
 # File: routers/news.py
 # News and sentiment endpoints
+# NOW WITH DATABASE-FIRST APPROACH (Phase 2B)
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import logging
 from tools.eodhd_client import EODHDClient
+from services.data_service import DataService
 
 router = APIRouter(prefix="/news", tags=["News & Sentiment"])
 logger = logging.getLogger("news")
 
+# Initialize data service (database-first)
+data_service = DataService()
+
 
 @router.get("/articles")
 async def get_news_articles(
-    symbol: Optional[str] = Query(None, description="Stock symbol (e.g., AAPL) - omit for general market news"),
+    ticker: Optional[str] = Query(None, alias="symbol", description="Stock symbol (e.g., AAPL) - omit for general market news"),
     tag: Optional[str] = Query(None, description="News tag (e.g., 'earnings', 'ipo')"),
     limit: int = Query(10, ge=1, le=100, description="Number of articles to return"),
     offset: int = Query(0, ge=0, description="Pagination offset")
@@ -20,7 +25,7 @@ async def get_news_articles(
     """Get financial news articles.
 
     Args:
-        symbol: Filter by stock symbol (optional)
+        ticker: Filter by stock symbol (optional)
         tag: Filter by news category (optional)
         limit: Number of articles
         offset: Pagination offset
@@ -32,21 +37,31 @@ async def get_news_articles(
     - Sentiment (if available)
     - Related symbols
 
+    **NEW: Database-First Approach (Phase 2B)**
+    - Checks database first (1 hour cache)
+    - Falls back to EODHD API if stale
+    - Automatically stores API response for future queries
+
     Examples:
     - /news/articles?symbol=AAPL&limit=10
     - /news/articles?tag=earnings&limit=20
     - /news/articles?limit=50  (general market news)
     """
     try:
-        client = EODHDClient()
-        news = client.news.get_news(
-            s=symbol,
-            tag=tag,
-            limit=limit,
-            offset=offset
-        )
+        # If ticker specified, use database-first approach
+        if ticker:
+            news = data_service.get_news(ticker=ticker, limit=limit, offset=offset)
+        else:
+            # General market news - fetch from API (no database caching for general news)
+            client = EODHDClient()
+            news = client.news.get_news(
+                s=ticker,
+                tag=tag,
+                limit=limit,
+                offset=offset
+            )
 
-        logger.info(f"[NEWS] Fetched {limit} articles for symbol={symbol}, tag={tag}")
+        logger.info(f"[NEWS] Fetched {limit} articles for symbol={ticker}, tag={tag}")
         return news
 
     except Exception as e:
