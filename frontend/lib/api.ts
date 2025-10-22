@@ -372,8 +372,70 @@ export const api = {
   chatWithPanels(message: string, history: any[] = []): Promise<{message: string; panels: any[]}> {
     return fetch(`${BASE}/chat/panels`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ message, history })
     }).then(res => res.json());
+  },
+
+  /* ═══════════ NEW: MONITORING & METRICS (Phase 2C) ═══════════ */
+
+  /* ────────── Health Check ──────────────── */
+  fetchHealthCheck(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/health`);
+  },
+
+  /* ────────── Database Metrics ──────────── */
+  fetchDatabaseMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/database`);
+  },
+
+  /* ────────── Cache Metrics ─────────────── */
+  fetchCacheMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/cache`);
+  },
+
+  /* ────────── System Metrics ────────────── */
+  fetchSystemMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/system`);
+  },
+
+  /* ────────── API Usage Metrics ──────────── */
+  fetchAPIUsageMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/api-usage`);
+  },
+
+  /* ────────── Dashboard (All Metrics) ────── */
+  fetchMonitoringDashboard(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/dashboard`);
+  },
+
+  /* ────────── Trigger Cache Warming ────────── */
+  async triggerCacheWarming(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/cache-warming/trigger`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Start Cache Warming Service ─── */
+  async startCacheWarming(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/cache-warming/start`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Stop Cache Warming Service ──── */
+  async stopCacheWarming(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/cache-warming/stop`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
   },
 };
