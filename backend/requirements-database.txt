@@ -1,0 +1,22 @@
+# Database dependencies for Chat with Fundamentals
+
+# PostgreSQL adapter
+psycopg2-binary==2.9.9
+
+# SQLAlchemy ORM
+SQLAlchemy==2.0.23
+
+# Alembic for database migrations
+alembic==1.13.1
+
+# Redis client
+redis==5.0.1
+
+# Database connection pooling
+psycopg2-pool==1.1
+
+# Optional: asyncpg for async PostgreSQL (if needed later)
+# asyncpg==0.29.0
+
+# Optional: SQLAlchemy async support (if needed later)
+# sqlalchemy[asyncio]==2.0.23
