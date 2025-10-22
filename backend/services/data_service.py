@@ -15,6 +15,7 @@ from ingestion.ohlcv_ingestion import OHLCVIngestion
 from ingestion.fundamentals_ingestion import FundamentalsIngestion
 from ingestion.news_ingestion import NewsIngestion
 from ingestion.dividends_ingestion import DividendsIngestion
+from ingestion.insider_transactions_ingestion import InsiderTransactionsIngestion
 from tools.eodhd_client import EODHDClient
 import os
 
@@ -558,9 +559,16 @@ class DataService:
     def _store_insider_transactions_data(self, ticker: str, api_data: List[Dict], db: Session):
         """Store insider transactions in database"""
         try:
-            # Note: You'll need to create InsiderTransactionsIngestion class
-            # For now, log that we would store it
-            logger.info(f"[DATA_SERVICE] Would store {len(api_data)} insider transactions for {ticker}")
+            ingestion = InsiderTransactionsIngestion(api_key=self.api_key)
+            company = self.db_queries.get_company(ticker, db=db)
+
+            if not company:
+                logger.warning(f"[DATA_SERVICE] Company {ticker} not found in database, skipping storage")
+                return
+
+            ingestion.bulk_insert(db, company.id, api_data, on_conflict='update')
+            db.commit()
+            logger.info(f"[DATA_SERVICE] Stored {len(api_data)} insider transactions for {ticker}")
 
         except Exception as e:
             logger.error(f"[DATA_SERVICE] Failed to store insider transactions for {ticker}: {e}")

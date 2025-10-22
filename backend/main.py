@@ -44,6 +44,7 @@ from routers.corporate     import router as corporate_router   # Dividends, spli
 from routers.news          import router as news_router        # News articles, sentiment, social
 from routers.historical    import router as historical_router  # Intraday, live prices, EOD data
 from routers.macro         import router as macro_router       # Macroeconomic indicators & events
+from routers.monitoring    import router as monitoring_router  # NEW: Monitoring & metrics (Phase 2C)
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -116,6 +117,7 @@ app.include_router(corporate_router, dependencies=[Depends(verify_api_key)])    
 app.include_router(news_router, dependencies=[Depends(verify_api_key)])         # NEW: News & sentiment
 app.include_router(historical_router, dependencies=[Depends(verify_api_key)])   # NEW: Historical price data
 app.include_router(macro_router, dependencies=[Depends(verify_api_key)])        # NEW: Macroeconomic data
+app.include_router(monitoring_router)  # NEW: Monitoring & metrics (public - no auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream

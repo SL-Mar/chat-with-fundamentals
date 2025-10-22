@@ -15,6 +15,12 @@ redis==5.0.1
 # Database connection pooling
 psycopg2-pool==1.1
 
+# Monitoring and system metrics (Phase 2C)
+psutil==5.9.6
+
+# Background task scheduling for cache warming (Phase 2C)
+APScheduler==3.10.4
+
 # Optional: asyncpg for async PostgreSQL (if needed later)
 # asyncpg==0.29.0
 
