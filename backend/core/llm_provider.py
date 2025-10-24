@@ -2,7 +2,7 @@
 
 import sqlite3
 from pathlib import Path
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 from core.config import settings
 

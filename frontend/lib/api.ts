@@ -9,10 +9,31 @@ import {
   PerfRatiosResponse        // ← NEW interface
 } from "../types/equity";
 
-const BASE = "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Get API key from environment variable (set in .env.local for development)
+const API_KEY = process.env.NEXT_PUBLIC_APP_API_KEY || "";
+
+/**
+ * Helper function to create authenticated fetch headers
+ */
+const getHeaders = (): HeadersInit => {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  // Add API key header if available
+  if (API_KEY) {
+    headers["X-API-Key"] = API_KEY;
+  }
+
+  return headers;
+};
 
 const getJSON = async <T>(url: string): Promise<T> => {
-  const r = await fetch(url);
+  const r = await fetch(url, {
+    headers: getHeaders(),
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json() as Promise<T>;
 };
@@ -22,7 +43,7 @@ export const api = {
   async chatWithFundamentals(question: string): Promise<Executive_Summary> {
     const r = await fetch(`${BASE}/analyzer/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getHeaders(),
       body: JSON.stringify({ user_query: question }),
     });
     if (!r.ok) {
@@ -153,5 +174,268 @@ export const api = {
     if (from_date) url += `from_date=${from_date}&`;
     if (to_date) url += `to_date=${to_date}&`;
     return getJSON<any>(url);
+  },
+
+  /* ═══════════ NEW: SPECIAL DATA ENDPOINTS ═══════════ */
+
+  /* ────────── Company Logo ─────────────── */
+  fetchCompanyLogo(ticker: string): Promise<{ ticker: string; logo_url: string }> {
+    return getJSON<{ ticker: string; logo_url: string }>(
+      `${BASE}/special/logo?ticker=${ticker}`
+    );
+  },
+
+  /* ────────── Analyst Ratings ──────────── */
+  fetchAnalystRatings(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/analyst-ratings?ticker=${ticker}`);
+  },
+
+  /* ────────── ESG Scores ───────────────── */
+  fetchESG(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/esg?ticker=${ticker}`);
+  },
+
+  /* ────────── Shareholders ─────────────── */
+  fetchShareholders(
+    ticker: string,
+    holder_type: "institutions" | "funds" = "institutions"
+  ): Promise<any> {
+    return getJSON<any>(
+      `${BASE}/special/shareholders?ticker=${ticker}&holder_type=${holder_type}`
+    );
+  },
+
+  /* ────────── Market Cap History ───────── */
+  fetchMarketCapHistory(
+    ticker: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/special/market-cap-history?ticker=${ticker}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── ETF Holdings ─────────────── */
+  fetchETFHoldings(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/etf-holdings?symbol=${ticker}`);
+  },
+
+  /* ────────── Index Constituents ────────── */
+  fetchIndexConstituents(index: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/index-constituents?index=${index}`);
+  },
+
+  /* ═══════════ NEW: CORPORATE ACTIONS ═══════════ */
+
+  /* ────────── Dividend History ─────────── */
+  fetchDividendHistory(
+    ticker: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/corporate/dividends?ticker=${ticker}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Split History ────────────── */
+  fetchSplitHistory(
+    ticker: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/corporate/splits?ticker=${ticker}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Insider Transactions ──────── */
+  fetchInsiderTransactions(ticker: string, limit = 50): Promise<any> {
+    return getJSON<any>(
+      `${BASE}/corporate/insider-transactions?ticker=${ticker}&limit=${limit}`
+    );
+  },
+
+  /* ═══════════ NEW: NEWS & SENTIMENT ═══════════ */
+
+  /* ────────── News Articles ────────────── */
+  fetchNewsArticles(
+    symbol?: string,
+    tag?: string,
+    limit = 10,
+    offset = 0
+  ): Promise<any> {
+    let url = `${BASE}/news/articles?limit=${limit}&offset=${offset}`;
+    if (symbol) url += `&symbol=${symbol}`;
+    if (tag) url += `&tag=${tag}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Sentiment Analysis ────────── */
+  fetchSentiment(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/news/sentiment?ticker=${ticker}`);
+  },
+
+  /* ────────── Twitter Mentions ──────────── */
+  fetchTwitterMentions(symbol: string): Promise<any> {
+    return getJSON<any>(`${BASE}/news/twitter-mentions?symbol=${symbol}`);
+  },
+
+  /* ═══════════ NEW: HISTORICAL PRICE DATA ═══════════ */
+
+  /* ────────── Intraday Prices ──────────── */
+  fetchIntradayData(
+    ticker: string,
+    interval: string = "5m",
+    from_timestamp?: number,
+    to_timestamp?: number
+  ): Promise<any> {
+    let url = `${BASE}/historical/intraday?ticker=${ticker}&interval=${interval}`;
+    if (from_timestamp) url += `&from_timestamp=${from_timestamp}`;
+    if (to_timestamp) url += `&to_timestamp=${to_timestamp}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Live Price (Single) ──────── */
+  fetchLivePrice(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/historical/live-price?ticker=${ticker}`);
+  },
+
+  /* ────────── Live Prices (Bulk) ────────── */
+  fetchLivePricesBulk(symbols: string[]): Promise<any> {
+    const symbolsStr = symbols.join(',');
+    return getJSON<any>(`${BASE}/historical/live-prices-bulk?symbols=${symbolsStr}`);
+  },
+
+  /* ────────── EOD Extended ──────────────── */
+  fetchEODExtended(
+    ticker: string,
+    period: string = "d",
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/historical/eod-extended?ticker=${ticker}&period=${period}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ═══════════ NEW: MACROECONOMIC DATA ═══════════ */
+
+  /* ────────── Macro Indicator ───────────── */
+  fetchMacroIndicator(
+    country: string,
+    indicator: string,
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/macro/indicator?country=${country}&indicator=${indicator}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Economic Events ───────────── */
+  fetchEconomicEvents(
+    from_date?: string,
+    to_date?: string,
+    country?: string,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<any> {
+    let url = `${BASE}/macro/economic-events?limit=${limit}&offset=${offset}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    if (country) url += `&country=${country}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Bulk Indicators ───────────── */
+  fetchIndicatorsBulk(
+    country: string = "USA",
+    from_date?: string,
+    to_date?: string
+  ): Promise<any> {
+    let url = `${BASE}/macro/indicators-bulk?country=${country}`;
+    if (from_date) url += `&from_date=${from_date}`;
+    if (to_date) url += `&to_date=${to_date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ═══════════ NEW: CHAT WITH DYNAMIC PANELS ═══════════ */
+
+  /* ────────── Chat with Panels ──────────── */
+  chatWithPanels(message: string, history: any[] = []): Promise<{message: string; panels: any[]}> {
+    return fetch(`${BASE}/chat/panels`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ message, history })
+    }).then(res => res.json());
+  },
+
+  /* ═══════════ NEW: MONITORING & METRICS (Phase 2C) ═══════════ */
+
+  /* ────────── Health Check ──────────────── */
+  fetchHealthCheck(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/health`);
+  },
+
+  /* ────────── Database Metrics ──────────── */
+  fetchDatabaseMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/database`);
+  },
+
+  /* ────────── Cache Metrics ─────────────── */
+  fetchCacheMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/cache`);
+  },
+
+  /* ────────── System Metrics ────────────── */
+  fetchSystemMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/system`);
+  },
+
+  /* ────────── API Usage Metrics ──────────── */
+  fetchAPIUsageMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/api-usage`);
+  },
+
+  /* ────────── Dashboard (All Metrics) ────── */
+  fetchMonitoringDashboard(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/dashboard`);
+  },
+
+  /* ────────── Trigger Cache Warming ────────── */
+  async triggerCacheWarming(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/cache-warming/trigger`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Start Cache Warming Service ─── */
+  async startCacheWarming(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/cache-warming/start`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Stop Cache Warming Service ──── */
+  async stopCacheWarming(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/cache-warming/stop`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
   },
 };

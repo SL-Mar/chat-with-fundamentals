@@ -40,6 +40,15 @@ interface Props {
 }
 
 export default function EquityChart({ equityCurve, monteCarlo, var95 }: Props) {
+  // Guard against undefined data
+  if (!equityCurve || !monteCarlo || equityCurve.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-8 text-slate-400">
+        Loading chart data...
+      </div>
+    );
+  }
+
   /* ─────────── historical series ─────────── */
   const histLabels = equityCurve.map((d) => d.date);
   const histValues = equityCurve.map((d) => d.close);

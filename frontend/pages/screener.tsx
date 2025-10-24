@@ -28,9 +28,11 @@ export default function ScreenerPage() {
       if (minMarketCap) {
         filters.push(`["market_capitalization",">",${minMarketCap}]`);
       }
-      if (maxPE) {
-        filters.push(`["pe_ratio","<",${maxPE}]`);
-      }
+      // NOTE: pe_ratio is not supported by EODHD Screener API
+      // P/E values will still be displayed in results if available
+      // if (maxPE) {
+      //   filters.push(`["pe_ratio","<",${maxPE}]`);
+      // }
       if (minDividend && parseFloat(minDividend) > 0) {
         filters.push(`["dividend_yield",">",${parseFloat(minDividend) / 100}]`);
       }
@@ -77,15 +79,18 @@ export default function ScreenerPage() {
             />
           </div>
 
-          {/* P/E Ratio */}
+          {/* P/E Ratio - Not supported by EODHD Screener API */}
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Max P/E Ratio</label>
+            <label className="block text-sm text-slate-400 mb-1">
+              Max P/E Ratio <span className="text-slate-500 text-xs">(display only - filtering not available)</span>
+            </label>
             <input
               type="number"
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded"
+              disabled
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded opacity-50 cursor-not-allowed"
               value={maxPE}
               onChange={(e) => setMaxPE(e.target.value)}
-              placeholder="30"
+              placeholder="Not supported"
             />
           </div>
 
@@ -150,7 +155,6 @@ export default function ScreenerPage() {
             >
               <option value="market_capitalization.desc">Market Cap (High to Low)</option>
               <option value="market_capitalization.asc">Market Cap (Low to High)</option>
-              <option value="pe_ratio.asc">P/E Ratio (Low to High)</option>
               <option value="dividend_yield.desc">Dividend Yield (High to Low)</option>
               <option value="code.asc">Ticker (A-Z)</option>
             </select>
