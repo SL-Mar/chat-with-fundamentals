@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { api } from '../lib/api';
+import RefreshPipelineControl from '../components/RefreshPipelineControl';
 
 export default function MonitoringPage() {
   const [dashboard, setDashboard] = useState<any>(null);
@@ -297,6 +298,11 @@ export default function MonitoringPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Data Refresh Pipeline */}
+            <div className="mt-6">
+              <RefreshPipelineControl />
             </div>
 
             {/* API Usage */}
