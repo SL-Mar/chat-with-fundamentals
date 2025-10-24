@@ -438,4 +438,126 @@ export const api = {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
+
+  /* ═══════════ NEW: DATA REFRESH PIPELINE (Phase 2D) ═══════════ */
+
+  /* ────────── Get Refresh Pipeline Status ─── */
+  fetchRefreshPipelineStatus(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/refresh-pipeline/status`);
+  },
+
+  /* ────────── Start Refresh Pipeline ────────── */
+  async startRefreshPipeline(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/start`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Stop Refresh Pipeline ─────────── */
+  async stopRefreshPipeline(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/stop`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Trigger Daily Refresh ─────────── */
+  async triggerDailyRefresh(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/trigger-daily`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Trigger Weekly Refresh ────────── */
+  async triggerWeeklyRefresh(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/trigger-weekly`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Trigger OHLCV Refresh ─────────── */
+  async triggerOHLCVRefresh(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/trigger-ohlcv`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Trigger Fundamentals Refresh ──── */
+  async triggerFundamentalsRefresh(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/trigger-fundamentals`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Trigger News Refresh ──────────── */
+  async triggerNewsRefresh(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/trigger-news`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Trigger Dividends Refresh ───────── */
+  async triggerDividendsRefresh(): Promise<{status: string; message: string}> {
+    const r = await fetch(`${BASE}/monitoring/refresh-pipeline/trigger-dividends`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ═══════════ SPECIAL DATA (Additional) ═══════════ */
+
+  /* ────────── Index Historical Constituents ─── */
+  fetchIndexHistoricalConstituents(
+    index: string,
+    date?: string
+  ): Promise<any> {
+    let url = `${BASE}/special/index-historical-constituents?index=${index}`;
+    if (date) url += `&date=${date}`;
+    return getJSON<any>(url);
+  },
+
+  /* ═══════════ LLM SETTINGS ═══════════ */
+
+  /* ────────── Get LLM Settings ──────────────── */
+  fetchLLMSettings(): Promise<any> {
+    return getJSON<any>(`${BASE}/settings/llm`);
+  },
+
+  /* ────────── Update LLM Setting ────────────── */
+  async updateLLMSetting(field: string, model_name: string): Promise<any> {
+    const r = await fetch(`${BASE}/settings/llm`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ field, model_name }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Get Available LLM Models ───────── */
+  fetchLLMModels(): Promise<string[]> {
+    return getJSON<string[]>(`${BASE}/settings/llm/models`);
+  },
 };
