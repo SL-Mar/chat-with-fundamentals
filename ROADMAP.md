@@ -2,6 +2,52 @@
 
 **Version:** Phase 2D → Phase 3+
 **Last Updated:** 2025-10-24
+**Active Branch:** `claude/code-review-011CULXMkGpoFpPQ3FQGco1T`
+
+---
+
+## Git Workflow & Branch Management
+
+### Active Branches
+
+**Current Development:**
+- ✅ **`claude/code-review-011CULXMkGpoFpPQ3FQGco1T`** - Most advanced, all Phase 2D work complete
+  - Continue working here for Phase 3
+  - All commits from today's session (CVX fixes, documentation)
+  - Ready for Phase 3 development
+
+**Stable Branches:**
+- ✅ **`dev`** - Merge feature branch here when Phase 3 complete and tested
+- ✅ **`master`** - Production/release branch (merge from dev when stable)
+
+**Deleted:**
+- ❌ `claude/investigate-typo-011CURVZy781EuJJwfpGT6i5` - Removed (all commits now in current branch)
+
+### Workflow for Phase Completion
+
+**When Phase 3 Complete:**
+```bash
+# Merge to dev
+git checkout dev
+git merge claude/code-review-011CULXMkGpoFpPQ3FQGco1T
+git push origin dev
+
+# Delete feature branch (optional)
+git branch -d claude/code-review-011CULXMkGpoFpPQ3FQGco1T
+git push origin --delete claude/code-review-011CULXMkGpoFpPQ3FQGco1T
+```
+
+**When Ready for Production:**
+```bash
+# Merge dev to master
+git checkout master
+git merge dev
+git push origin master
+
+# Tag release
+git tag -a v2.0 -m "Phase 2D + Phase 3 complete"
+git push origin v2.0
+```
 
 ---
 
