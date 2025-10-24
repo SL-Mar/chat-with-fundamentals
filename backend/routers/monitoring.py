@@ -1,14 +1,18 @@
 """
 Monitoring & Metrics Router
 Provides endpoints for cache metrics, database stats, and system health
+
+Security: Rate-limited expensive operations to prevent DoS and cost escalation
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import logging
 import psutil
 import os
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from database.models.base import SessionLocal, engine
 from database.queries_improved import DatabaseQueries
@@ -18,6 +22,9 @@ from cache.redis_cache import RedisCache
 
 router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
 logger = logging.getLogger("monitoring")
+
+# Rate limiter for expensive operations
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/health")
@@ -395,8 +402,9 @@ async def stop_cache_warming():
 
 
 @router.post("/cache-warming/trigger")
-async def trigger_cache_warming():
-    """Manually trigger full cache warming"""
+@limiter.limit("5/hour")  # Max 5 triggers per hour to prevent cost escalation
+async def trigger_cache_warming(request: Request):
+    """Manually trigger full cache warming (rate-limited: 5/hour)"""
     try:
         service = get_cache_warming_service()
         # Run in background (don't wait for completion)
@@ -462,9 +470,10 @@ async def stop_refresh_pipeline():
 
 
 @router.post("/refresh-pipeline/trigger-daily")
-async def trigger_daily_refresh():
+@limiter.limit("3/hour")  # Max 3 daily refreshes per hour (expensive operation)
+async def trigger_daily_refresh(request: Request):
     """
-    Manually trigger daily data refresh
+    Manually trigger daily data refresh (rate-limited: 3/hour)
 
     Runs:
     - OHLCV incremental refresh
@@ -490,9 +499,10 @@ async def trigger_daily_refresh():
 
 
 @router.post("/refresh-pipeline/trigger-weekly")
-async def trigger_weekly_refresh():
+@limiter.limit("3/hour")  # Max 3 weekly refreshes per hour
+async def trigger_weekly_refresh(request: Request):
     """
-    Manually trigger weekly data refresh
+    Manually trigger weekly data refresh (rate-limited: 3/hour)
 
     Runs:
     - Dividends refresh
@@ -516,8 +526,9 @@ async def trigger_weekly_refresh():
 
 
 @router.post("/refresh-pipeline/trigger-ohlcv")
-async def trigger_ohlcv_refresh():
-    """Manually trigger OHLCV incremental refresh only"""
+@limiter.limit("5/hour")  # Max 5 OHLCV refreshes per hour
+async def trigger_ohlcv_refresh(request: Request):
+    """Manually trigger OHLCV incremental refresh only (rate-limited: 5/hour)"""
     try:
         pipeline = get_data_refresh_pipeline()
         import threading
@@ -535,8 +546,9 @@ async def trigger_ohlcv_refresh():
 
 
 @router.post("/refresh-pipeline/trigger-fundamentals")
-async def trigger_fundamentals_refresh():
-    """Manually trigger fundamentals smart refresh only"""
+@limiter.limit("5/hour")  # Max 5 fundamentals refreshes per hour
+async def trigger_fundamentals_refresh(request: Request):
+    """Manually trigger fundamentals smart refresh only (rate-limited: 5/hour)"""
     try:
         pipeline = get_data_refresh_pipeline()
         import threading
@@ -554,8 +566,9 @@ async def trigger_fundamentals_refresh():
 
 
 @router.post("/refresh-pipeline/trigger-news")
-async def trigger_news_refresh():
-    """Manually trigger news incremental refresh only"""
+@limiter.limit("5/hour")  # Max 5 news refreshes per hour
+async def trigger_news_refresh(request: Request):
+    """Manually trigger news incremental refresh only (rate-limited: 5/hour)"""
     try:
         pipeline = get_data_refresh_pipeline()
         import threading
@@ -573,8 +586,9 @@ async def trigger_news_refresh():
 
 
 @router.post("/refresh-pipeline/trigger-dividends")
-async def trigger_dividends_refresh():
-    """Manually trigger dividends refresh only"""
+@limiter.limit("5/hour")  # Max 5 dividends refreshes per hour
+async def trigger_dividends_refresh(request: Request):
+    """Manually trigger dividends refresh only (rate-limited: 5/hour)"""
     try:
         pipeline = get_data_refresh_pipeline()
         import threading

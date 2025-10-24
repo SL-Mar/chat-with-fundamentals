@@ -26,6 +26,7 @@ import signal
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -69,9 +70,40 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger = logging.getLogger("main")
     loop = asyncio.get_event_loop()
     set_main_event_loop(loop)
-    logging.getLogger("main").info("🔧 AsyncIO event loop initialized for WebSocket logging")
+    logger.info("🔧 AsyncIO event loop initialized for WebSocket logging")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Validate critical environment variables
+    # ──────────────────────────────────────────────────────────────────────
+    from core.config import settings
+
+    logger.info("🔍 Validating environment configuration...")
+
+    if not settings.eodhd_api_key:
+        logger.error("❌ EODHD_API_KEY not set - data fetching will fail!")
+        logger.error("❌ Set EODHD_API_KEY in .env file or environment variables")
+        logger.error("❌ Get your free API key at: https://eodhd.com/register")
+
+    if not settings.openai_api_key:
+        logger.warning("⚠️  OPENAI_API_KEY not set - chat/AI features will be unavailable")
+        logger.warning("⚠️  Some endpoints may return errors without OpenAI API key")
+
+    app_api_key = os.getenv("APP_API_KEY")
+    if not app_api_key:
+        logger.warning("⚠️  APP_API_KEY not set - running in DEVELOPMENT MODE (no authentication)")
+        logger.warning("⚠️  Set APP_API_KEY for production deployment to enable authentication")
+    else:
+        logger.info("✅ APP_API_KEY is set - authentication enabled")
+
+    if settings.eodhd_api_key:
+        logger.info("✅ EODHD_API_KEY is set - data fetching enabled")
+    if settings.openai_api_key:
+        logger.info("✅ OPENAI_API_KEY is set - AI features enabled")
+
+    logger.info("✅ Environment validation complete")
 
     # Start background services
     from services.cache_warming_service import start_cache_warming
@@ -131,6 +163,24 @@ app.add_middleware(
 )
 
 # ──────────────────────────────────────────────────────────────────────
+# 4.5) Request size limit middleware (prevent DoS via large payloads)
+# ──────────────────────────────────────────────────────────────────────
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    """Limit request body size to prevent memory exhaustion attacks"""
+    MAX_SIZE = 10 * 1024 * 1024  # 10 MB limit
+    content_length = request.headers.get("content-length")
+
+    if content_length and int(content_length) > MAX_SIZE:
+        logger.warning(f"Request blocked: body size {content_length} exceeds limit {MAX_SIZE}")
+        return JSONResponse(
+            status_code=413,
+            content={"detail": "Request entity too large. Maximum size is 10MB."}
+        )
+
+    return await call_next(request)
+
+# ──────────────────────────────────────────────────────────────────────
 # 5) Register all routers WITH AUTHENTICATION
 # ──────────────────────────────────────────────────────────────────────
 # All routers require API key authentication to protect OpenAI/EODHD API keys
@@ -148,7 +198,7 @@ app.include_router(corporate_router, dependencies=[Depends(verify_api_key)])    
 app.include_router(news_router, dependencies=[Depends(verify_api_key)])         # NEW: News & sentiment
 app.include_router(historical_router, dependencies=[Depends(verify_api_key)])   # NEW: Historical price data
 app.include_router(macro_router, dependencies=[Depends(verify_api_key)])        # NEW: Macroeconomic data
-app.include_router(monitoring_router)  # NEW: Monitoring & metrics (public - no auth)
+app.include_router(monitoring_router, dependencies=[Depends(verify_api_key)])  # NEW: Monitoring & metrics (requires auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream
