@@ -25,6 +25,8 @@ class DatabaseConfig:
         self.redis_host = os.getenv('REDIS_HOST', 'localhost')
         self.redis_port = int(os.getenv('REDIS_PORT', 6379))
         self.redis_db = int(os.getenv('REDIS_DB', 0))
+        self.redis_password = os.getenv('REDIS_PASSWORD', None)  # Optional password for production
+        self.redis_use_ssl = os.getenv('REDIS_USE_SSL', 'false').lower() == 'true'  # SSL for production
 
     def get_engine(self, echo: bool = False):
         """Get SQLAlchemy engine with connection pooling"""
@@ -39,11 +41,13 @@ class DatabaseConfig:
         )
 
     def get_redis_client(self) -> redis.Redis:
-        """Get Redis client"""
+        """Get Redis client with optional authentication and SSL"""
         return redis.Redis(
             host=self.redis_host,
             port=self.redis_port,
             db=self.redis_db,
+            password=self.redis_password,  # None for local dev, set for production
+            ssl=self.redis_use_ssl,  # False for local dev, True for production
             decode_responses=True,
             socket_connect_timeout=5,
             socket_timeout=5,

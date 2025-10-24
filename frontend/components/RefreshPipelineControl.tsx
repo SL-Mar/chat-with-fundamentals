@@ -1,7 +1,7 @@
 // components/RefreshPipelineControl.tsx - Data refresh pipeline controls
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 
 interface PipelineStatus {
@@ -16,12 +16,19 @@ export default function RefreshPipelineControl() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);  // Fix race condition
 
   useEffect(() => {
     fetchStatus();
     // Refresh status every 30 seconds
     const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      // Clean up timeout on unmount
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   const fetchStatus = async () => {
@@ -31,6 +38,7 @@ export default function RefreshPipelineControl() {
       setStatus(data);
     } catch (err: any) {
       console.error('Failed to fetch pipeline status:', err);
+      setMessage({ type: 'error', text: 'Failed to fetch pipeline status' });
     } finally {
       setLoading(false);
     }
@@ -42,8 +50,14 @@ export default function RefreshPipelineControl() {
       setMessage(null);
       const result = await apiCall();
       setMessage({ type: 'success', text: result.message || `${action} completed successfully` });
-      // Refresh status after action
-      setTimeout(fetchStatus, 1000);
+
+      // Clear existing timeout to prevent race condition
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Set new timeout to refresh status
+      timeoutRef.current = setTimeout(fetchStatus, 1000);
     } catch (err: any) {
       console.error(`Failed to ${action}:`, err);
       setMessage({ type: 'error', text: err.message || `Failed to ${action}` });
@@ -73,7 +87,7 @@ export default function RefreshPipelineControl() {
       </div>
 
       {/* Status Display */}
-      {status && (
+      {status && status.is_running !== undefined && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
