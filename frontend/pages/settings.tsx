@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { api } from '../lib/api';
 
 // === Interfaces ===
 
@@ -27,23 +28,21 @@ export default function Settings() {
 
   const fetchLLMSettings = async () => {
     try {
-      const res = await fetch('http://localhost:8000/settings/llm');
-      if (!res.ok) throw new Error('Failed to fetch LLM settings');
-      const data = await res.json();
+      const data = await api.fetchLLMSettings();
       setSettings(data);
     } catch (err) {
       console.error('Error fetching LLM settings:', err);
+      setMessage('❌ Failed to fetch LLM settings');
     }
   };
 
   const fetchModelList = async () => {
     try {
-      const res = await fetch('http://localhost:8000/settings/llm/models');
-      if (!res.ok) throw new Error('Failed to fetch model list');
-      const data: string[] = await res.json();
+      const data = await api.fetchLLMModels();
       setModels(data);
     } catch (err) {
       console.error('Error fetching model list:', err);
+      setMessage('❌ Failed to fetch model list');
     }
   };
 
@@ -53,21 +52,15 @@ export default function Settings() {
     model_name: string
   ) => {
     try {
-      const res = await fetch('http://localhost:8000/settings/llm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flow, field, model_name }),
-      });
-
-      if (!res.ok) throw new Error('Failed to update LLM setting');
-      const updated: LLMSetting = await res.json();
+      const updated = await api.updateLLMSetting(field, model_name);
 
       setMessage(`✅ Updated ${field} in ${flow} to ${model_name}`);
       setSettings((prev) =>
         prev.map((s) => (s.flow === flow ? updated : s))
       );
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating LLM:', err);
+      setMessage(`❌ Failed to update: ${err.message || 'Unknown error'}`);
     }
   };
 
