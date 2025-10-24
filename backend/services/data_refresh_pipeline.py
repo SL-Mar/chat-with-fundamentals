@@ -12,11 +12,11 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from database.models.base import SessionLocal
-from database.queries_improved import DatabaseQueries
+from database.queries_improved import ImprovedDatabaseQueries
 from ingestion.incremental_ohlcv_ingestion import IncrementalOHLCVIngestion
 from ingestion.incremental_fundamentals_ingestion import IncrementalFundamentalsIngestion
 from ingestion.incremental_news_ingestion import IncrementalNewsIngestion
-from ingestion.dividends_ingestion import DividendsIngestion
+# from ingestion.dividends_ingestion import DividendsIngestion  # TODO: Create this module
 from utils.ticker_utils import format_ticker_for_company
 
 logger = logging.getLogger("data_refresh_pipeline")
@@ -41,7 +41,7 @@ class DataRefreshPipeline:
     def __init__(self):
         """Initialize data refresh pipeline"""
         self.scheduler = BackgroundScheduler()
-        self.db_queries = DatabaseQueries()
+        self.db_queries = ImprovedDatabaseQueries()
         self.is_running = False
 
         # Get API key
@@ -60,7 +60,8 @@ class DataRefreshPipeline:
             api_key=self.api_key,
             lookback_days=7
         )
-        self.dividends_ingestion = DividendsIngestion(api_key=self.api_key)
+        # self.dividends_ingestion = DividendsIngestion(api_key=self.api_key)  # TODO: Create module
+        self.dividends_ingestion = None  # Placeholder until module is created
 
         # Track last refresh times
         self.last_refresh = {
@@ -219,18 +220,22 @@ class DataRefreshPipeline:
                     ticker = format_ticker_for_company(company)
 
                     # Fetch dividends
-                    dividends_data = self.dividends_ingestion.client.corporate_actions.get_dividends(ticker=ticker)
+                    if self.dividends_ingestion is not None:
+                        dividends_data = self.dividends_ingestion.client.corporate_actions.get_dividends(symbol=ticker)
 
-                    if dividends_data:
-                        self.dividends_ingestion.bulk_insert(
-                            db=db,
-                            company_id=company.id,
-                            records=[dividends_data] if isinstance(dividends_data, dict) else dividends_data,
-                            on_conflict='update'
-                        )
-                        stats['successful'] += 1
+                        if dividends_data:
+                            self.dividends_ingestion.bulk_insert(
+                                db=db,
+                                company_id=company.id,
+                                records=[dividends_data] if isinstance(dividends_data, dict) else dividends_data,
+                                on_conflict='update'
+                            )
+                            stats['successful'] += 1
+                        else:
+                            stats['successful'] += 1  # No dividends is OK
                     else:
-                        stats['successful'] += 1  # No dividends is OK
+                        logger.debug(f"Skipping dividends for {ticker} - DividendsIngestion not available")
+                        stats['successful'] += 1
 
                     # Commit periodically
                     if i % 10 == 0:

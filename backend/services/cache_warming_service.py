@@ -13,7 +13,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from database.models.base import SessionLocal
-from database.queries_improved import DatabaseQueries
+from database.queries_improved import ImprovedDatabaseQueries
 from services.data_service import DataService, DataFreshnessConfig
 from utils.ticker_utils import format_ticker_for_company, format_ticker_for_eodhd
 
@@ -32,7 +32,7 @@ class CacheWarmingService:
         """Initialize cache warming service"""
         self.scheduler = BackgroundScheduler()
         self.data_service = DataService()
-        self.db_queries = DatabaseQueries()
+        self.db_queries = ImprovedDatabaseQueries()
         self.is_running = False
 
     def get_popular_tickers(self, limit: int = 50) -> List[str]:

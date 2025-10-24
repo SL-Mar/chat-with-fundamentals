@@ -25,13 +25,14 @@ class IncrementalNewsIngestion(BaseIngestion):
     Only fetches news from the last N days to minimize API calls.
     """
 
-    def __init__(self, api_key: str, lookback_days: int = 7):
+    def __init__(self, api_key: str, lookback_days: int = 7, batch_size: int = 100):
         """
         Initialize incremental news ingestion
 
         Args:
             api_key: EODHD API key
             lookback_days: How many days back to fetch news (default: 7)
+            batch_size: Number of records to insert per batch (default: 100)
         """
         super().__init__(api_key)
 
@@ -40,6 +41,7 @@ class IncrementalNewsIngestion(BaseIngestion):
         self.client = EODHDClient(api_key=api_key)
 
         self.lookback_days = lookback_days
+        self.batch_size = batch_size
 
     def get_latest_news_date(self, db: Session, company_id: int) -> Optional[date]:
         """
@@ -193,8 +195,8 @@ class IncrementalNewsIngestion(BaseIngestion):
 
             # Use EODHD client to get news
             # Note: EODHD news endpoint might not support date ranges, so we fetch recent and filter
-            articles = self.client.news_sentiment.get_news(
-                ticker=ticker,
+            articles = self.client.news.get_news(
+                symbol=ticker,
                 limit=limit
             )
 
@@ -211,12 +213,21 @@ class IncrementalNewsIngestion(BaseIngestion):
                 pub_date = article.get('date') or article.get('published_at')
                 if isinstance(pub_date, str):
                     try:
-                        pub_dt = datetime.strptime(pub_date, '%Y-%m-%d %H:%M:%S')
-                    except ValueError:
+                        # Try ISO 8601 format with timezone (e.g., '2025-10-23T20:11:24+00:00')
+                        pub_dt = datetime.fromisoformat(pub_date.replace('Z', '+00:00'))
+                        # Remove timezone info for comparison with naive datetimes
+                        pub_dt = pub_dt.replace(tzinfo=None)
+                    except (ValueError, AttributeError):
                         try:
-                            pub_dt = datetime.strptime(pub_date, '%Y-%m-%d')
+                            # Try format: 'YYYY-MM-DD HH:MM:SS'
+                            pub_dt = datetime.strptime(pub_date, '%Y-%m-%d %H:%M:%S')
                         except ValueError:
-                            continue  # Skip if can't parse date
+                            try:
+                                # Try format: 'YYYY-MM-DD'
+                                pub_dt = datetime.strptime(pub_date, '%Y-%m-%d')
+                            except ValueError:
+                                logger.warning(f"[INCREMENTAL] Could not parse date: {pub_date}")
+                                continue  # Skip if can't parse date
 
                     if from_dt <= pub_dt < to_dt:
                         filtered_articles.append(article)
@@ -328,7 +339,7 @@ def main():
     """Test incremental news ingestion"""
     import os
     from database.models.base import SessionLocal
-    from database.queries_improved import DatabaseQueries
+    from database.queries_improved import ImprovedDatabaseQueries
 
     # Setup logging
     logging.basicConfig(
@@ -347,7 +358,7 @@ def main():
         lookback_days=7
     )
     db = SessionLocal()
-    queries = DatabaseQueries()
+    queries = ImprovedDatabaseQueries()
 
     try:
         # Test: Refresh news for AAPL

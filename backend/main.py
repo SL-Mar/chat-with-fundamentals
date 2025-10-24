@@ -32,9 +32,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # ─── Routers ──────────────────────────────────────────────────────────
-# Temporarily disabled - requires OpenAI API key
-# from routers.analyzer      import router as chatfundamentals
-# from routers.quantanalyzer import router as quantanalyzer
+from routers.analyzer      import router as chatfundamentals      # Fundamental analysis chat
+from routers.quantanalyzer import router as quantanalyzer
 # from routers.llmloader     import router as llmloader
 from routers.chat_panels   import router as chat_panels_router # NEW: Chat with dynamic panels
 from routers.simulater     import router as equity_router      # Monte-Carlo simulation
@@ -46,6 +45,7 @@ from routers.news          import router as news_router        # News articles, 
 from routers.historical    import router as historical_router  # Intraday, live prices, EOD data
 from routers.macro         import router as macro_router       # Macroeconomic indicators & events
 from routers.monitoring    import router as monitoring_router  # NEW: Monitoring & metrics (Phase 2C)
+from routers.admin         import router as admin_router       # NEW: Admin endpoints for DB management
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -152,7 +152,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # 4) CORS configuration (local Next.js front-end + production)
 # ──────────────────────────────────────────────────────────────────────
 # Get allowed origins from environment variable for production
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3003,http://localhost:3005").split(",")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3003,http://localhost:3005").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -185,9 +185,8 @@ async def limit_request_size(request: Request, call_next):
 # ──────────────────────────────────────────────────────────────────────
 # All routers require API key authentication to protect OpenAI/EODHD API keys
 # If APP_API_KEY is not set, runs in dev mode (no auth required - local only!)
-# Temporarily disabled - requires OpenAI API key
-# app.include_router(chatfundamentals, dependencies=[Depends(verify_api_key)])
-# app.include_router(quantanalyzer, dependencies=[Depends(verify_api_key)])
+app.include_router(chatfundamentals, dependencies=[Depends(verify_api_key)])  # Fundamental analysis chat
+app.include_router(quantanalyzer, dependencies=[Depends(verify_api_key)])  # EOD/OHLCV data
 # app.include_router(llmloader, dependencies=[Depends(verify_api_key)])
 app.include_router(chat_panels_router, dependencies=[Depends(verify_api_key)]) # NEW: Chat with dynamic panels
 app.include_router(equity_router, dependencies=[Depends(verify_api_key)])
@@ -199,6 +198,7 @@ app.include_router(news_router, dependencies=[Depends(verify_api_key)])         
 app.include_router(historical_router, dependencies=[Depends(verify_api_key)])   # NEW: Historical price data
 app.include_router(macro_router, dependencies=[Depends(verify_api_key)])        # NEW: Macroeconomic data
 app.include_router(monitoring_router, dependencies=[Depends(verify_api_key)])  # NEW: Monitoring & metrics (requires auth)
+app.include_router(admin_router, dependencies=[Depends(verify_api_key)])       # NEW: Admin endpoints (requires auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream

@@ -22,7 +22,7 @@ class DataIngestionLog(Base):
     records_inserted = Column(Integer, default=0)
     records_updated = Column(Integer, default=0)
     error_message = Column(Text)
-    metadata = Column(JSONB)
+    job_metadata = Column(JSONB)  # Renamed from 'metadata' to avoid SQLAlchemy reserved name
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     def __repr__(self):

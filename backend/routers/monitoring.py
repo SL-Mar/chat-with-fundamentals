@@ -13,9 +13,10 @@ import psutil
 import os
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy import text
 
 from database.models.base import SessionLocal, engine
-from database.queries_improved import DatabaseQueries
+from database.queries_improved import ImprovedDatabaseQueries
 from services.cache_warming_service import get_cache_warming_service
 from services.data_refresh_pipeline import get_data_refresh_pipeline
 from cache.redis_cache import RedisCache
@@ -47,7 +48,7 @@ async def health_check() -> Dict[str, Any]:
     # Check database
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         health["checks"]["database"] = {
             "status": "healthy",
@@ -83,9 +84,10 @@ async def health_check() -> Dict[str, Any]:
     try:
         service = get_cache_warming_service()
         service_status = service.get_status()
+        is_running = service_status.get('is_running', False)
         health["checks"]["cache_warming"] = {
-            "status": "healthy" if service_status['status'] == 'running' else "stopped",
-            "message": f"Cache warming service {service_status['status']}",
+            "status": "healthy" if is_running else "stopped",
+            "message": f"Cache warming service {'running' if is_running else 'stopped'}",
             "jobs": len(service_status.get('jobs', []))
         }
     except Exception as e:
@@ -131,7 +133,7 @@ async def database_metrics() -> Dict[str, Any]:
         # Get database size (PostgreSQL-specific)
         try:
             result = db.execute(
-                "SELECT pg_size_pretty(pg_database_size(current_database())) as size"
+                text("SELECT pg_size_pretty(pg_database_size(current_database())) as size")
             ).fetchone()
             metrics["database_size"] = result[0] if result else "Unknown"
         except:
@@ -150,7 +152,8 @@ async def database_metrics() -> Dict[str, Any]:
         # Get recent activity (last 24 hours)
         yesterday = datetime.now() - timedelta(days=1)
 
-        recent_ohlcv = db.query(OHLCV).filter(OHLCV.updated_at >= yesterday).count()
+        # OHLCV uses 'date' field (no updated_at)
+        recent_ohlcv = db.query(OHLCV).filter(OHLCV.date >= yesterday).count()
         recent_news = db.query(News).filter(News.created_at >= yesterday).count()
 
         metrics["recent_activity_24h"] = {
@@ -219,7 +222,7 @@ async def cache_metrics() -> Dict[str, Any]:
         service_status = service.get_status()
 
         metrics["cache_warming"] = {
-            "status": service_status['status'],
+            "status": "running" if service_status.get('is_running') else "stopped",
             "scheduled_jobs": len(service_status.get('jobs', [])),
             "jobs": service_status.get('jobs', [])
         }
@@ -290,32 +293,33 @@ async def api_usage_metrics() -> Dict[str, Any]:
     db = SessionLocal()
 
     try:
-        from database.models.core import DataIngestionLog, APIRateLimit
+        from database.models.monitoring import DataIngestionLog, APIRateLimit
 
         # Get ingestion stats (last 24 hours)
         yesterday = datetime.now() - timedelta(days=1)
 
         ingestion_logs = db.query(DataIngestionLog).filter(
-            DataIngestionLog.started_at >= yesterday
+            DataIngestionLog.start_time >= yesterday
         ).all()
 
         metrics = {
             "timestamp": datetime.now().isoformat(),
             "last_24h": {
                 "total_ingestions": len(ingestion_logs),
-                "successful": len([log for log in ingestion_logs if log.status == 'completed']),
+                "successful": len([log for log in ingestion_logs if log.status == 'success']),
                 "failed": len([log for log in ingestion_logs if log.status == 'failed']),
-                "in_progress": len([log for log in ingestion_logs if log.status == 'in_progress'])
+                "in_progress": len([log for log in ingestion_logs if log.status == 'running'])
             }
         }
 
-        # Get API rate limit status
+        # Get API rate limit status (using request_time instead of window_start)
         rate_limits = db.query(APIRateLimit).filter(
-            APIRateLimit.window_start >= yesterday
+            APIRateLimit.request_time >= yesterday
         ).all()
 
         if rate_limits:
-            total_calls = sum(limit.calls_made for limit in rate_limits)
+            # Count total API calls
+            total_calls = len(rate_limits)
             metrics["last_24h"]["api_calls"] = total_calls
 
             # Estimate cost (assuming $0.001 per call)

@@ -76,7 +76,17 @@ class IncrementalFundamentalsIngestion(BaseIngestion):
             # No data - definitely stale
             return True
 
-        age = datetime.now() - fundamental.updated_at
+        # Handle timezone-aware datetimes
+        now = datetime.now()
+        updated_at = fundamental.updated_at
+
+        # Strip timezone info if present to avoid comparison errors
+        if hasattr(updated_at, 'tzinfo') and updated_at.tzinfo is not None:
+            updated_at = updated_at.replace(tzinfo=None)
+        if hasattr(now, 'tzinfo') and now.tzinfo is not None:
+            now = now.replace(tzinfo=None)
+
+        age = now - updated_at
         is_stale = age > self.freshness_threshold
 
         if is_stale:
@@ -115,7 +125,7 @@ class IncrementalFundamentalsIngestion(BaseIngestion):
 
             # Step 2: Fetch from API
             logger.info(f"[INCREMENTAL] Fetching {ticker} fundamentals from API")
-            api_data = self.client.fundamental.get_fundamentals(ticker=ticker)
+            api_data = self.client.fundamental.get_fundamentals(symbol=ticker)
 
             if not api_data:
                 logger.warning(f"[INCREMENTAL] No fundamentals data for {ticker}")
@@ -226,7 +236,7 @@ def main():
     """Test incremental fundamentals ingestion"""
     import os
     from database.models.base import SessionLocal
-    from database.queries_improved import DatabaseQueries
+    from database.queries_improved import ImprovedDatabaseQueries
 
     # Setup logging
     logging.basicConfig(
@@ -245,7 +255,7 @@ def main():
         freshness_threshold_days=1
     )
     db = SessionLocal()
-    queries = DatabaseQueries()
+    queries = ImprovedDatabaseQueries()
 
     try:
         # Test 1: Refresh single company (AAPL)

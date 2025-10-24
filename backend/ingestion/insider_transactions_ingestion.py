@@ -266,7 +266,7 @@ def main():
     """Test ingestion"""
     import os
     from database.models.base import SessionLocal
-    from database.queries_improved import DatabaseQueries
+    from database.queries_improved import ImprovedDatabaseQueries
 
     # Get API key
     api_key = os.getenv('EODHD_API_KEY')
@@ -276,7 +276,7 @@ def main():
     # Initialize
     ingestion = InsiderTransactionsIngestion(api_key)
     db = SessionLocal()
-    queries = DatabaseQueries()
+    queries = ImprovedDatabaseQueries()
 
     try:
         # Test with AAPL

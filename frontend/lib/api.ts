@@ -366,6 +366,28 @@ export const api = {
     return getJSON<any>(url);
   },
 
+  /* ────────── Macro Indicators (Wrapper) ──── */
+  fetchMacroIndicators(indicators: string[]): Promise<any> {
+    // This is a wrapper that could fetch multiple indicators
+    // For now, just return indicators-bulk data
+    return this.fetchIndicatorsBulk("USA");
+  },
+
+  /* ────────── Economic Calendar (Wrapper) ─── */
+  fetchEconomicCalendar(from_date?: string, to_date?: string): Promise<any> {
+    return this.fetchEconomicEvents(from_date, to_date);
+  },
+
+  /* ────────── Logo (Wrapper) ──────────────── */
+  fetchLogo(ticker: string): Promise<any> {
+    return this.fetchCompanyLogo(ticker);
+  },
+
+  /* ────────── Historical Constituents (Wrapper) */
+  fetchHistoricalConstituents(index: string, date?: string): Promise<any> {
+    return this.fetchIndexHistoricalConstituents(index, date);
+  },
+
   /* ═══════════ NEW: CHAT WITH DYNAMIC PANELS ═══════════ */
 
   /* ────────── Chat with Panels ──────────── */
@@ -521,6 +543,66 @@ export const api = {
     const r = await fetch(`${BASE}/monitoring/refresh-pipeline/trigger-dividends`, {
       method: 'POST',
       headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ═══════════ ADMIN - DATABASE MANAGEMENT ═══════════ */
+
+  /* ────────── Get Database Stats ────────────────────── */
+  fetchDatabaseStats(): Promise<any> {
+    return getJSON<any>(`${BASE}/admin/database-stats`);
+  },
+
+  /* ────────── Populate US Companies ─────────────────── */
+  async populateCompanies(limit: number = 1500): Promise<any> {
+    const r = await fetch(`${BASE}/admin/populate-companies?limit=${limit}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Populate from ETF Holdings ─────────────── */
+  async populateFromETF(
+    etfTicker: string,
+    exchange: string = 'US',
+    maxHoldings?: number,
+    minWeight?: number
+  ): Promise<any> {
+    const body: any = { etf_ticker: etfTicker, exchange };
+    if (maxHoldings !== undefined) body.max_holdings = maxHoldings;
+    if (minWeight !== undefined) body.min_weight = minWeight;
+
+    const r = await fetch(`${BASE}/admin/populate-from-etf`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Get Ticker Inventory ──────────────────── */
+  async fetchTickerInventory(search?: string, filterMissing: boolean = false, limit: number = 100, offset: number = 0): Promise<any> {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+      filter_missing: filterMissing.toString(),
+    });
+    if (search) params.append('search', search);
+
+    return getJSON<any>(`${BASE}/admin/ticker-inventory?${params}`);
+  },
+
+  /* ────────── Refresh Single Ticker ─────────────────── */
+  async refreshTicker(ticker: string, dataTypes: string[]): Promise<any> {
+    const r = await fetch(`${BASE}/admin/refresh-ticker`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ ticker, data_types: dataTypes }),
     });
     if (!r.ok) throw new Error(await r.text());
     return r.json();

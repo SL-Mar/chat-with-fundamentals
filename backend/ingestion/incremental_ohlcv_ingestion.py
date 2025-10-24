@@ -11,13 +11,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from database.models.financial import OHLCV
-from ingestion.base_ingestion import BaseIngestion
+from ingestion.ohlcv_ingestion import OHLCVIngestion
 from utils.ticker_utils import format_ticker_for_company
 
 logger = logging.getLogger("incremental_ohlcv")
 
 
-class IncrementalOHLCVIngestion(BaseIngestion):
+class IncrementalOHLCVIngestion(OHLCVIngestion):
     """
     Incremental OHLCV ingestion pipeline
 
@@ -36,11 +36,8 @@ class IncrementalOHLCVIngestion(BaseIngestion):
         Args:
             api_key: EODHD API key
         """
+        # Parent class (OHLCVIngestion) already initializes client and bulk_insert
         super().__init__(api_key)
-
-        # Initialize EODHD client
-        from tools.eodhd_client import EODHDClient
-        self.client = EODHDClient(api_key=api_key)
 
     def get_latest_date(self, db: Session, company_id: int) -> Optional[date]:
         """
@@ -57,32 +54,42 @@ class IncrementalOHLCVIngestion(BaseIngestion):
             OHLCV.company_id == company_id
         ).order_by(desc(OHLCV.date)).first()
 
-        return latest.date if latest else None
+        if not latest:
+            return None
+
+        # Convert datetime to date (handle timezone-aware timestamps)
+        if isinstance(latest.date, datetime):
+            return latest.date.date()
+        return latest.date
 
     def calculate_date_range(
         self,
         latest_date: Optional[date],
         max_lookback_days: int = 365
-    ) -> tuple[str, str]:
+    ) -> tuple[Optional[str], str]:
         """
         Calculate date range for incremental fetch
 
         Args:
             latest_date: Latest date in database
-            max_lookback_days: Maximum days to fetch if no data exists
+            max_lookback_days: Not used anymore (kept for compatibility)
 
         Returns:
             Tuple of (from_date, to_date) as strings
+            from_date is None for first-time fetch (gets all available history from IPO)
         """
         to_date = datetime.now().strftime('%Y-%m-%d')
 
         if not latest_date:
-            # No data - fetch full history up to max_lookback_days
-            from_date = (datetime.now() - timedelta(days=max_lookback_days)).strftime('%Y-%m-%d')
-            logger.info(f"[INCREMENTAL] No existing data - fetching {max_lookback_days} days")
+            # No data - fetch FULL history from IPO/first available date
+            # Setting from_date=None will fetch all available data from EODHD
+            from_date = None
+            logger.info(f"[INCREMENTAL] No existing data - fetching FULL HISTORY from IPO/first available date")
         else:
             # Incremental - only fetch since last update
-            from_date = (latest_date + timedelta(days=1)).strftime('%Y-%m-%d')
+            # Convert date to datetime for strftime, or format manually
+            next_date = latest_date + timedelta(days=1)
+            from_date = next_date.strftime('%Y-%m-%d') if hasattr(next_date, 'strftime') else str(next_date)
             days_to_fetch = (datetime.now().date() - latest_date).days
             logger.info(f"[INCREMENTAL] Latest date: {latest_date}, fetching {days_to_fetch} new days")
 
@@ -114,26 +121,33 @@ class IncrementalOHLCVIngestion(BaseIngestion):
             # Step 2: Calculate incremental date range
             from_date, to_date = self.calculate_date_range(latest_date, max_lookback_days)
 
-            # If from_date > to_date, no new data to fetch
-            if from_date > to_date:
+            # If from_date > to_date, no new data to fetch (only check if from_date is not None)
+            if from_date is not None and from_date > to_date:
                 logger.info(f"[INCREMENTAL] {ticker} is up to date (latest: {latest_date})")
                 return 0
 
-            # Step 3: Fetch only new data from API
-            logger.info(f"[INCREMENTAL] Fetching {ticker} from {from_date} to {to_date}")
-            api_data = self.client.historical.get_eod(
+            # Step 3: Fetch data from API
+            if from_date is None:
+                # For full history, use a very old date (30 years ago)
+                from_date = (datetime.now().date() - timedelta(days=365*30)).strftime('%Y-%m-%d')
+                logger.info(f"[INCREMENTAL] Fetching {ticker} FULL HISTORY from {from_date} to {to_date}")
+            else:
+                logger.info(f"[INCREMENTAL] Fetching {ticker} from {from_date} to {to_date}")
+
+            api_data = self.fetch_historical_data(
                 ticker=ticker,
                 from_date=from_date,
-                to_date=to_date,
-                period='d'
+                to_date=to_date
             )
 
             if not api_data:
                 logger.info(f"[INCREMENTAL] No new data for {ticker}")
                 return 0
 
-            # Step 4: Store using bulk insert with UPSERT
-            self.bulk_insert(db, company_id, api_data, on_conflict='update')
+            # Step 4: Convert dicts to OHLCVRecord objects and store using bulk insert with UPSERT
+            from ingestion.ohlcv_ingestion import OHLCVRecord
+            validated_records = [OHLCVRecord(**record) for record in api_data]
+            self.bulk_insert(db, company_id, validated_records, on_conflict='update')
 
             logger.info(f"[INCREMENTAL] ✅ Added {len(api_data)} new records for {ticker}")
             return len(api_data)
@@ -239,7 +253,7 @@ def main():
     """Test incremental OHLCV ingestion"""
     import os
     from database.models.base import SessionLocal
-    from database.queries_improved import DatabaseQueries
+    from database.queries_improved import ImprovedDatabaseQueries
 
     # Setup logging
     logging.basicConfig(
@@ -255,7 +269,7 @@ def main():
     # Initialize
     ingestion = IncrementalOHLCVIngestion(api_key)
     db = SessionLocal()
-    queries = DatabaseQueries()
+    queries = ImprovedDatabaseQueries()
 
     try:
         # Test 1: Refresh single company (AAPL)

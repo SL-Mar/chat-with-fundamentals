@@ -8,7 +8,8 @@ import { useRouter } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faHome, faInfoCircle, faEnvelope,
-  faBookOpen, faCog, faCodeBranch, faSignOutAlt, faHandshake
+  faBookOpen, faCog, faCodeBranch, faSignOutAlt, faHandshake,
+  faComments, faChartLine, faNewspaper, faCalendarAlt, faEye
 } from '@fortawesome/free-solid-svg-icons';
 // import { api } from '../lib/api'; // in case function are called
 
@@ -39,7 +40,8 @@ const Header = () => {
       </p>
 
       <nav className="mt-2 w-full flex justify-center">
-        <ul className="flex space-x-6 items-center">
+        <ul className="flex flex-wrap justify-center gap-4 items-center">
+          {/* Main Features */}
           <li>
             <Link href="/" className="text-gray-800 dark:text-gray-200 hover:underline">
               <FontAwesomeIcon icon={faHome} className="mr-1" />
@@ -47,27 +49,44 @@ const Header = () => {
             </Link>
           </li>
           <li>
+            <Link href="/unified-chat" className="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
+              <FontAwesomeIcon icon={faComments} className="mr-1" />
+              AI Chat
+            </Link>
+          </li>
+          <li>
+            <Link href="/screener" className="text-gray-800 dark:text-gray-200 hover:underline">
+              <FontAwesomeIcon icon={faChartLine} className="mr-1" />
+              Screener
+            </Link>
+          </li>
+          <li>
+            <Link href="/calendar" className="text-gray-800 dark:text-gray-200 hover:underline">
+              <FontAwesomeIcon icon={faCalendarAlt} className="mr-1" />
+              Calendar
+            </Link>
+          </li>
+          <li>
+            <Link href="/monitoring" className="text-gray-800 dark:text-gray-200 hover:underline">
+              <FontAwesomeIcon icon={faEye} className="mr-1" />
+              Monitoring
+            </Link>
+          </li>
+
+          {/* Divider */}
+          <li className="text-gray-400">|</li>
+
+          {/* Info & Settings */}
+          <li>
             <Link href="/gettingstarted" className="text-gray-800 dark:text-gray-200 hover:underline">
               <FontAwesomeIcon icon={faInfoCircle} className="mr-1" />
               Getting Started
             </Link>
           </li>
           <li>
-            <Link href="/contribute" className="text-gray-800 dark:text-gray-200 hover:underline">
-              <FontAwesomeIcon icon={faHandshake} className="mr-1" />
-              Contribute
-            </Link>
-          </li>
-          <li>
-            <Link href="/logs" className="text-gray-800 dark:text-gray-200 hover:underline">
-              <FontAwesomeIcon icon={faCodeBranch} className="mr-1" />
-              LLM Logs
-            </Link>
-          </li>
-          <li>
             <Link href="/documentation" className="text-gray-800 dark:text-gray-200 hover:underline">
               <FontAwesomeIcon icon={faBookOpen} className="mr-1" />
-              Documentation
+              Docs
             </Link>
           </li>
           <li>
@@ -76,10 +95,15 @@ const Header = () => {
               Settings
             </Link>
           </li>
+
+          {/* Divider */}
+          <li className="text-gray-400">|</li>
+
+          {/* System */}
           <li>
-            <Link href="/contact" className="text-gray-800 dark:text-gray-200 hover:underline">
-              <FontAwesomeIcon icon={faEnvelope} className="mr-1" />
-              Contact
+            <Link href="/logs" className="text-gray-800 dark:text-gray-200 hover:underline">
+              <FontAwesomeIcon icon={faCodeBranch} className="mr-1" />
+              Logs
             </Link>
           </li>
           <li>

@@ -1,122 +1,148 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { api } from '../lib/api';
-
-// === Interfaces ===
-
-interface LLMSetting {
-  flow: string;
-  manager: string;
-  store: string;
-}
-
-// === Model Pricing Map ===
-
-const MODEL_PRICING: Record<string, string> = {
-  'gpt-4.1': 'Input $2.00 / Cached $0.50 / Output $8.00',
-  'o1': 'Input $15.00 / Cached $7.50 / Output $60.00',
-  'gpt-4o': 'Input $2.50 / Cached $1.25 / Output $10.00',
-  'gpt-4o-mini': 'Input $0.15 / Cached $0.075 / Output $0.60',
-  'gpt-3.5-turbo': 'Input $0.50 / Output $1.50',
-};
+import React from 'react';
+import Link from 'next/link';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faCog, faEye, faClipboard, faBook, faLink, faCheckCircle, faExclamationTriangle
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function Settings() {
-  const [settings, setSettings] = useState<LLMSetting[]>([]);
-  const [models, setModels] = useState<string[]>([]);
-  const [message, setMessage] = useState('');
-
-  const fetchLLMSettings = async () => {
-    try {
-      const data = await api.fetchLLMSettings();
-      setSettings(data);
-    } catch (err) {
-      console.error('Error fetching LLM settings:', err);
-      setMessage('❌ Failed to fetch LLM settings');
-    }
-  };
-
-  const fetchModelList = async () => {
-    try {
-      const data = await api.fetchLLMModels();
-      setModels(data);
-    } catch (err) {
-      console.error('Error fetching model list:', err);
-      setMessage('❌ Failed to fetch model list');
-    }
-  };
-
-  const updateLLM = async (
-    flow: string,
-    field: 'manager' | 'store',
-    model_name: string
-  ) => {
-    try {
-      const updated = await api.updateLLMSetting(field, model_name);
-
-      setMessage(`✅ Updated ${field} in ${flow} to ${model_name}`);
-      setSettings((prev) =>
-        prev.map((s) => (s.flow === flow ? updated : s))
-      );
-    } catch (err: any) {
-      console.error('Error updating LLM:', err);
-      setMessage(`❌ Failed to update: ${err.message || 'Unknown error'}`);
-    }
-  };
-
-  useEffect(() => {
-    fetchLLMSettings();
-    fetchModelList();
-  }, []);
-
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-6">
-      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-        <h1 className="text-xl font-bold text-blue-600 mb-6">LLM Settings</h1>
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-white mb-8">
+          <FontAwesomeIcon icon={faCog} className="mr-3" />
+          Settings
+        </h1>
 
-        {settings.map((entry) => (
-          <div key={entry.flow} className="mb-6">
-            <h2 className="text-md font-semibold mb-2 capitalize">{entry.flow}</h2>
-
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-400 mr-4">Manager</span>
-              <select
-                value={entry.manager}
-                onChange={(e) => updateLLM(entry.flow, 'manager', e.target.value)}
-                className="p-2 rounded bg-gray-100 dark:bg-gray-700"
-                title={MODEL_PRICING[entry.manager] || ''}
-              >
-                {models.map((model) => (
-                  <option key={model} value={model} title={MODEL_PRICING[model]}>
-                    {model}
-                  </option>
-                ))}
-              </select>
+        {/* System Information */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">System Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-gray-400 text-sm">Frontend</p>
+              <p className="text-white font-medium">Next.js 13 (Pages Router)</p>
             </div>
+            <div>
+              <p className="text-gray-400 text-sm">Backend</p>
+              <p className="text-white font-medium">FastAPI + Python</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Database</p>
+              <p className="text-white font-medium">PostgreSQL + TimescaleDB</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Cache</p>
+              <p className="text-white font-medium">Redis</p>
+            </div>
+          </div>
+        </div>
 
+        {/* Environment */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">Environment</h2>
+          <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-400 mr-4">Store</span>
-              <select
-                value={entry.store}
-                onChange={(e) => updateLLM(entry.flow, 'store', e.target.value)}
-                className="p-2 rounded bg-gray-100 dark:bg-gray-700"
-                title={MODEL_PRICING[entry.store] || ''}
-              >
-                {models.map((model) => (
-                  <option key={model} value={model} title={MODEL_PRICING[model]}>
-                    {model}
-                  </option>
-                ))}
-              </select>
+              <span className="text-gray-400">API URL</span>
+              <code className="text-indigo-400 bg-gray-900 px-3 py-1 rounded">
+                {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}
+              </code>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Authentication</span>
+              <span className={`px-3 py-1 rounded flex items-center ${process.env.NEXT_PUBLIC_APP_API_KEY ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}`}>
+                <FontAwesomeIcon
+                  icon={process.env.NEXT_PUBLIC_APP_API_KEY ? faCheckCircle : faExclamationTriangle}
+                  className="mr-2"
+                />
+                {process.env.NEXT_PUBLIC_APP_API_KEY ? 'Enabled' : 'Development Mode'}
+              </span>
             </div>
           </div>
-        ))}
+        </div>
 
-        {message && (
-          <div className="mt-4 p-2 text-sm text-green-500 bg-green-100 rounded">
-            {message}
+        {/* Quick Actions */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link
+              href="/monitoring"
+              className="flex items-center justify-between p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <div>
+                <p className="text-white font-medium">System Monitoring</p>
+                <p className="text-gray-400 text-sm">View metrics and health</p>
+              </div>
+              <span className="text-2xl text-indigo-400">
+                <FontAwesomeIcon icon={faEye} />
+              </span>
+            </Link>
+            <Link
+              href="/logs"
+              className="flex items-center justify-between p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <div>
+                <p className="text-white font-medium">View Logs</p>
+                <p className="text-gray-400 text-sm">Real-time log stream</p>
+              </div>
+              <span className="text-2xl text-indigo-400">
+                <FontAwesomeIcon icon={faClipboard} />
+              </span>
+            </Link>
+            <Link
+              href="/documentation"
+              className="flex items-center justify-between p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <div>
+                <p className="text-white font-medium">Documentation</p>
+                <p className="text-gray-400 text-sm">API docs and guides</p>
+              </div>
+              <span className="text-2xl text-indigo-400">
+                <FontAwesomeIcon icon={faBook} />
+              </span>
+            </Link>
+            <a
+              href="http://localhost:8000/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <div>
+                <p className="text-white font-medium">API Docs (Swagger)</p>
+                <p className="text-gray-400 text-sm">Interactive API explorer</p>
+              </div>
+              <span className="text-2xl text-indigo-400">
+                <FontAwesomeIcon icon={faLink} />
+              </span>
+            </a>
           </div>
-        )}
+        </div>
+
+        {/* About */}
+        <div className="bg-gray-800 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-white mb-4">About</h2>
+          <p className="text-gray-400 mb-4">
+            Chat with Fundamentals is an AI-powered financial analysis platform providing real-time market data,
+            comprehensive fundamental analysis, and intelligent chat assistance for equity research.
+          </p>
+          <div className="flex gap-4">
+            <a
+              href="https://github.com/SL-Mar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-400 hover:text-indigo-300"
+            >
+              GitHub
+            </a>
+            <Link href="/contribute" className="text-indigo-400 hover:text-indigo-300">
+              Contribute
+            </Link>
+            <Link href="/disclaimer" className="text-indigo-400 hover:text-indigo-300">
+              Disclaimer
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

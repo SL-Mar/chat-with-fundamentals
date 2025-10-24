@@ -338,6 +338,7 @@ class ImprovedDatabaseQueries:
         days: int = QueryConfig.NEWS_DEFAULT_DAYS,
         min_sentiment: Optional[float] = None,
         limit: int = QueryConfig.DEFAULT_LIMIT,
+        offset: int = 0,
         db: Session = None
     ) -> List[News]:
         """
@@ -359,7 +360,7 @@ class ImprovedDatabaseQueries:
 
         return query.order_by(
             desc(News.published_at)
-        ).limit(limit).all()
+        ).offset(offset).limit(limit).all()
 
     # =========================================================================
     # ANALYST RATING QUERIES

@@ -9,12 +9,12 @@ import logging
 from sqlalchemy.orm import Session
 
 from database.models.base import SessionLocal
-from database.queries_improved import DatabaseQueries
+from database.queries_improved import ImprovedDatabaseQueries
 from database.models.financial import OHLCV, Fundamental, News, Dividend, InsiderTransaction
 from ingestion.ohlcv_ingestion import OHLCVIngestion
-from ingestion.fundamentals_ingestion import FundamentalsIngestion
+from ingestion.fundamental_ingestion import FundamentalIngestion  # Fixed: singular not plural
 from ingestion.news_ingestion import NewsIngestion
-from ingestion.dividends_ingestion import DividendsIngestion
+# from ingestion.dividends_ingestion import DividendsIngestion  # TODO: Create this module
 from ingestion.insider_transactions_ingestion import InsiderTransactionsIngestion
 from tools.eodhd_client import EODHDClient
 import os
@@ -65,7 +65,7 @@ class DataService:
             api_key: EODHD API key (defaults to env var)
         """
         self.api_key = api_key or os.getenv("EODHD_API_KEY")
-        self.db_queries = DatabaseQueries()
+        self.db_queries = ImprovedDatabaseQueries()
         self.eodhd_client = EODHDClient(api_key=self.api_key)
 
     def get_eod_data(
@@ -259,7 +259,7 @@ class DataService:
 
         try:
             # Check database
-            db_records = self.db_queries.get_news(
+            db_records = self.db_queries.get_recent_news(
                 ticker=ticker,
                 limit=limit,
                 offset=offset,
@@ -317,7 +317,7 @@ class DataService:
 
         try:
             # Check database
-            db_records = self.db_queries.get_dividends(ticker, db=db)
+            db_records = self.db_queries.get_dividend_history(ticker, db=db)
 
             # Check freshness (7 day TTL)
             is_fresh = False
@@ -508,7 +508,7 @@ class DataService:
     def _store_fundamentals_data(self, ticker: str, api_data: Dict, db: Session):
         """Store fundamentals data in database"""
         try:
-            ingestion = FundamentalsIngestion(api_key=self.api_key)
+            ingestion = FundamentalIngestion(api_key=self.api_key)
             company = self.db_queries.get_company(ticker, db=db)
 
             if not company:
@@ -541,8 +541,11 @@ class DataService:
 
     def _store_dividends_data(self, ticker: str, api_data: List[Dict], db: Session):
         """Store dividends data in database"""
+        # TODO: Create DividendsIngestion class
+        logger.warning("DividendsIngestion not implemented yet")
+        return
         try:
-            ingestion = DividendsIngestion(api_key=self.api_key)
+            # ingestion = DividendsIngestion(api_key=self.api_key)
             company = self.db_queries.get_company(ticker, db=db)
 
             if not company:
