@@ -17,6 +17,7 @@ from ingestion.incremental_ohlcv_ingestion import IncrementalOHLCVIngestion
 from ingestion.incremental_fundamentals_ingestion import IncrementalFundamentalsIngestion
 from ingestion.incremental_news_ingestion import IncrementalNewsIngestion
 from ingestion.dividends_ingestion import DividendsIngestion
+from utils.ticker_utils import format_ticker_for_company
 
 logger = logging.getLogger("data_refresh_pipeline")
 
@@ -214,7 +215,8 @@ class DataRefreshPipeline:
 
             for i, company in enumerate(companies, 1):
                 try:
-                    ticker = f"{company.ticker}.US"
+                    # Format ticker with proper exchange suffix
+                    ticker = format_ticker_for_company(company)
 
                     # Fetch dividends
                     dividends_data = self.dividends_ingestion.client.corporate_actions.get_dividends(ticker=ticker)

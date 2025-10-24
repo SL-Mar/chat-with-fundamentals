@@ -12,6 +12,7 @@ from sqlalchemy import desc
 
 from database.models.financial import OHLCV
 from ingestion.base_ingestion import BaseIngestion
+from utils.ticker_utils import format_ticker_for_company
 
 logger = logging.getLogger("incremental_ohlcv")
 
@@ -181,8 +182,8 @@ class IncrementalOHLCVIngestion(BaseIngestion):
 
         for i, company in enumerate(companies, 1):
             try:
-                # Construct ticker with exchange suffix
-                ticker = f"{company.ticker}.US"
+                # Format ticker with proper exchange suffix
+                ticker = format_ticker_for_company(company)
 
                 # Refresh incrementally
                 records_added = self.refresh_company_incremental(

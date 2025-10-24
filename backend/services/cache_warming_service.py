@@ -15,6 +15,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from database.models.base import SessionLocal
 from database.queries_improved import DatabaseQueries
 from services.data_service import DataService, DataFreshnessConfig
+from utils.ticker_utils import format_ticker_for_company, format_ticker_for_eodhd
 
 logger = logging.getLogger("cache_warming")
 
@@ -42,7 +43,7 @@ class CacheWarmingService:
             limit: Number of tickers to return
 
         Returns:
-            List of ticker symbols
+            List of ticker symbols WITH exchange suffix (e.g., 'AAPL.US')
         """
         db = SessionLocal()
 
@@ -50,19 +51,26 @@ class CacheWarmingService:
             # Get top companies from database (ordered by ID - first inserted are usually most popular)
             companies = self.db_queries.get_companies_bulk(limit=limit, db=db)
 
-            tickers = [comp.ticker for comp in companies]
+            # Format tickers with proper exchange suffix
+            tickers = [format_ticker_for_company(comp) for comp in companies]
 
             logger.info(f"[CACHE_WARM] Selected {len(tickers)} popular tickers for cache warming")
             return tickers
 
         except Exception as e:
             logger.error(f"[CACHE_WARM] Failed to get popular tickers: {e}")
-            # Fallback to hardcoded popular stocks
+            # Fallback to hardcoded popular US stocks (with .US suffix)
             return [
-                'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META',
-                'TSLA', 'NVDA', 'JPM', 'V', 'WMT',
-                'JNJ', 'PG', 'UNH', 'MA', 'HD',
-                'DIS', 'BAC', 'XOM', 'CVX', 'PFE'
+                format_ticker_for_eodhd('AAPL'), format_ticker_for_eodhd('MSFT'),
+                format_ticker_for_eodhd('GOOGL'), format_ticker_for_eodhd('AMZN'),
+                format_ticker_for_eodhd('META'), format_ticker_for_eodhd('TSLA'),
+                format_ticker_for_eodhd('NVDA'), format_ticker_for_eodhd('JPM'),
+                format_ticker_for_eodhd('V'), format_ticker_for_eodhd('WMT'),
+                format_ticker_for_eodhd('JNJ'), format_ticker_for_eodhd('PG'),
+                format_ticker_for_eodhd('UNH'), format_ticker_for_eodhd('MA'),
+                format_ticker_for_eodhd('HD'), format_ticker_for_eodhd('DIS'),
+                format_ticker_for_eodhd('BAC'), format_ticker_for_eodhd('XOM'),
+                format_ticker_for_eodhd('CVX'), format_ticker_for_eodhd('PFE')
             ]
         finally:
             db.close()
@@ -80,8 +88,9 @@ class CacheWarmingService:
         for i, ticker in enumerate(tickers, 1):
             try:
                 # Fetch EOD data (will cache in database)
+                # ticker already formatted with exchange suffix
                 self.data_service.get_eod_data(
-                    ticker=f"{ticker}.US",
+                    ticker=ticker,
                     from_date=None,  # Defaults to 90 days
                     to_date=None,
                     period='d'
@@ -111,7 +120,8 @@ class CacheWarmingService:
         for i, ticker in enumerate(tickers, 1):
             try:
                 # Fetch fundamentals (will cache in database)
-                self.data_service.get_fundamentals(ticker=f"{ticker}.US")
+                # ticker already formatted with exchange suffix
+                self.data_service.get_fundamentals(ticker=ticker)
 
                 success_count += 1
                 logger.info(f"[CACHE_WARM] ({i}/{len(tickers)}) Warmed fundamentals cache for {ticker}")
@@ -163,7 +173,8 @@ class CacheWarmingService:
         for i, ticker in enumerate(tickers, 1):
             try:
                 # Fetch dividends (will cache in database)
-                self.data_service.get_dividends(ticker=f"{ticker}.US")
+                # ticker already formatted with exchange suffix
+                self.data_service.get_dividends(ticker=ticker)
 
                 success_count += 1
                 logger.info(f"[CACHE_WARM] ({i}/{len(tickers)}) Warmed dividends cache for {ticker}")

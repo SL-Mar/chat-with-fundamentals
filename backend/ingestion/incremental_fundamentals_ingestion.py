@@ -12,6 +12,7 @@ from sqlalchemy import desc
 
 from database.models.financial import Fundamental
 from ingestion.base_ingestion import BaseIngestion
+from utils.ticker_utils import format_ticker_for_company
 
 logger = logging.getLogger("incremental_fundamentals")
 
@@ -170,8 +171,8 @@ class IncrementalFundamentalsIngestion(BaseIngestion):
 
         for i, company in enumerate(companies, 1):
             try:
-                # Construct ticker with exchange suffix
-                ticker = f"{company.ticker}.US"
+                # Format ticker with proper exchange suffix
+                ticker = format_ticker_for_company(company)
 
                 # Refresh if stale
                 was_refreshed = self.refresh_company_incremental(
