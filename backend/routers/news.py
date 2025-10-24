@@ -7,6 +7,7 @@ from typing import Optional
 import logging
 from tools.eodhd_client import EODHDClient
 from services.data_service import DataService
+from utils.ticker_utils import validate_and_format_ticker, get_bare_ticker
 
 router = APIRouter(prefix="/news", tags=["News & Sentiment"])
 logger = logging.getLogger("news")
@@ -50,6 +51,12 @@ async def get_news_articles(
     try:
         # If ticker specified, use database-first approach
         if ticker:
+            # Validate ticker format
+            ticker = validate_and_format_ticker(ticker)
+
+            # News API typically uses bare ticker (no exchange suffix)
+            ticker = get_bare_ticker(ticker)
+
             news = data_service.get_news(ticker=ticker, limit=limit, offset=offset)
         else:
             # General market news - fetch from API (no database caching for general news)
@@ -84,6 +91,12 @@ async def get_sentiment_analysis(
     Example: /news/sentiment?ticker=AAPL.US
     """
     try:
+        # Validate ticker format
+        ticker = validate_and_format_ticker(ticker)
+
+        # News API typically uses bare ticker (no exchange suffix)
+        ticker = get_bare_ticker(ticker)
+
         client = EODHDClient()
         sentiment = client.news.get_sentiment(ticker)
 

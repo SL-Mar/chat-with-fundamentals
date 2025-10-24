@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Dict, Any, List
 from core.logger_config import setup_logger
 from core.config import settings
+from utils.ticker_utils import validate_and_format_ticker, format_ticker_for_eodhd
 import httpx
 
 router = APIRouter(
@@ -40,8 +41,12 @@ async def get_technical_indicator(
     - williams: Williams %R
     - and more...
     """
-    # Add .US suffix only if ticker doesn't already have an exchange
-    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
+    # Validate and format ticker
+    ticker = validate_and_format_ticker(ticker)
+
+    # Add exchange suffix if not present
+    ticker_with_exchange = format_ticker_for_eodhd(ticker)
+
     url = f"https://eodhd.com/api/technical/{ticker_with_exchange}"
     params = {
         "function": function,

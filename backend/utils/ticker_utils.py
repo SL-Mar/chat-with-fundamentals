@@ -6,11 +6,17 @@ Provides consistent ticker formatting across the application
 import logging
 from typing import Optional
 import re
+from fastapi import HTTPException
 
 logger = logging.getLogger("ticker_utils")
 
 # Ticker validation pattern: 1-10 alphanumeric characters, optional .EXCHANGE suffix
 TICKER_PATTERN = re.compile(r'^[A-Z0-9]{1,10}(\.[A-Z]{2,10})?$', re.IGNORECASE)
+
+
+class TickerValidationError(ValueError):
+    """Raised when ticker format is invalid"""
+    pass
 
 
 def format_ticker_for_eodhd(ticker: str, exchange_code: Optional[str] = None) -> str:
@@ -160,3 +166,77 @@ def get_bare_ticker(ticker: str) -> str:
     """
     parsed = parse_ticker(ticker)
     return parsed["symbol"]
+
+
+def validate_and_format_ticker(ticker: str, require_exchange: bool = False) -> str:
+    """
+    Validate ticker format and return formatted version.
+
+    This function is designed for use in API endpoints to ensure
+    ticker inputs are valid before processing.
+
+    Args:
+        ticker: Ticker string to validate and format
+        require_exchange: If True, ticker must include exchange suffix
+
+    Returns:
+        Validated and formatted ticker (uppercase, trimmed)
+
+    Raises:
+        HTTPException: If ticker format is invalid (400 Bad Request)
+
+    Examples:
+        >>> validate_and_format_ticker('aapl')
+        'AAPL'
+
+        >>> validate_and_format_ticker('AAPL.US')
+        'AAPL.US'
+
+        >>> validate_and_format_ticker('invalid!!!')
+        # Raises HTTPException(400)
+    """
+    if not ticker or not isinstance(ticker, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Ticker is required and must be a string"
+        )
+
+    # Normalize
+    ticker = ticker.upper().strip()
+
+    # Validate format
+    if not validate_ticker_format(ticker):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid ticker format: '{ticker}'. Expected format: SYMBOL or SYMBOL.EXCHANGE (e.g., AAPL, AAPL.US, BMW.XETRA)"
+        )
+
+    # Check exchange requirement
+    if require_exchange and "." not in ticker:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ticker must include exchange suffix (e.g., {ticker}.US)"
+        )
+
+    return ticker
+
+
+def sanitize_ticker(ticker: str) -> str:
+    """
+    Sanitize ticker input by removing dangerous characters.
+
+    Args:
+        ticker: Raw ticker input
+
+    Returns:
+        Sanitized ticker (alphanumeric + dot only)
+
+    Examples:
+        >>> sanitize_ticker('AAPL.US')
+        'AAPL.US'
+
+        >>> sanitize_ticker('AAPL; DROP TABLE--')
+        'AAPPLDROPTABLE'
+    """
+    # Remove everything except alphanumeric and dot
+    return re.sub(r'[^A-Z0-9.]', '', ticker.upper())

@@ -407,17 +407,25 @@ class DataRefreshPipeline:
         logger.info("✅ Data refresh pipeline stopped")
 
     def get_status(self) -> Dict[str, Any]:
-        """Get pipeline status"""
+        """
+        Get pipeline status.
+
+        Returns:
+            Dictionary with:
+            - is_running: Boolean indicating if pipeline is active
+            - jobs: List of scheduled jobs (if running)
+            - last_refresh: Timestamps of last refresh operations
+        """
         if not self.is_running:
             return {
-                'status': 'stopped',
+                'is_running': False,
                 'jobs': [],
                 'last_refresh': self.last_refresh
             }
 
         jobs = self.scheduler.get_jobs()
         return {
-            'status': 'running',
+            'is_running': True,
             'jobs': [
                 {
                     'id': job.id,

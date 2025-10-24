@@ -7,6 +7,7 @@ from typing import Optional
 import logging
 from tools.eodhd_client import EODHDClient
 from services.data_service import DataService
+from utils.ticker_utils import validate_and_format_ticker, format_ticker_for_eodhd
 
 router = APIRouter(prefix="/corporate", tags=["Corporate Actions"])
 logger = logging.getLogger("corporate")
@@ -37,6 +38,10 @@ async def get_dividend_history(
     Example: /corporate/dividends?ticker=AAPL.US&from_date=2020-01-01
     """
     try:
+        # Validate and format ticker
+        ticker = validate_and_format_ticker(ticker)
+        ticker = format_ticker_for_eodhd(ticker)
+
         # DATABASE-FIRST: Check DB, fallback to API, auto-store
         dividends = data_service.get_dividends(
             ticker=ticker,
@@ -67,6 +72,10 @@ async def get_split_history(
     Example: /corporate/splits?ticker=TSLA.US&from_date=2020-01-01
     """
     try:
+        # Validate and format ticker
+        ticker = validate_and_format_ticker(ticker)
+        ticker = format_ticker_for_eodhd(ticker)
+
         client = EODHDClient()
         splits = client.corporate.get_splits(
             ticker,
@@ -104,6 +113,10 @@ async def get_insider_transactions(
     Example: /corporate/insider-transactions?ticker=AAPL.US&limit=50
     """
     try:
+        # Validate and format ticker
+        ticker = validate_and_format_ticker(ticker)
+        ticker = format_ticker_for_eodhd(ticker)
+
         # DATABASE-FIRST: Check DB, fallback to API, auto-store
         transactions = data_service.get_insider_transactions(ticker=ticker, limit=limit)
 

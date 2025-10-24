@@ -7,6 +7,7 @@ from typing import Optional, List
 import logging
 from tools.eodhd_client import EODHDClient
 from services.data_service import DataService
+from utils.ticker_utils import validate_and_format_ticker, format_ticker_for_eodhd
 
 router = APIRouter(prefix="/historical", tags=["Historical Data"])
 logger = logging.getLogger("historical")
@@ -35,6 +36,12 @@ async def get_intraday_prices(
     Example: /historical/intraday?ticker=AAPL.US&interval=5m
     """
     try:
+        # Validate and format ticker
+        ticker = validate_and_format_ticker(ticker)
+
+        # Add exchange suffix if not present
+        ticker = format_ticker_for_eodhd(ticker)
+
         client = EODHDClient()
 
         # Validate interval
@@ -84,6 +91,12 @@ async def get_live_price(
     Example: /historical/live-price?ticker=AAPL.US
     """
     try:
+        # Validate and format ticker
+        ticker = validate_and_format_ticker(ticker)
+
+        # Add exchange suffix if not present
+        ticker = format_ticker_for_eodhd(ticker)
+
         # DATABASE-FIRST: Check DB with 15s TTL, fallback to API
         live_price = data_service.get_live_price(ticker)
 
@@ -148,6 +161,12 @@ async def get_eod_extended(
     Example: /historical/eod-extended?ticker=AAPL.US&period=d&from_date=2024-01-01
     """
     try:
+        # Validate and format ticker
+        ticker = validate_and_format_ticker(ticker)
+
+        # Add exchange suffix if not present
+        ticker = format_ticker_for_eodhd(ticker)
+
         # Validate period
         valid_periods = ["d", "w", "m"]
         if period not in valid_periods:

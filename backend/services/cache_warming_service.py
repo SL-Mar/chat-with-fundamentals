@@ -291,16 +291,23 @@ class CacheWarmingService:
         logger.info("✅ Cache warming service stopped")
 
     def get_status(self) -> dict:
-        """Get service status"""
+        """
+        Get cache warming service status.
+
+        Returns:
+            Dictionary with:
+            - is_running: Boolean indicating if service is active
+            - jobs: List of scheduled jobs (if running)
+        """
         if not self.is_running:
             return {
-                'status': 'stopped',
+                'is_running': False,
                 'jobs': []
             }
 
         jobs = self.scheduler.get_jobs()
         return {
-            'status': 'running',
+            'is_running': True,
             'jobs': [
                 {
                     'id': job.id,
