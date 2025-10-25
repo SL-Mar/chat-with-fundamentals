@@ -24,6 +24,7 @@ export default function TradingViewChart({ ticker, interval = '1d' }: TradingVie
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | '5Y' | 'MAX'>('1Y');
+  const [dataInfo, setDataInfo] = useState<{ count: number; period: string } | null>(null);
 
   // Resizing state
   const [dimensions, setDimensions] = useState({ width: 800, height: 400 });
@@ -153,48 +154,57 @@ export default function TradingViewChart({ ticker, interval = '1d' }: TradingVie
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-        // Calculate date range based on timeframe
+        // Calculate date range and period based on timeframe
+        // Use data decimation for better performance on long timeframes
         const today = new Date();
         const toDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
         let fromDate: string;
+        let period: 'd' | 'w' | 'm' = 'd'; // Daily, weekly, or monthly
 
         switch (timeframe) {
           case '1M':
             const oneMonthAgo = new Date(today);
             oneMonthAgo.setMonth(today.getMonth() - 1);
             fromDate = oneMonthAgo.toISOString().split('T')[0];
+            period = 'd'; // Daily for 1 month (~22 candles)
             break;
           case '3M':
             const threeMonthsAgo = new Date(today);
             threeMonthsAgo.setMonth(today.getMonth() - 3);
             fromDate = threeMonthsAgo.toISOString().split('T')[0];
+            period = 'd'; // Daily for 3 months (~66 candles)
             break;
           case '6M':
             const sixMonthsAgo = new Date(today);
             sixMonthsAgo.setMonth(today.getMonth() - 6);
             fromDate = sixMonthsAgo.toISOString().split('T')[0];
+            period = 'd'; // Daily for 6 months (~132 candles)
             break;
           case '1Y':
             const oneYearAgo = new Date(today);
             oneYearAgo.setFullYear(today.getFullYear() - 1);
             fromDate = oneYearAgo.toISOString().split('T')[0];
+            period = 'd'; // Daily for 1 year (~252 candles)
             break;
           case '5Y':
             const fiveYearsAgo = new Date(today);
             fiveYearsAgo.setFullYear(today.getFullYear() - 5);
             fromDate = fiveYearsAgo.toISOString().split('T')[0];
+            period = 'w'; // Weekly for 5 years (~260 candles instead of 1,260)
             break;
           case 'MAX':
             // Get all available data (database has 30+ years)
             fromDate = '1990-01-01'; // Far enough back to get all data
+            period = 'm'; // Monthly for 30+ years (~360-400 candles instead of 7,500+)
             break;
           default:
             fromDate = new Date(today.setFullYear(today.getFullYear() - 1)).toISOString().split('T')[0];
+            period = 'd';
         }
 
-        // Fetch EOD data from database-first endpoint
+        // Fetch EOD data from database-first endpoint with optimized period
         const response = await fetch(
-          `${apiUrl}/historical/eod-extended?ticker=${ticker}&period=d&from_date=${fromDate}&to_date=${toDate}`
+          `${apiUrl}/historical/eod-extended?ticker=${ticker}&period=${period}&from_date=${fromDate}&to_date=${toDate}`
         );
 
         if (!response.ok) {
@@ -231,6 +241,17 @@ export default function TradingViewChart({ ticker, interval = '1d' }: TradingVie
 
         // Fit content to show all data
         chartRef.current.timeScale().fitContent();
+
+        // Update data info for display
+        const periodLabels: Record<string, string> = {
+          'd': 'Daily',
+          'w': 'Weekly',
+          'm': 'Monthly'
+        };
+        setDataInfo({
+          count: candleData.length,
+          period: periodLabels[period] || 'Daily'
+        });
 
         setLoading(false);
       } catch (err: any) {
@@ -307,8 +328,13 @@ export default function TradingViewChart({ ticker, interval = '1d' }: TradingVie
         >
           MAX
         </button>
-        <div className="ml-auto text-xs text-gray-400 flex items-center">
-          {dimensions.width} × {dimensions.height}px
+        <div className="ml-auto text-xs text-gray-400 flex items-center gap-3">
+          {dataInfo && (
+            <span className="text-indigo-400">
+              {dataInfo.period} • {dataInfo.count.toLocaleString()} candles
+            </span>
+          )}
+          <span>{dimensions.width} × {dimensions.height}px</span>
         </div>
       </div>
 
