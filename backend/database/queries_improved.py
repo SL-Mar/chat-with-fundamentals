@@ -19,6 +19,7 @@ from sqlalchemy import func, desc, and_
 
 from database.models.company import Company, Exchange, Sector
 from database.models.market_data import OHLCV, Fundamental
+from database.models.intraday_data import IntradayOHLCV, IntradayQuote
 from database.models.news import News, AnalystRating
 from database.models.dividends import Dividend
 from database.models.base import SessionLocal
@@ -442,3 +443,115 @@ class ImprovedDatabaseQueries:
                 for s in sectors
             ]
         }
+
+    # ===== INTRADAY DATA QUERIES =====
+
+    @with_session
+    @cached_query(ttl=CacheConfig.OHLCV_INTRADAY_TTL, key_prefix='intraday_ohlcv')
+    def get_intraday_ohlcv(
+        self,
+        ticker: str,
+        interval: str = '5m',
+        from_datetime: Optional[datetime] = None,
+        to_datetime: Optional[datetime] = None,
+        limit: int = QueryConfig.DEFAULT_LIMIT,
+        db: Session = None
+    ) -> List[IntradayOHLCV]:
+        """
+        Get intraday OHLCV data for ticker
+
+        Args:
+            ticker: Stock symbol (e.g., AAPL.US)
+            interval: Time interval (1m, 5m, 15m, 30m, 1h)
+            from_datetime: Start datetime (UTC)
+            to_datetime: End datetime (UTC)
+            limit: Max number of records
+            db: Database session
+
+        Returns:
+            List of IntradayOHLCV records
+        """
+        # Default datetime range (last 24 hours)
+        if to_datetime is None:
+            to_datetime = datetime.utcnow()
+        if from_datetime is None:
+            from_datetime = to_datetime - timedelta(days=1)
+
+        # Validate limit
+        if limit > QueryConfig.MAX_LIMIT:
+            limit = QueryConfig.MAX_LIMIT
+
+        # Query with ticker and interval filters
+        return db.query(IntradayOHLCV).filter(
+            and_(
+                IntradayOHLCV.ticker == ticker.upper(),
+                IntradayOHLCV.interval == interval,
+                IntradayOHLCV.timestamp >= from_datetime,
+                IntradayOHLCV.timestamp <= to_datetime
+            )
+        ).order_by(desc(IntradayOHLCV.timestamp)).limit(limit).all()
+
+    @with_session
+    def get_latest_intraday_ohlcv(
+        self,
+        ticker: str,
+        interval: str = '5m',
+        db: Session = None
+    ) -> Optional[IntradayOHLCV]:
+        """
+        Get most recent intraday OHLCV record for ticker
+
+        Args:
+            ticker: Stock symbol
+            interval: Time interval
+            db: Database session
+
+        Returns:
+            Latest IntradayOHLCV record or None
+        """
+        return db.query(IntradayOHLCV).filter(
+            and_(
+                IntradayOHLCV.ticker == ticker.upper(),
+                IntradayOHLCV.interval == interval
+            )
+        ).order_by(desc(IntradayOHLCV.timestamp)).first()
+
+    @with_session
+    def get_intraday_quotes(
+        self,
+        ticker: str,
+        from_datetime: Optional[datetime] = None,
+        to_datetime: Optional[datetime] = None,
+        limit: int = QueryConfig.DEFAULT_LIMIT,
+        db: Session = None
+    ) -> List[IntradayQuote]:
+        """
+        Get intraday tick-level quotes for ticker
+
+        Args:
+            ticker: Stock symbol
+            from_datetime: Start datetime (UTC)
+            to_datetime: End datetime (UTC)
+            limit: Max number of records
+            db: Database session
+
+        Returns:
+            List of IntradayQuote records
+        """
+        # Default datetime range (last hour)
+        if to_datetime is None:
+            to_datetime = datetime.utcnow()
+        if from_datetime is None:
+            from_datetime = to_datetime - timedelta(hours=1)
+
+        # Validate limit
+        if limit > QueryConfig.MAX_LIMIT:
+            limit = QueryConfig.MAX_LIMIT
+
+        return db.query(IntradayQuote).filter(
+            and_(
+                IntradayQuote.ticker == ticker.upper(),
+                IntradayQuote.timestamp >= from_datetime,
+                IntradayQuote.timestamp <= to_datetime
+            )
+        ).order_by(desc(IntradayQuote.timestamp)).limit(limit).all()

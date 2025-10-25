@@ -19,7 +19,7 @@ data_service = DataService()
 @router.get("/intraday")
 async def get_intraday_prices(
     ticker: str = Query(..., description="Stock symbol (e.g., AAPL.US)"),
-    interval: str = Query("5m", description="Time interval: 1m, 5m, 15m, 1h"),
+    interval: str = Query("5m", description="Time interval: 1m, 5m, 15m, 30m, 1h"),
     from_timestamp: Optional[int] = Query(None, description="Unix timestamp start"),
     to_timestamp: Optional[int] = Query(None, description="Unix timestamp end")
 ):
@@ -29,9 +29,16 @@ async def get_intraday_prices(
     - 1m: 1-minute candles
     - 5m: 5-minute candles
     - 15m: 15-minute candles
+    - 30m: 30-minute candles
     - 1h: 1-hour candles
 
     Returns OHLCV data for intraday trading analysis.
+
+    **NEW: Database-First Approach (Phase 3D)**
+    - Checks database first for cached intraday data (5 minute TTL)
+    - Falls back to EODHD API if data missing/stale
+    - Automatically stores API response in database for future queries
+    - Uses TimescaleDB hypertables with compression and retention policies
 
     Example: /historical/intraday?ticker=AAPL.US&interval=5m
     """
@@ -42,24 +49,23 @@ async def get_intraday_prices(
         # Add exchange suffix if not present
         ticker = format_ticker_for_eodhd(ticker)
 
-        client = EODHDClient()
-
         # Validate interval
-        valid_intervals = ["1m", "5m", "15m", "1h"]
+        valid_intervals = ["1m", "5m", "15m", "30m", "1h"]
         if interval not in valid_intervals:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid interval. Must be one of: {', '.join(valid_intervals)}"
             )
 
-        intraday_data = client.historical.get_intraday(
-            ticker,
+        # DATABASE-FIRST: Check DB with 5 minute TTL, fallback to API
+        intraday_data = data_service.get_intraday_data(
+            ticker=ticker,
             interval=interval,
             from_timestamp=from_timestamp,
             to_timestamp=to_timestamp
         )
 
-        logger.info(f"[INTRADAY] Fetched {interval} data for {ticker}")
+        logger.info(f"[INTRADAY] Fetched {interval} data for {ticker} ({len(intraday_data)} records)")
         return intraday_data
 
     except HTTPException:

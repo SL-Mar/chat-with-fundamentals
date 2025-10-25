@@ -144,6 +144,83 @@ class DataService:
             if close_db:
                 db.close()
 
+    def get_intraday_data(
+        self,
+        ticker: str,
+        interval: str = "5m",
+        from_timestamp: Optional[int] = None,
+        to_timestamp: Optional[int] = None,
+        db: Optional[Session] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get intraday OHLCV data (database-first)
+
+        Args:
+            ticker: Stock symbol (e.g., AAPL.US)
+            interval: Time interval (1m, 5m, 15m, 30m, 1h)
+            from_timestamp: Unix timestamp start
+            to_timestamp: Unix timestamp end
+            db: Optional database session
+
+        Returns:
+            List of intraday OHLCV records
+        """
+        close_db = db is None
+        if close_db:
+            db = SessionLocal()
+
+        try:
+            # Convert timestamps to datetime if provided
+            if to_timestamp:
+                to_datetime = datetime.fromtimestamp(to_timestamp)
+            else:
+                to_datetime = datetime.utcnow()
+
+            if from_timestamp:
+                from_datetime = datetime.fromtimestamp(from_timestamp)
+            else:
+                # Default: last 24 hours
+                from_datetime = to_datetime - timedelta(days=1)
+
+            # 1. Check database first
+            db_records = self.db_queries.get_intraday_ohlcv(
+                ticker=ticker,
+                interval=interval,
+                from_datetime=from_datetime,
+                to_datetime=to_datetime,
+                limit=1000,
+                db=db
+            )
+
+            # 2. Check if data is fresh and sufficient
+            is_fresh = self._is_intraday_data_fresh(db_records, to_datetime)
+
+            if is_fresh and len(db_records) > 0:
+                logger.info(f"[DATA_SERVICE] Cache HIT: {ticker} intraday {interval} from database ({len(db_records)} records)")
+                return self._serialize_intraday_ohlcv(db_records)
+
+            # 3. Data missing or stale - fetch from API
+            logger.info(f"[DATA_SERVICE] Cache MISS: {ticker} intraday {interval} (fresh={is_fresh}, count={len(db_records)})")
+
+            api_data = self.eodhd_client.historical.get_intraday(
+                ticker,
+                interval=interval,
+                from_timestamp=from_timestamp,
+                to_timestamp=to_timestamp
+            )
+
+            # 4. Store in database
+            if api_data:
+                self._store_intraday_data(ticker, interval, api_data, db)
+                logger.info(f"[DATA_SERVICE] Stored {len(api_data)} intraday records for {ticker} in database")
+
+            # 5. Return API data
+            return api_data
+
+        finally:
+            if close_db:
+                db.close()
+
     def get_live_price(
         self,
         ticker: str,
@@ -575,4 +652,89 @@ class DataService:
 
         except Exception as e:
             logger.error(f"[DATA_SERVICE] Failed to store insider transactions for {ticker}: {e}")
+            db.rollback()
+
+    def _is_intraday_data_fresh(self, records, to_datetime: datetime) -> bool:
+        """Check if intraday data is fresh enough"""
+        if not records:
+            return False
+
+        # Get latest record timestamp
+        latest_record = max(records, key=lambda x: x.timestamp)
+
+        # Check if latest record is recent enough (5 minutes TTL)
+        age = to_datetime - latest_record.timestamp
+        return age.total_seconds() < (DataFreshnessConfig.OHLCV_INTRADAY_TTL_MINUTES * 60)
+
+    def _serialize_intraday_ohlcv(self, records) -> List[Dict[str, Any]]:
+        """Convert IntradayOHLCV ORM objects to dict"""
+        return [
+            {
+                'datetime': r.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'timestamp': int(r.timestamp.timestamp()),
+                'interval': r.interval,
+                'open': float(r.open),
+                'high': float(r.high),
+                'low': float(r.low),
+                'close': float(r.close),
+                'volume': r.volume,
+                'trades': r.trades if r.trades else None,
+                'vwap': float(r.vwap) if r.vwap else None,
+            }
+            for r in records
+        ]
+
+    def _store_intraday_data(self, ticker: str, interval: str, api_data: List[Dict], db: Session):
+        """Store intraday OHLCV data in database"""
+        try:
+            from database.models.intraday_data import IntradayOHLCV
+
+            # Convert API data to database models
+            for item in api_data:
+                # Parse datetime from API response
+                if 'datetime' in item:
+                    dt = datetime.strptime(item['datetime'], '%Y-%m-%d %H:%M:%S')
+                elif 'timestamp' in item:
+                    dt = datetime.fromtimestamp(item['timestamp'])
+                else:
+                    logger.warning(f"[DATA_SERVICE] No datetime field in intraday data for {ticker}")
+                    continue
+
+                # Create or update record (upsert)
+                record = db.query(IntradayOHLCV).filter(
+                    IntradayOHLCV.ticker == ticker.upper(),
+                    IntradayOHLCV.interval == interval,
+                    IntradayOHLCV.timestamp == dt
+                ).first()
+
+                if record:
+                    # Update existing record
+                    record.open = item['open']
+                    record.high = item['high']
+                    record.low = item['low']
+                    record.close = item['close']
+                    record.volume = item.get('volume', 0)
+                    record.trades = item.get('trades')
+                    record.vwap = item.get('vwap')
+                else:
+                    # Create new record
+                    record = IntradayOHLCV(
+                        ticker=ticker.upper(),
+                        timestamp=dt,
+                        interval=interval,
+                        open=item['open'],
+                        high=item['high'],
+                        low=item['low'],
+                        close=item['close'],
+                        volume=item.get('volume', 0),
+                        trades=item.get('trades'),
+                        vwap=item.get('vwap')
+                    )
+                    db.add(record)
+
+            db.commit()
+            logger.info(f"[DATA_SERVICE] Stored {len(api_data)} intraday {interval} records for {ticker}")
+
+        except Exception as e:
+            logger.error(f"[DATA_SERVICE] Failed to store intraday data for {ticker}: {e}")
             db.rollback()
