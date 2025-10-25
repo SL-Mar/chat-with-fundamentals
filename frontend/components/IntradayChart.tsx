@@ -6,11 +6,11 @@ import { api } from '../lib/api';
 
 interface IntradayChartProps {
   ticker: string;
-  defaultInterval?: '1m' | '5m' | '15m' | '1h';
+  defaultInterval?: '1m' | '5m' | '15m' | '30m' | '1h';
 }
 
 export default function IntradayChart({ ticker, defaultInterval = '5m' }: IntradayChartProps) {
-  const [interval, setInterval] = useState<'1m' | '5m' | '15m' | '1h'>(defaultInterval);
+  const [interval, setInterval] = useState<'1m' | '5m' | '15m' | '30m' | '1h'>(defaultInterval);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +160,7 @@ export default function IntradayChart({ ticker, defaultInterval = '5m' }: Intrad
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Intraday Chart</h3>
         <div className="flex gap-2">
-          {(['1m', '5m', '15m', '1h'] as const).map((int) => (
+          {(['1m', '5m', '15m', '30m', '1h'] as const).map((int) => (
             <button
               key={int}
               onClick={() => setInterval(int)}
