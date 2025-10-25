@@ -34,23 +34,24 @@ class IntradayOHLCV(Base):
 
     __tablename__ = 'intraday_ohlcv'
 
-    # Primary key: ticker + timestamp + interval
+    # Composite primary key: ticker + timestamp + interval
     ticker = Column(
         String(20),
+        primary_key=True,
         nullable=False,
-        index=True,
         comment="Stock ticker with exchange suffix (e.g., AAPL.US)"
     )
 
     timestamp = Column(
         DateTime(timezone=True),
+        primary_key=True,
         nullable=False,
-        index=True,
         comment="Timestamp of candle (market time, e.g., 2024-01-15 09:30:00-05:00)"
     )
 
     interval = Column(
         ENUM('1m', '5m', '15m', '30m', '1h', name='intraday_interval_enum'),
+        primary_key=True,
         nullable=False,
         default='1m',
         comment="Candle interval (1m, 5m, 15m, 30m, 1h)"
@@ -190,17 +191,17 @@ class IntradayQuote(Base):
 
     __tablename__ = 'intraday_quotes'
 
-    # Primary key
+    # Composite primary key: ticker + timestamp
     ticker = Column(
         String(20),
-        nullable=False,
-        index=True
+        primary_key=True,
+        nullable=False
     )
 
     timestamp = Column(
         DateTime(timezone=True),
+        primary_key=True,
         nullable=False,
-        index=True,
         comment="Exact timestamp of quote"
     )
 
