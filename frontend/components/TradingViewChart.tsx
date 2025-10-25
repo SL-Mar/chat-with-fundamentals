@@ -23,7 +23,7 @@ export default function TradingViewChart({ ticker, interval = '1d' }: TradingVie
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<'d' | 'w' | 'm'>('d');
+  const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | '5Y' | 'MAX'>('1Y');
 
   // Resizing state
   const [dimensions, setDimensions] = useState({ width: 800, height: 400 });
@@ -153,73 +153,83 @@ export default function TradingViewChart({ ticker, interval = '1d' }: TradingVie
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-        // Map timeframe to interval for intraday data
-        const intervalMap: Record<string, string> = {
-          'd': '5m',   // Daily view - use 5min bars
-          'w': '1h',   // Weekly view - use 1hour bars
-          'm': '1h',   // Monthly view - use 1hour bars
-        };
+        // Calculate date range based on timeframe
+        const today = new Date();
+        const toDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        let fromDate: string;
 
-        const requestInterval = intervalMap[timeframe] || '5m';
+        switch (timeframe) {
+          case '1M':
+            const oneMonthAgo = new Date(today);
+            oneMonthAgo.setMonth(today.getMonth() - 1);
+            fromDate = oneMonthAgo.toISOString().split('T')[0];
+            break;
+          case '3M':
+            const threeMonthsAgo = new Date(today);
+            threeMonthsAgo.setMonth(today.getMonth() - 3);
+            fromDate = threeMonthsAgo.toISOString().split('T')[0];
+            break;
+          case '6M':
+            const sixMonthsAgo = new Date(today);
+            sixMonthsAgo.setMonth(today.getMonth() - 6);
+            fromDate = sixMonthsAgo.toISOString().split('T')[0];
+            break;
+          case '1Y':
+            const oneYearAgo = new Date(today);
+            oneYearAgo.setFullYear(today.getFullYear() - 1);
+            fromDate = oneYearAgo.toISOString().split('T')[0];
+            break;
+          case '5Y':
+            const fiveYearsAgo = new Date(today);
+            fiveYearsAgo.setFullYear(today.getFullYear() - 5);
+            fromDate = fiveYearsAgo.toISOString().split('T')[0];
+            break;
+          case 'MAX':
+            // Get all available data (database has 30+ years)
+            fromDate = '1990-01-01'; // Far enough back to get all data
+            break;
+          default:
+            fromDate = new Date(today.setFullYear(today.getFullYear() - 1)).toISOString().split('T')[0];
+        }
 
+        // Fetch EOD data from database-first endpoint
         const response = await fetch(
-          `${apiUrl}/historical/intraday?ticker=${ticker}&interval=${requestInterval}`
+          `${apiUrl}/historical/eod-extended?ticker=${ticker}&period=d&from_date=${fromDate}&to_date=${toDate}`
         );
 
         if (!response.ok) {
           throw new Error(`Failed to fetch ${ticker} data`);
         }
 
-        const result = await response.json();
-        const rawData = result.data || result;
-
-        // Convert intraday data to OHLCV format
-        const data: OHLCVData[] = Array.isArray(rawData) ? rawData.map((d: any) => ({
-          date: d.datetime || d.timestamp || d.date,
-          open: d.open,
-          high: d.high,
-          low: d.low,
-          close: d.close,
-          volume: d.volume
-        })) : [];
+        const data: OHLCVData[] = await response.json();
 
         if (!data || data.length === 0) {
-          setError(`No intraday data available for ${ticker}. This symbol may not be supported or data may not be available for the selected timeframe.`);
+          setError(`No historical data available for ${ticker}. This symbol may not be supported.`);
           setLoading(false);
           return;
         }
 
         // Transform data for TradingView format
-        // TradingView expects Unix timestamps for intraday data with time component
-        const candleData = data.map((d) => {
-          const dateStr = d.date;
-          const timestamp = Math.floor(new Date(dateStr).getTime() / 1000);
+        // For EOD data, use date strings in YYYY-MM-DD format (lightweight-charts handles this)
+        const candleData = data.map((d) => ({
+          time: d.date, // Use date string directly for EOD data
+          open: parseFloat(String(d.open)),
+          high: parseFloat(String(d.high)),
+          low: parseFloat(String(d.low)),
+          close: parseFloat(String(d.close)),
+        }));
 
-          return {
-            time: timestamp,
-            open: parseFloat(String(d.open)),
-            high: parseFloat(String(d.high)),
-            low: parseFloat(String(d.low)),
-            close: parseFloat(String(d.close)),
-          };
-        });
-
-        const volumeData = data.map((d) => {
-          const dateStr = d.date;
-          const timestamp = Math.floor(new Date(dateStr).getTime() / 1000);
-
-          return {
-            time: timestamp,
-            value: parseFloat(String(d.volume)),
-            color: d.close >= d.open ? '#10b98180' : '#ef444480',
-          };
-        });
+        const volumeData = data.map((d) => ({
+          time: d.date, // Use date string directly for EOD data
+          value: parseFloat(String(d.volume)),
+          color: d.close >= d.open ? '#10b98180' : '#ef444480',
+        }));
 
         // Set data
         candlestickSeriesRef.current.setData(candleData);
         volumeSeriesRef.current.setData(volumeData);
 
-        // Fit content
+        // Fit content to show all data
         chartRef.current.timeScale().fitContent();
 
         setLoading(false);
@@ -238,34 +248,64 @@ export default function TradingViewChart({ ticker, interval = '1d' }: TradingVie
       {/* Timeframe Selector */}
       <div className="flex gap-2">
         <button
-          onClick={() => setTimeframe('d')}
+          onClick={() => setTimeframe('1M')}
           className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-            timeframe === 'd'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          1D
-        </button>
-        <button
-          onClick={() => setTimeframe('w')}
-          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-            timeframe === 'w'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          1W
-        </button>
-        <button
-          onClick={() => setTimeframe('m')}
-          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-            timeframe === 'm'
+            timeframe === '1M'
               ? 'bg-indigo-600 text-white'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
         >
           1M
+        </button>
+        <button
+          onClick={() => setTimeframe('3M')}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            timeframe === '3M'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          3M
+        </button>
+        <button
+          onClick={() => setTimeframe('6M')}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            timeframe === '6M'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          6M
+        </button>
+        <button
+          onClick={() => setTimeframe('1Y')}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            timeframe === '1Y'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          1Y
+        </button>
+        <button
+          onClick={() => setTimeframe('5Y')}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            timeframe === '5Y'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          5Y
+        </button>
+        <button
+          onClick={() => setTimeframe('MAX')}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            timeframe === 'MAX'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          MAX
         </button>
         <div className="ml-auto text-xs text-gray-400 flex items-center">
           {dimensions.width} × {dimensions.height}px
