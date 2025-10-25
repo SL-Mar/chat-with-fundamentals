@@ -34,7 +34,7 @@ from slowapi.errors import RateLimitExceeded
 # ─── Routers ──────────────────────────────────────────────────────────
 from routers.analyzer      import router as chatfundamentals      # Fundamental analysis chat
 from routers.quantanalyzer import router as quantanalyzer
-# from routers.llmloader     import router as llmloader
+from routers.llmloader     import router as llmloader              # LLM settings
 from routers.chat_panels   import router as chat_panels_router # NEW: Chat with dynamic panels
 from routers.simulater     import router as equity_router      # Monte-Carlo simulation
 from routers.technical     import router as technical_router   # Technical indicators & screener
@@ -187,7 +187,7 @@ async def limit_request_size(request: Request, call_next):
 # If APP_API_KEY is not set, runs in dev mode (no auth required - local only!)
 app.include_router(chatfundamentals, dependencies=[Depends(verify_api_key)])  # Fundamental analysis chat
 app.include_router(quantanalyzer, dependencies=[Depends(verify_api_key)])  # EOD/OHLCV data
-# app.include_router(llmloader, dependencies=[Depends(verify_api_key)])
+app.include_router(llmloader, dependencies=[Depends(verify_api_key)])      # LLM settings
 app.include_router(chat_panels_router, dependencies=[Depends(verify_api_key)]) # NEW: Chat with dynamic panels
 app.include_router(equity_router, dependencies=[Depends(verify_api_key)])
 app.include_router(technical_router, dependencies=[Depends(verify_api_key)])
