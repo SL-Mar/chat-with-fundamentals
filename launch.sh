@@ -114,7 +114,7 @@ echo -e "${YELLOW}Waiting for backend to start...${NC}"
 sleep 3
 
 # Check if backend is running
-if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then
+if ! curl -s http://localhost:8000/ > /dev/null 2>&1; then
     echo -e "${RED}Error: Backend failed to start. Check logs/backend.log${NC}"
     tail -20 logs/backend.log
     cleanup

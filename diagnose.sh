@@ -17,7 +17,7 @@ NC='\033[0m' # No Color
 
 # Check if backend is running
 echo -e "${BLUE}1. Checking if backend is running...${NC}"
-if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+if curl -s http://localhost:8000/ > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Backend is running on port 8000${NC}"
 else
     echo -e "${RED}✗ Backend is NOT running on port 8000${NC}"
