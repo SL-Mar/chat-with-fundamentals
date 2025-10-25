@@ -32,6 +32,7 @@ class CacheConfig:
     FUNDAMENTALS_TTL = 3600  # 1 hour
     OHLCV_RECENT_TTL = 60    # 1 minute for recent data
     OHLCV_HISTORICAL_TTL = 3600 * 24  # 24 hours for historical
+    OHLCV_INTRADAY_TTL = 300  # 5 minutes for intraday data
     NEWS_TTL = 1800          # 30 minutes
     QUERY_RESULT_TTL = 300   # 5 minutes for complex queries
 
