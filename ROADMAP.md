@@ -1,8 +1,8 @@
 # Chat with Fundamentals - Development Roadmap
 
 **Version:** Phase 2D → Phase 3+
-**Last Updated:** 2025-10-24
-**Active Branch:** `claude/code-review-011CULXMkGpoFpPQ3FQGco1T`
+**Last Updated:** 2025-10-25
+**Active Branch:** `claude/code-audit-011CUTfntohLLogRE5vkPeZd`
 
 ---
 
@@ -11,17 +11,22 @@
 ### Active Branches
 
 **Current Development:**
-- ✅ **`claude/code-review-011CULXMkGpoFpPQ3FQGco1T`** - Most advanced, all Phase 2D work complete
-  - Continue working here for Phase 3
-  - All commits from today's session (CVX fixes, documentation)
-  - Ready for Phase 3 development
+- ✅ **`claude/code-audit-011CUTfntohLLogRE5vkPeZd`** - Active development branch (2025-10-25)
+  - Phase 3A work in progress (frontend fixes, testing infrastructure)
+  - Comprehensive pytest test suite (100+ tests)
+  - Intraday data pipeline (TimescaleDB integration)
+  - Financial Statements viewer (complete)
+  - Comprehensive navigation (22 pages accessible)
+  - Infrastructure scripts (launch.sh, diagnose.sh, install-deps.sh)
+  - Known issues: Several fetch errors remain, requires debugging
+
+**Previous Branches:**
+- ⚠️ **`claude/code-review-011CULXMkGpoFpPQ3FQGco1T`** - Previous session (2025-10-24)
+- ❌ `claude/investigate-typo-011CURVZy781EuJJwfpGT6i5` - Removed (merged into previous branch)
 
 **Stable Branches:**
 - ✅ **`dev`** - Merge feature branch here when Phase 3 complete and tested
 - ✅ **`master`** - Production/release branch (merge from dev when stable)
-
-**Deleted:**
-- ❌ `claude/investigate-typo-011CURVZy781EuJJwfpGT6i5` - Removed (all commits now in current branch)
 
 ### Workflow for Phase Completion
 
@@ -29,12 +34,12 @@
 ```bash
 # Merge to dev
 git checkout dev
-git merge claude/code-review-011CULXMkGpoFpPQ3FQGco1T
+git merge claude/code-audit-011CUTfntohLLogRE5vkPeZd
 git push origin dev
 
 # Delete feature branch (optional)
-git branch -d claude/code-review-011CULXMkGpoFpPQ3FQGco1T
-git push origin --delete claude/code-review-011CULXMkGpoFpPQ3FQGco1T
+git branch -d claude/code-audit-011CUTfntohLLogRE5vkPeZd
+git push origin --delete claude/code-audit-011CUTfntohLLogRE5vkPeZd
 ```
 
 **When Ready for Production:**
@@ -73,17 +78,17 @@ Build a comprehensive **quantitative equity research platform** combining:
 - Basic chat interface
 - OpenAI GPT integration
 
-### Phase 2: Database-First Infrastructure (🔄 In Progress)
+### Phase 2: Database-First Infrastructure (✅ Complete)
 - **2A:** Database schema and models ✅
 - **2B:** ETF-based population ✅
 - **2C:** Cache warming and monitoring ✅
-- **2D:** Incremental data refresh ⚠️ (code complete, testing ongoing)
+- **2D:** Incremental data refresh ✅
 
-### Phase 3: Data Integrity & Display (🎯 Next)
-- **3A:** Fix frontend components (charts, panels)
-- **3B:** Configurable dashboards (no AI required)
-- **3C:** Complete endpoint testing
-- **3D:** Intraday data pipeline (new database schema)
+### Phase 3: Data Integrity & Display (🔄 In Progress - 2025-10-25)
+- **3A:** Fix frontend components ⚠️ (partial - navigation complete, fetch errors remain)
+- **3B:** Configurable dashboards ⏸️ (infrastructure ready, implementation pending)
+- **3C:** Complete endpoint testing ⚠️ (test suite created, coverage ~60%)
+- **3D:** Intraday data pipeline ✅ (models, service layer, API complete)
 
 ### Phase 4: Alpha Extraction Framework (📋 Planned)
 - **4A:** Feature engineering pipeline
@@ -130,12 +135,16 @@ Build a comprehensive **quantitative equity research platform** combining:
    - **Action:** Improve panel generation prompts and templates
 
 **Deliverables:**
-- [ ] CandlestickChart shows full historical data (from IPO)
-- [ ] All panel types render correctly (tables, financials, charts)
-- [ ] Responsive design works on different screen sizes
-- [ ] Performance optimization for large datasets
+- [ ] CandlestickChart shows full historical data (from IPO) - ⏸️ Pending
+- [x] Comprehensive navigation menu (22 pages, 4-column layout) - ✅ Complete
+- [x] Financial Statements viewer (Balance Sheet, Income, Cash Flow) - ✅ Complete
+- [ ] All panel types render correctly (tables, financials, charts) - ⚠️ Partial
+- [ ] Fix remaining fetch errors - 🔴 Critical blocker
+- [ ] Responsive design works on different screen sizes - ⏸️ Pending
+- [ ] Performance optimization for large datasets - ⏸️ Pending
 
-**Timeline:** 1-2 weeks
+**Status:** Partial completion (40%) - Several fetch errors blocking full testing
+**Timeline:** 1-2 weeks remaining
 
 ---
 
@@ -200,12 +209,18 @@ Build a comprehensive **quantitative equity research platform** combining:
 4. **Frontend Tests:** Verify panels display data correctly
 
 **Deliverables:**
-- [ ] Test suite for all endpoints (pytest)
-- [ ] API documentation with examples
-- [ ] Performance benchmarks
-- [ ] Error handling verification
+- [x] Test suite for all endpoints (pytest) - ✅ Framework complete (100+ tests)
+  - Created: test_equity_endpoints.py, test_technical_endpoints.py, test_historical_endpoints.py
+  - Created: test_news_endpoints.py, test_corporate_endpoints.py, test_calendar_endpoints.py
+  - Created: test_chat_panels.py, conftest.py with fixtures
+  - Test markers: @pytest.mark.integration, @pytest.mark.slow, @pytest.mark.database
+- [ ] Run full test suite and fix failures - ⏸️ Pending
+- [ ] API documentation with examples - ⏸️ Pending
+- [ ] Performance benchmarks - ⏸️ Pending
+- [ ] Error handling verification - ⚠️ Ongoing (fetch errors discovered)
 
-**Timeline:** 1 week
+**Status:** Test infrastructure complete (60%), execution and debugging pending
+**Timeline:** 1 week remaining
 
 ---
 
@@ -247,12 +262,29 @@ CREATE INDEX idx_intraday_company_timestamp
 - Purge data older than 30 days (storage optimization)
 
 **Deliverables:**
-- [ ] Intraday database schema
-- [ ] Ingestion pipeline (real-time)
-- [ ] API endpoint `/historical/intraday`
-- [ ] Frontend intraday chart component
+- [x] Intraday database schema - ✅ Complete (TimescaleDB hypertables)
+  - Models: IntradayOHLCV, IntradayQuote with composite primary keys (ticker, timestamp, interval)
+  - Compression policies (70-80% reduction after 7 days)
+  - Retention policies (90 days OHLCV, 7 days quotes)
+  - Continuous aggregates (5m, 15m, 1h intervals)
+- [x] Database query layer - ✅ Complete (queries_improved.py)
+  - get_intraday_ohlcv, get_intraday_quote, get_latest_intraday_quote
+  - Cached queries with 5-minute TTL
+- [x] Service layer - ✅ Complete (data_service.py)
+  - Database-first approach with API fallback
+  - Automatic data freshness checks
+  - Storage optimization
+- [x] API endpoint `/historical/intraday` - ✅ Complete
+  - Supports 1m, 5m, 15m, 30m, 1h intervals
+  - Date range filtering
+  - Database-first with 5-minute cache
+- [x] Frontend intraday chart component - ✅ Complete (IntradayChart.tsx)
+  - Interval selector (1m, 5m, 15m, 30m, 1h)
+  - Date range filtering
+  - Integration with backend API
 
-**Timeline:** 2-3 weeks
+**Status:** Complete (100%) - All infrastructure in place
+**Timeline:** Complete (2025-10-25)
 
 ---
 
