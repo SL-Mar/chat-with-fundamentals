@@ -67,6 +67,12 @@ const Header = () => {
             </Link>
           </li>
           <li>
+            <Link href="/financials" className="text-gray-800 dark:text-gray-200 hover:underline">
+              <FontAwesomeIcon icon={faChartLine} className="mr-1" />
+              Financials
+            </Link>
+          </li>
+          <li>
             <Link href="/monitoring" className="text-gray-800 dark:text-gray-200 hover:underline">
               <FontAwesomeIcon icon={faEye} className="mr-1" />
               Monitoring

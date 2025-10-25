@@ -217,6 +217,17 @@ export const api = {
     return getJSON<any>(url);
   },
 
+  /* ────────── Financial Statements ───────── */
+  fetchFinancials(
+    ticker: string,
+    statement: "balance_sheet" | "income_statement" | "cash_flow" = "balance_sheet",
+    period: "yearly" | "quarterly" = "yearly"
+  ): Promise<any> {
+    return getJSON<any>(
+      `${BASE}/special/financials?ticker=${ticker}&statement=${statement}&period=${period}`
+    );
+  },
+
   /* ────────── ETF Holdings ─────────────── */
   fetchETFHoldings(ticker: string): Promise<any> {
     return getJSON<any>(`${BASE}/special/etf-holdings?symbol=${ticker}`);

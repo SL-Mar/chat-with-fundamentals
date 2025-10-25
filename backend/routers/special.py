@@ -306,3 +306,87 @@ async def get_index_historical_constituents(
     except Exception as e:
         logger.error(f"[INDEX_HIST] Failed to fetch historical constituents for {index}: {e}")
         raise HTTPException(status_code=502, detail=f"Failed to fetch historical constituents: {str(e)}")
+
+
+@router.get("/financials")
+async def get_financial_statements(
+    ticker: str = Query(..., description="Stock symbol (e.g., AAPL.US)"),
+    statement: str = Query("balance_sheet", description="Statement type: balance_sheet, income_statement, cash_flow"),
+    period: str = Query("yearly", description="Period: yearly or quarterly")
+):
+    """Get financial statements (Balance Sheet, Income Statement, Cash Flow).
+
+    Statement Types:
+    - balance_sheet: Assets, Liabilities, Equity
+    - income_statement: Revenue, Expenses, Net Income
+    - cash_flow: Operating, Investing, Financing activities
+
+    Periods:
+    - yearly: Annual statements
+    - quarterly: Quarterly statements
+
+    Returns up to 10 years of historical data.
+
+    Example: /special/financials?ticker=AAPL.US&statement=balance_sheet&period=yearly
+    """
+    try:
+        client = EODHDClient()
+
+        # Map statement types to EODHD filter format
+        statement_filters = {
+            "balance_sheet": f"Financials::Balance_Sheet::{period}",
+            "income_statement": f"Financials::Income_Statement::{period}",
+            "cash_flow": f"Financials::Cash_Flow::{period}"
+        }
+
+        if statement not in statement_filters:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid statement type. Must be one of: {', '.join(statement_filters.keys())}"
+            )
+
+        if period not in ["yearly", "quarterly"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid period. Must be 'yearly' or 'quarterly'"
+            )
+
+        # Fetch fundamentals with filter
+        filter_param = statement_filters[statement]
+        fundamentals = client.fundamental.get_fundamentals(ticker, filter_param=filter_param)
+
+        # Extract the specific financial data
+        if "Financials" in fundamentals:
+            financials = fundamentals["Financials"]
+
+            # Navigate to the specific statement
+            if statement == "balance_sheet" and "Balance_Sheet" in financials:
+                data = financials["Balance_Sheet"].get(period, {})
+            elif statement == "income_statement" and "Income_Statement" in financials:
+                data = financials["Income_Statement"].get(period, {})
+            elif statement == "cash_flow" and "Cash_Flow" in financials:
+                data = financials["Cash_Flow"].get(period, {})
+            else:
+                data = {}
+
+            logger.info(f"[FINANCIALS] Fetched {statement} ({period}) for {ticker}")
+            return {
+                "ticker": ticker,
+                "statement": statement,
+                "period": period,
+                "data": data
+            }
+        else:
+            logger.warning(f"[FINANCIALS] No financial data available for {ticker}")
+            return {
+                "ticker": ticker,
+                "statement": statement,
+                "period": period,
+                "data": {}
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[FINANCIALS] Failed to fetch {statement} for {ticker}: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to fetch financial statements: {str(e)}")
