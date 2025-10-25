@@ -6,13 +6,13 @@ PANEL_TOOLS = [
         "type": "function",
         "function": {
             "name": "show_dividend_history",
-            "description": "Display dividend payment history for a stock with payment dates, amounts, and yield trends",
+            "description": "Display comprehensive dividend payment history from database with 30+ years of historical data including payment dates, amounts, yield trends, and dividend growth rates. Perfect for income investors analyzing dividend aristocrats.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "Stock ticker symbol (e.g., AAPL, MSFT, JPM)"
+                        "description": "Stock ticker symbol (e.g., AAPL.US, MSFT.US, JPM.US)"
                     }
                 },
                 "required": ["ticker"]
@@ -23,18 +23,18 @@ PANEL_TOOLS = [
         "type": "function",
         "function": {
             "name": "show_price_chart",
-            "description": "Display intraday or historical price chart with candlesticks",
+            "description": "Display intraday price chart with candlesticks for recent trading activity (1-2 days). For long-term historical analysis (30+ years), use show_eod_extended instead. Choose interval based on detail needed: 1m for tick-by-tick, 5m for standard intraday, 1h for broader view.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "Stock ticker symbol"
+                        "description": "Stock ticker symbol (e.g., AAPL.US)"
                     },
                     "interval": {
                         "type": "string",
                         "enum": ["1m", "5m", "15m", "1h"],
-                        "description": "Chart interval"
+                        "description": "Chart interval for intraday data"
                     }
                 },
                 "required": ["ticker"]
@@ -405,17 +405,17 @@ PANEL_TOOLS = [
         "type": "function",
         "function": {
             "name": "show_performance_ratios",
-            "description": "Display performance ratios (Sharpe, Sortino, Calmar, etc.)",
+            "description": "Display comprehensive risk-adjusted performance metrics calculated from database historical data: Sharpe Ratio (risk-adjusted returns), Sortino Ratio (downside risk), Calmar Ratio (drawdown-adjusted returns), Maximum Drawdown, Alpha, Beta, and Volatility. Essential for portfolio analysis and stock comparison. Database allows multi-year analysis (1-10 years).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "Stock ticker symbol"
+                        "description": "Stock ticker symbol (e.g., AAPL.US)"
                     },
                     "years": {
                         "type": "integer",
-                        "description": "Number of years for analysis",
+                        "description": "Number of years for analysis (1-10 years available)",
                         "default": 3
                     }
                 },
@@ -503,13 +503,13 @@ PANEL_TOOLS = [
         "type": "function",
         "function": {
             "name": "show_eod_extended",
-            "description": "Display extended EOD data with additional metrics",
+            "description": "Display comprehensive historical price chart with 30+ years of end-of-day data from database. Interactive candlestick chart with multiple timeframes (1M, 3M, 6M, 1Y, 5Y, MAX). Optimized for long-term trend analysis, support/resistance levels, and historical pattern recognition. Use this for analyzing long-term performance, not show_price_chart.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "Stock ticker symbol"
+                        "description": "Stock ticker symbol (e.g., AAPL.US)"
                     }
                 },
                 "required": ["ticker"]
