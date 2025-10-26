@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import AgentConsole from '../AgentConsole';
+import { useAIAnalysis } from '../../hooks/useAIAnalysis';
+import { getSignalColor, getSignalIcon, getScoreColor } from '../../utils/formatting';
 
 interface AgentOutput {
   agent_name: string;
@@ -33,10 +35,10 @@ interface StockAIAnalysisTabProps {
 
 export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) {
   const [deepResearch, setDeepResearch] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<AnalysisResult[]>([]);
+
+  // Use shared AI analysis hook
+  const { result, loading, error, runAnalysis } = useAIAnalysis('stock');
 
   useEffect(() => {
     fetchHistory();
@@ -51,51 +53,9 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
     }
   };
 
-  const runAnalysis = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setResult(null);
-
-      const response = await api.analyzeStock(ticker, deepResearch);
-      setResult(response);
-      fetchHistory(); // Refresh history
-    } catch (err: any) {
-      console.error('AI analysis failed:', err);
-      setError(err.message || 'Analysis failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getSignalColor = (signal: string): string => {
-    switch (signal) {
-      case 'STRONG_BUY': return 'bg-green-600 text-white';
-      case 'BUY': return 'bg-green-500 text-white';
-      case 'HOLD': return 'bg-yellow-500 text-gray-900';
-      case 'SELL': return 'bg-red-500 text-white';
-      case 'STRONG_SELL': return 'bg-red-600 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
-
-  const getSignalIcon = (signal: string): string => {
-    switch (signal) {
-      case 'STRONG_BUY': return '↑↑';
-      case 'BUY': return '↑';
-      case 'HOLD': return '→';
-      case 'SELL': return '↓';
-      case 'STRONG_SELL': return '↓↓';
-      default: return '•';
-    }
-  };
-
-  const getScoreColor = (score: number): string => {
-    if (score >= 8) return 'text-green-400';
-    if (score >= 6.5) return 'text-green-300';
-    if (score >= 3.5) return 'text-yellow-400';
-    if (score >= 2) return 'text-red-300';
-    return 'text-red-400';
+  const handleRunAnalysis = async () => {
+    await runAnalysis(ticker, deepResearch);
+    fetchHistory(); // Refresh history after analysis
   };
 
   return (
@@ -116,7 +76,7 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
           </div>
 
           <button
-            onClick={runAnalysis}
+            onClick={handleRunAnalysis}
             disabled={loading}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-semibold transition-colors"
           >
