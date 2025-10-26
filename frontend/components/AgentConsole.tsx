@@ -1,5 +1,6 @@
 // AgentConsole.tsx
 // Real-time WebSocket logging for MarketSense AI agents
+// Supports authenticated WebSocket connections via API key
 
 import React, { useEffect, useRef, useState } from 'react';
 
@@ -27,7 +28,19 @@ export const AgentConsole: React.FC<AgentConsoleProps> = ({
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/api/v2/ws/agent-console');
+    // Get API URL and key from environment
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiKey = process.env.NEXT_PUBLIC_APP_API_KEY || '';
+
+    // Convert HTTP URL to WebSocket URL
+    const wsUrl = apiUrl.replace(/^http/, 'ws');
+
+    // Add authentication token as query parameter
+    const wsEndpoint = apiKey
+      ? `${wsUrl}/api/v2/ws/agent-console?token=${encodeURIComponent(apiKey)}`
+      : `${wsUrl}/api/v2/ws/agent-console`;
+
+    const ws = new WebSocket(wsEndpoint);
     wsRef.current = ws;
 
     ws.onopen = () => {
