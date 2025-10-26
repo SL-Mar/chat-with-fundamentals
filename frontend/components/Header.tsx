@@ -58,52 +58,52 @@ const Header = () => {
         <nav className={`${mobileMenuOpen ? 'block' : 'hidden'} md:block`}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
 
-            {/* Column 1: Analysis Tools */}
+            {/* Column 1: Asset Classes */}
             <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
               <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2 text-xs uppercase">
-                📈 Analysis Tools
+                🎯 Asset Classes
               </h3>
               <ul className="space-y-1">
                 <li>
-                  <Link href="/unified-chat" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center">
+                  <Link href="/stocks" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
+                    <FontAwesomeIcon icon={faChartLine} className="mr-2 w-4" />
+                    Stocks
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/currencies" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
+                    <FontAwesomeIcon icon={faGlobe} className="mr-2 w-4" />
+                    Currencies
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/etfs" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
+                    <FontAwesomeIcon icon={faBuildingColumns} className="mr-2 w-4" />
+                    ETFs
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/macro" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
+                    <FontAwesomeIcon icon={faChartBar} className="mr-2 w-4" />
+                    Macro Indicators
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/portfolios" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
+                    <FontAwesomeIcon icon={faDashboard} className="mr-2 w-4" />
+                    Portfolios
+                  </Link>
+                </li>
+                <li className="pt-2 border-t border-gray-300 dark:border-gray-700 mt-2">
+                  <Link href="/unified-chat" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
                     <FontAwesomeIcon icon={faComments} className="mr-2 w-4" />
                     AI Chat
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dashboards" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faDashboard} className="mr-2 w-4" />
-                    Dashboards
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/stock-detail" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faChartLine} className="mr-2 w-4" />
-                    Stock Detail
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/advanced-charts" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faChartArea} className="mr-2 w-4" />
-                    Advanced Charts
                   </Link>
                 </li>
                 <li>
                   <Link href="/screener" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
                     <FontAwesomeIcon icon={faChartLine} className="mr-2 w-4" />
                     Screener
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/financials" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faChartBar} className="mr-2 w-4" />
-                    Financials
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/quantanalyze" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faFlask} className="mr-2 w-4" />
-                    Quant Analysis
                   </Link>
                 </li>
               </ul>
