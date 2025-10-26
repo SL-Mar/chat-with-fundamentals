@@ -653,4 +653,76 @@ export const api = {
   fetchLLMModels(): Promise<string[]> {
     return getJSON<string[]>(`${BASE}/settings/llm/models`);
   },
+
+  /* ═══════════ NEW: MARKETSENSE AI ANALYSIS ═══════════ */
+
+  /* ────────── Stock AI Analysis ──────────────── */
+  async analyzeStock(ticker: string, deepResearch: boolean = false): Promise<any> {
+    const r = await fetch(`${BASE}/api/v2/stocks/${ticker}/ai-analysis?deep_research=${deepResearch}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) {
+      const error = await r.json();
+      throw new Error(error.detail || 'AI analysis failed');
+    }
+    return r.json();
+  },
+
+  /* ────────── Stock AI Analysis History ───────── */
+  fetchStockAnalysisHistory(ticker: string, limit: number = 10): Promise<any> {
+    return getJSON<any>(`${BASE}/api/v2/stocks/${ticker}/ai-analysis/history?limit=${limit}`);
+  },
+
+  /* ────────── Currency AI Analysis ────────────── */
+  async analyzeCurrency(pair: string, deepResearch: boolean = false): Promise<any> {
+    const r = await fetch(`${BASE}/api/v2/currencies/${pair}/ai-analysis?deep_research=${deepResearch}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) {
+      const error = await r.json();
+      throw new Error(error.detail || 'AI analysis failed');
+    }
+    return r.json();
+  },
+
+  /* ────────── ETF AI Analysis ──────────────────── */
+  async analyzeETF(symbol: string, deepResearch: boolean = false): Promise<any> {
+    const r = await fetch(`${BASE}/api/v2/etfs/${symbol}/ai-analysis?deep_research=${deepResearch}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) {
+      const error = await r.json();
+      throw new Error(error.detail || 'AI analysis failed');
+    }
+    return r.json();
+  },
+
+  /* ────────── Macro AI Analysis ─────────────────── */
+  async analyzeMacro(indicator: string, deepResearch: boolean = false): Promise<any> {
+    const r = await fetch(`${BASE}/api/v2/macro/${indicator}/ai-analysis?deep_research=${deepResearch}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) {
+      const error = await r.json();
+      throw new Error(error.detail || 'AI analysis failed');
+    }
+    return r.json();
+  },
+
+  /* ────────── Portfolio AI Analysis ──────────────── */
+  async analyzePortfolio(portfolioId: number, deepResearch: boolean = false): Promise<any> {
+    const r = await fetch(`${BASE}/api/v2/portfolios/${portfolioId}/ai-analysis?deep_research=${deepResearch}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!r.ok) {
+      const error = await r.json();
+      throw new Error(error.detail || 'AI analysis failed');
+    }
+    return r.json();
+  },
 };

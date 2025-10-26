@@ -46,6 +46,7 @@ from routers.historical    import router as historical_router  # Intraday, live 
 from routers.macro         import router as macro_router       # Macroeconomic indicators & events
 from routers.monitoring    import router as monitoring_router  # NEW: Monitoring & metrics (Phase 2C)
 from routers.admin         import router as admin_router       # NEW: Admin endpoints for DB management
+from routers.ai_analysis   import router as ai_analysis_router # NEW: MarketSense AI analysis
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -199,6 +200,7 @@ app.include_router(historical_router, dependencies=[Depends(verify_api_key)])   
 app.include_router(macro_router, dependencies=[Depends(verify_api_key)])        # NEW: Macroeconomic data
 app.include_router(monitoring_router, dependencies=[Depends(verify_api_key)])  # NEW: Monitoring & metrics (requires auth)
 app.include_router(admin_router, dependencies=[Depends(verify_api_key)])       # NEW: Admin endpoints (requires auth)
+app.include_router(ai_analysis_router, dependencies=[Depends(verify_api_key)]) # NEW: MarketSense AI analysis (requires auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream
