@@ -322,6 +322,11 @@ export const api = {
     return getJSON<any>(`${BASE}/historical/live-prices-bulk?symbols=${symbolsStr}`);
   },
 
+  /* ────────── Company Highlights ──────────── */
+  fetchCompanyHighlights(ticker: string): Promise<any> {
+    return getJSON<any>(`${BASE}/special/company-highlights?ticker=${ticker}`);
+  },
+
   /* ────────── EOD Extended ──────────────── */
   fetchEODExtended(
     ticker: string,

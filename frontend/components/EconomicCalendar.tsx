@@ -73,7 +73,7 @@ export default function EconomicCalendar({ defaultCountry = 'US', days = 30 }: E
   };
 
   const getImpact = (event: any): 'high' | 'medium' | 'low' => {
-    const eventName = (event.event || event.name || '').toLowerCase();
+    const eventName = (event.type || event.event || event.name || '').toLowerCase();
     const highImpactKeywords = ['fomc', 'fed', 'gdp', 'employment', 'payroll', 'cpi', 'inflation', 'interest rate'];
     const mediumImpactKeywords = ['retail sales', 'manufacturing', 'housing', 'consumer confidence'];
 
@@ -223,7 +223,7 @@ export default function EconomicCalendar({ defaultCountry = 'US', days = 30 }: E
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-semibold text-white">
-                              {event.event || event.name}
+                              {event.type || event.event || event.name}
                             </span>
                             <span className={`px-2 py-0.5 rounded text-xs ${getImpactBadge(impact)}`}>
                               {impact}

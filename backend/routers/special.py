@@ -20,7 +20,13 @@ async def get_company_logo(ticker: str = Query(..., description="Stock symbol (e
     """
     try:
         client = EODHDClient()
-        logo_url = client.special.get_logo(ticker)
+        logo_path = client.special.get_logo(ticker)
+
+        # Convert relative path to full EODHD URL
+        if logo_path and logo_path.startswith("/"):
+            logo_url = f"https://eodhd.com{logo_path}"
+        else:
+            logo_url = logo_path
 
         logger.info(f"[LOGO] Fetched logo for {ticker}")
         return {"ticker": ticker, "logo_url": logo_url}
@@ -285,6 +291,44 @@ async def get_index_constituents(
         raise HTTPException(status_code=502, detail=f"Failed to fetch index constituents: {str(e)}")
 
 
+@router.get("/company-highlights")
+async def get_company_highlights(ticker: str = Query(..., description="Stock symbol (e.g., AAPL.US)")):
+    """Get company key metrics and highlights.
+
+    Returns:
+    - Market Capitalization
+    - P/E Ratio
+    - EPS (Earnings Per Share)
+    - Dividend Yield
+
+    Example: /special/company-highlights?ticker=AAPL.US
+    """
+    try:
+        client = EODHDClient()
+
+        # Fetch specific fundamental metrics using filter
+        fundamentals = client.fundamental.get_fundamentals(
+            ticker,
+            filter_param="Highlights::MarketCapitalization,Highlights::PERatio,Highlights::DividendYield,Highlights::EarningsShare"
+        )
+
+        # Extract values and handle NA
+        highlights = {
+            "ticker": ticker,
+            "marketCap": fundamentals.get("Highlights::MarketCapitalization"),
+            "peRatio": fundamentals.get("Highlights::PERatio"),
+            "divYield": fundamentals.get("Highlights::DividendYield"),
+            "eps": fundamentals.get("Highlights::EarningsShare")
+        }
+
+        logger.info(f"[HIGHLIGHTS] Fetched highlights for {ticker}")
+        return highlights
+
+    except Exception as e:
+        logger.error(f"[HIGHLIGHTS] Failed to fetch highlights for {ticker}: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to fetch company highlights: {str(e)}")
+
+
 @router.get("/index-historical-constituents")
 async def get_index_historical_constituents(
     index: str = Query(..., description="Index symbol (e.g., GSPC.INDX)"),
@@ -355,35 +399,51 @@ async def get_financial_statements(
         filter_param = statement_filters[statement]
         fundamentals = client.fundamental.get_fundamentals(ticker, filter_param=filter_param)
 
-        # Extract the specific financial data
-        if "Financials" in fundamentals:
-            financials = fundamentals["Financials"]
+        # When using a filter, EODHD returns the data directly with years as keys
+        # Check if we got year-based data (dates as keys like "2024-09-30")
+        if fundamentals and isinstance(fundamentals, dict):
+            # Check if this looks like filtered data (has date-like keys)
+            first_key = next(iter(fundamentals.keys()), None) if fundamentals else None
+            if first_key and (first_key.count('-') == 2 or first_key.isdigit()):
+                # This is already the filtered data we want
+                data = fundamentals
+                logger.info(f"[FINANCIALS] Fetched {statement} ({period}) for {ticker} - {len(data)} periods")
+                return {
+                    "ticker": ticker,
+                    "statement": statement,
+                    "period": period,
+                    "data": data
+                }
+            # Otherwise, try the nested structure (old API response format)
+            elif "Financials" in fundamentals:
+                financials = fundamentals["Financials"]
 
-            # Navigate to the specific statement
-            if statement == "balance_sheet" and "Balance_Sheet" in financials:
-                data = financials["Balance_Sheet"].get(period, {})
-            elif statement == "income_statement" and "Income_Statement" in financials:
-                data = financials["Income_Statement"].get(period, {})
-            elif statement == "cash_flow" and "Cash_Flow" in financials:
-                data = financials["Cash_Flow"].get(period, {})
-            else:
-                data = {}
+                # Navigate to the specific statement
+                if statement == "balance_sheet" and "Balance_Sheet" in financials:
+                    data = financials["Balance_Sheet"].get(period, {})
+                elif statement == "income_statement" and "Income_Statement" in financials:
+                    data = financials["Income_Statement"].get(period, {})
+                elif statement == "cash_flow" and "Cash_Flow" in financials:
+                    data = financials["Cash_Flow"].get(period, {})
+                else:
+                    data = {}
 
-            logger.info(f"[FINANCIALS] Fetched {statement} ({period}) for {ticker}")
-            return {
-                "ticker": ticker,
-                "statement": statement,
-                "period": period,
-                "data": data
-            }
-        else:
-            logger.warning(f"[FINANCIALS] No financial data available for {ticker}")
-            return {
-                "ticker": ticker,
-                "statement": statement,
-                "period": period,
-                "data": {}
-            }
+                logger.info(f"[FINANCIALS] Fetched {statement} ({period}) for {ticker}")
+                return {
+                    "ticker": ticker,
+                    "statement": statement,
+                    "period": period,
+                    "data": data
+                }
+
+        # No data available
+        logger.warning(f"[FINANCIALS] No financial data available for {ticker}")
+        return {
+            "ticker": ticker,
+            "statement": statement,
+            "period": period,
+            "data": {}
+        }
 
     except HTTPException:
         raise

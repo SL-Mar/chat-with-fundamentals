@@ -11,11 +11,14 @@ type TabType = 'overview' | 'technical' | 'news' | 'ai' | 'live';
 
 export default function CurrencyDetailPage() {
   const router = useRouter();
-  const { pair } = router.query;
+  const { pair: pairRaw } = router.query;
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [liveRate, setLiveRate] = useState<any>(null);
   const [aiResult, setAiResult] = useState<any>(null);
   const [loadingAI, setLoadingAI] = useState(false);
+
+  // Convert array to string (e.g., ['EUR', 'USD'] -> 'EUR/USD')
+  const pair = Array.isArray(pairRaw) ? pairRaw.join('/') : pairRaw;
 
   useEffect(() => {
     if (pair && typeof pair === 'string') {

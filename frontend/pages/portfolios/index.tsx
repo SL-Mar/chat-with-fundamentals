@@ -47,14 +47,26 @@ const SAMPLE_PORTFOLIOS: Portfolio[] = [
 export default function PortfoliosHubPage() {
   const router = useRouter();
   const [portfolios] = useState<Portfolio[]>(SAMPLE_PORTFOLIOS);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPortfolioName, setNewPortfolioName] = useState('');
+  const [newPortfolioDescription, setNewPortfolioDescription] = useState('');
 
   const goToPortfolio = (id: number) => {
     router.push(`/portfolios/${id}`);
   };
 
   const createNewPortfolio = () => {
-    // This would open a modal or navigate to a create page
-    alert('Create new portfolio functionality');
+    setShowCreateModal(true);
+  };
+
+  const handleCreateSubmit = () => {
+    // In a real implementation, this would call an API to create the portfolio
+    console.log('Creating portfolio:', { name: newPortfolioName, description: newPortfolioDescription });
+    setShowCreateModal(false);
+    setNewPortfolioName('');
+    setNewPortfolioDescription('');
+    // TODO: Add API call to backend to create portfolio
+    alert(`Portfolio "${newPortfolioName}" creation coming soon! Backend integration pending.`);
   };
 
   const formatCurrency = (value: number): string => {
@@ -220,6 +232,60 @@ export default function PortfoliosHubPage() {
           </div>
         </div>
       </div>
+
+      {/* Create Portfolio Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full border border-slate-700">
+            <h3 className="text-2xl font-bold mb-4">Create New Portfolio</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Portfolio Name</label>
+                <input
+                  type="text"
+                  value={newPortfolioName}
+                  onChange={(e) => setNewPortfolioName(e.target.value)}
+                  placeholder="e.g., Growth Portfolio"
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Description (Optional)</label>
+                <textarea
+                  value={newPortfolioDescription}
+                  onChange={(e) => setNewPortfolioDescription(e.target.value)}
+                  placeholder="Brief description of your portfolio strategy"
+                  rows={3}
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewPortfolioName('');
+                  setNewPortfolioDescription('');
+                }}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateSubmit}
+                disabled={!newPortfolioName.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-semibold transition-colors"
+              >
+                Create Portfolio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

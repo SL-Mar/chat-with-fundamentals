@@ -10,7 +10,7 @@ from typing import Optional
 import logging
 import os
 
-from database.config import get_db
+from database.models.base import get_db
 from services.marketsense import MarketSenseAI, AssetType, AnalysisResult
 from core.agent_console_manager import agent_console_manager
 from core.auth import verify_api_key
@@ -160,10 +160,6 @@ async def analyze_stock(
             deep_research=deep_research,
             ws_manager=agent_console_manager
         )
-
-        # Set asset info
-        result.asset_type = AssetType.STOCK
-        result.asset_id = validated_ticker
 
         logger.info(f"Analysis complete for {validated_ticker}: {result.signal} ({result.confidence:.2f})")
 
@@ -464,5 +460,84 @@ async def analyze_portfolio(
         raise
     except Exception as e:
         logger.error(f"Portfolio analysis failed for {portfolio_id}: {e}", exc_info=True)
+        user_message = sanitize_error_message(e, user_facing=True)
+        raise HTTPException(status_code=500, detail=user_message)
+
+
+# ──────────────────────────────────────────────────────────────
+# Deep Research Endpoint (Tavily)
+# ──────────────────────────────────────────────────────────────
+
+@router.post("/deep-research", dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")  # Rate limit: 10 requests per minute (Tavily is expensive)
+async def deep_research(
+    request: Request,
+    query: str = Query(..., description="Research query", min_length=3, max_length=500),
+    depth: str = Query("basic", description="Research depth: 'basic' or 'comprehensive'"),
+):
+    """
+    Run Tavily deep research for any query.
+
+    **Purpose**: Comprehensive AI-powered web research using Tavily API.
+
+    **Parameters**:
+    - query: Research topic or question
+    - depth: "basic" (fast, 5 sources) or "comprehensive" (deep, 20+ sources)
+
+    **Rate Limits**: 10 requests per minute (Tavily API costs)
+
+    **Example**:
+    ```
+    POST /api/v2/deep-research?query=Latest%20developments%20in%20AAPL%20stock&depth=comprehensive
+    ```
+
+    **Response**:
+    ```json
+    {
+        "query": "Latest developments in AAPL stock",
+        "summary": "AI-generated summary of findings...",
+        "results": [
+            {
+                "title": "Article title",
+                "url": "https://...",
+                "content": "Excerpt...",
+                "score": 0.95
+            }
+        ]
+    }
+    ```
+
+    **Authentication**: Requires API key in X-API-Key header.
+    """
+
+    from services.tavily_research import TavilyResearch
+
+    try:
+        # Validate depth parameter
+        if depth not in ["basic", "comprehensive"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid depth parameter. Must be 'basic' or 'comprehensive'."
+            )
+
+        logger.info(f"Starting deep research: query='{query}', depth={depth}")
+
+        tavily = TavilyResearch()
+        results = await tavily.research(query=query, depth=depth)
+
+        # Check for errors in results
+        if results.get("error"):
+            error_msg = results.get("summary", "Research failed")
+            logger.error(f"Tavily research error: {error_msg}")
+            raise HTTPException(status_code=500, detail=error_msg)
+
+        logger.info(f"Deep research complete: {len(results.get('results', []))} sources found")
+
+        return results
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Deep research failed: {e}", exc_info=True)
         user_message = sanitize_error_message(e, user_facing=True)
         raise HTTPException(status_code=500, detail=user_message)

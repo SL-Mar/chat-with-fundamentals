@@ -54,15 +54,20 @@ export default function StockPeerComparisonTab({ ticker }: StockPeerComparisonTa
       const allTickers = [ticker, ...peers];
       const promises = allTickers.map(async (t) => {
         try {
-          const data = await api.fetchLivePrice(t);
+          // Fetch both price and fundamentals
+          const [priceData, highlights] = await Promise.all([
+            api.fetchLivePrice(t),
+            api.fetchCompanyHighlights(t)
+          ]);
+
           return {
             ticker: t,
             name: t.replace('.US', ''),
-            price: data.price,
-            marketCap: data.market_cap,
-            peRatio: data.pe_ratio,
-            epsGrowth: data.eps_growth,
-            divYield: data.dividend_yield,
+            price: priceData.close,
+            marketCap: highlights.marketCap,
+            peRatio: highlights.peRatio,
+            epsGrowth: undefined, // Not available yet
+            divYield: highlights.divYield,
           };
         } catch {
           return {

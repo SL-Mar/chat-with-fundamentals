@@ -79,14 +79,18 @@ class StockNewsAgent(BaseAgent):
     async def fetch_data(self, asset_id: str) -> Dict[str, Any]:
         """Fetch news articles from database or API."""
         try:
-            from services.eodhd_client import EODHDClient
+            from tools.eodhd_client import EODHDClient
 
             client = EODHDClient()
             ticker = asset_id
 
+            # News API expects ticker without exchange suffix (e.g., "AAPL" not "AAPL.US")
+            if '.' in ticker:
+                ticker = ticker.split('.')[0]
+
             # Fetch recent news (last 7 days)
             news = client.news.get_news(
-                ticker=ticker,
+                symbol=ticker,
                 limit=20
             )
 

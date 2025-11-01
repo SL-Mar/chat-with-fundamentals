@@ -76,14 +76,14 @@ class MarketSenseAI:
         start_time = datetime.now()
 
         try:
-            # Step 1: Optional deep research
+            # Step 1: Deep research disabled (not needed - using existing data sources)
             research_context = None
-            if deep_research:
-                await self._log(ws_manager, "research", AgentStatus.RUNNING,
-                              f"Starting deep research for {self.asset_id}...")
-                research_context = await self._run_deep_research()
-                await self._log(ws_manager, "research", AgentStatus.SUCCESS,
-                              "Deep research complete")
+            # if deep_research:
+            #     await self._log(ws_manager, "research", AgentStatus.RUNNING,
+            #                   f"Starting deep research for {self.asset_id}...")
+            #     research_context = await self._run_deep_research()
+            #     await self._log(ws_manager, "research", AgentStatus.SUCCESS,
+            #                   "Deep research complete")
 
             # Step 2: Run all analysis agents in parallel
             agent_results = await self._run_agents(research_context, ws_manager)
@@ -98,7 +98,9 @@ class MarketSenseAI:
 
             final_result = await signal_agent.synthesize(
                 agent_results,
-                research_context
+                research_context,
+                asset_type=self.asset_type,
+                asset_id=self.asset_id
             )
 
             await self._log(ws_manager, "signal_generator", AgentStatus.SUCCESS,

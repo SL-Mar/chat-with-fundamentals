@@ -13,6 +13,7 @@ interface StockOverviewTabProps {
 export default function StockOverviewTab({ ticker }: StockOverviewTabProps) {
   const [livePrice, setLivePrice] = useState<any>(null);
   const [eodData, setEodData] = useState<any>(null);
+  const [keyMetrics, setKeyMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartType, setChartType] = useState<'eod' | 'intraday'>('eod');
@@ -30,9 +31,41 @@ export default function StockOverviewTab({ ticker }: StockOverviewTabProps) {
       const livePriceData = await api.fetchLivePrice(ticker);
       setLivePrice(livePriceData);
 
-      // Fetch EOD data
+      // Fetch EOD data (limit to 252 trading days = ~1 year)
       const eodResult = await api.fetchEODData(ticker);
       setEodData(eodResult);
+
+      // Calculate key metrics from EOD data and fetch market cap
+      if (eodResult && eodResult.data && eodResult.data.length > 0) {
+        const data = eodResult.data;
+        const recentYear = data.slice(-252); // Last 252 trading days
+
+        // Calculate 52-week high/low
+        const high52Week = Math.max(...recentYear.map((d: any) => d.high));
+        const low52Week = Math.min(...recentYear.map((d: any) => d.low));
+
+        // Get previous close (second to last day)
+        const previousClose = data.length > 1 ? data[data.length - 2].close : null;
+
+        // Fetch market cap from company highlights
+        try {
+          const highlights = await api.fetchCompanyHighlights(ticker);
+          setKeyMetrics({
+            previousClose,
+            '52WeekHigh': high52Week,
+            '52WeekLow': low52Week,
+            marketCap: highlights.marketCap
+          });
+        } catch {
+          // If highlights fail, still show price metrics
+          setKeyMetrics({
+            previousClose,
+            '52WeekHigh': high52Week,
+            '52WeekLow': low52Week,
+            marketCap: null
+          });
+        }
+      }
     } catch (err: any) {
       console.error('Failed to fetch overview data:', err);
       setError(err.message);
@@ -130,26 +163,26 @@ export default function StockOverviewTab({ ticker }: StockOverviewTabProps) {
       </div>
 
       {/* Key Metrics */}
-      {eodData && (
+      {keyMetrics && (
         <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
           <h3 className="text-xl font-bold mb-4">Key Metrics</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <div className="text-sm text-slate-400">Previous Close</div>
-              <div className="text-lg font-semibold">${eodData.previousClose?.toFixed(2) || 'N/A'}</div>
+              <div className="text-lg font-semibold">${keyMetrics.previousClose?.toFixed(2) || 'N/A'}</div>
             </div>
             <div>
               <div className="text-sm text-slate-400">52 Week High</div>
-              <div className="text-lg font-semibold">${eodData['52WeekHigh']?.toFixed(2) || 'N/A'}</div>
+              <div className="text-lg font-semibold">${keyMetrics['52WeekHigh']?.toFixed(2) || 'N/A'}</div>
             </div>
             <div>
               <div className="text-sm text-slate-400">52 Week Low</div>
-              <div className="text-lg font-semibold">${eodData['52WeekLow']?.toFixed(2) || 'N/A'}</div>
+              <div className="text-lg font-semibold">${keyMetrics['52WeekLow']?.toFixed(2) || 'N/A'}</div>
             </div>
             <div>
               <div className="text-sm text-slate-400">Market Cap</div>
               <div className="text-lg font-semibold">
-                {eodData.marketCap ? `$${(eodData.marketCap / 1_000_000_000).toFixed(2)}B` : 'N/A'}
+                {keyMetrics.marketCap ? `$${(keyMetrics.marketCap / 1_000_000_000).toFixed(2)}B` : 'N/A'}
               </div>
             </div>
           </div>

@@ -1,0 +1,206 @@
+// components/asset-detail/AssetDetailPage.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { faMagnifyingGlassChart, faDice, faExclamationTriangle, faBullseye } from '@fortawesome/free-solid-svg-icons';
+import { api } from '../../lib/api';
+import AssetHeader from './AssetHeader';
+import TabNavigation, { AssetTab } from './TabNavigation';
+import OverviewTab from './tabs/OverviewTab';
+import ChartsTab from './tabs/ChartsTab';
+import FundamentalsTab from './tabs/FundamentalsTab';
+import NewsTab from './tabs/NewsTab';
+import AIAnalysisTab from './tabs/AIAnalysisTab';
+import PlaceholderTab from './tabs/PlaceholderTab';
+import StockPeerComparisonTab from '../stocks/StockPeerComparisonTab';
+import StockDeepResearchTab from '../stocks/StockDeepResearchTab';
+
+interface AssetDetailPageProps {
+  ticker: string;
+  assetType: 'stock' | 'etf' | 'currency' | 'macro';
+  defaultTab?: AssetTab;
+}
+
+export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overview' }: AssetDetailPageProps) {
+  const [activeTab, setActiveTab] = useState<AssetTab>(defaultTab);
+  const [livePrice, setLivePrice] = useState<any>(null);
+  const [companyData, setCompanyData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAssetData();
+  }, [ticker]);
+
+  const fetchAssetData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch live price
+      try {
+        const livePriceData = await api.fetchLivePrice(ticker);
+        setLivePrice(livePriceData);
+      } catch (err) {
+        console.error('Failed to fetch live price:', err);
+      }
+
+      // Fetch company/asset data (for stocks and ETFs)
+      if (assetType === 'stock' || assetType === 'etf') {
+        try {
+          const highlights = await api.fetchCompanyHighlights(ticker);
+          setCompanyData(highlights);
+        } catch (err) {
+          console.error('Failed to fetch company data:', err);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch asset data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📊</div>
+          <div className="text-xl text-slate-400">Loading {ticker}...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md">
+          <div className="bg-red-900/20 border border-red-700 rounded-lg p-6 text-center">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h2 className="text-xl font-bold text-red-300 mb-2">Failed to Load Asset</h2>
+            <p className="text-red-400">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-red-700 hover:bg-red-600 rounded text-white font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <OverviewTab ticker={ticker} assetType={assetType} livePrice={livePrice} />;
+
+      case 'charts':
+        return <ChartsTab ticker={ticker} assetType={assetType} />;
+
+      case 'fundamentals':
+        return <FundamentalsTab ticker={ticker} assetType={assetType} />;
+
+      case 'news':
+        return <NewsTab ticker={ticker} assetType={assetType} />;
+
+      case 'ai-analysis':
+        return <AIAnalysisTab ticker={ticker} assetType={assetType} />;
+
+      case 'research':
+        return <StockDeepResearchTab ticker={ticker} />;
+
+      case 'compare':
+        return <StockPeerComparisonTab ticker={ticker} />;
+
+      case 'monte-carlo':
+        return (
+          <PlaceholderTab
+            title="Monte Carlo Simulation"
+            icon={faDice}
+            description="Probabilistic price forecasting using Monte Carlo methods"
+            features={[
+              '10,000+ simulated price paths based on historical volatility',
+              'Probability distribution of future returns',
+              'Confidence intervals (68%, 95%, 99%)',
+              'Expected value and median forecast',
+              'Risk-adjusted return projections',
+              'Scenario analysis (bull, base, bear cases)'
+            ]}
+          />
+        );
+
+      case 'risk':
+        return (
+          <PlaceholderTab
+            title="Risk Analysis (VaR)"
+            icon={faExclamationTriangle}
+            description="Value at Risk and risk metrics analysis"
+            features={[
+              'Value at Risk (VaR) - 1-day, 5-day, 30-day horizons',
+              'Conditional VaR (CVaR) - Expected tail loss',
+              'Historical VaR based on actual price movements',
+              'Parametric VaR assuming normal distribution',
+              'Volatility analysis and beta calculation',
+              'Sharpe ratio and risk-adjusted returns',
+              'Maximum drawdown and recovery analysis',
+              'Correlation with market indices'
+            ]}
+          />
+        );
+
+      case 'signals':
+        return (
+          <PlaceholderTab
+            title="Trading Signals"
+            icon={faBullseye}
+            description="Actionable buy/sell signals from multiple strategies"
+            features={[
+              'Technical signals (RSI, MACD, Moving Average crossovers)',
+              'Fundamental signals (undervalued/overvalued indicators)',
+              'Momentum signals (price momentum, volume surge)',
+              'AI-generated composite signals',
+              'Signal confidence scores and accuracy tracking',
+              'Historical signal performance and backtest results',
+              'Real-time alerts and notifications',
+              'Customizable signal parameters'
+            ]}
+          />
+        );
+
+      default:
+        return (
+          <div className="p-6 text-center text-slate-400">
+            Tab content not yet implemented
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white">
+      {/* Asset Header */}
+      <AssetHeader
+        ticker={ticker}
+        assetType={assetType}
+        livePrice={livePrice}
+        companyData={companyData}
+      />
+
+      {/* Tab Navigation */}
+      <TabNavigation
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        assetType={assetType}
+      />
+
+      {/* Tab Content */}
+      <div className="bg-slate-900">
+        {renderTabContent()}
+      </div>
+    </div>
+  );
+}

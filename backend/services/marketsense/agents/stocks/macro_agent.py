@@ -71,23 +71,32 @@ class MacroEnvironmentAgent(BaseAgent):
     async def fetch_data(self, asset_id: str) -> Dict[str, Any]:
         """Fetch macroeconomic indicators."""
         try:
-            from services.eodhd_client import EODHDClient
+            from tools.eodhd_client import EODHDClient
+            from datetime import datetime, timedelta
 
             client = EODHDClient()
 
+            # Calculate date range for 30-day trend
+            to_date = datetime.now().strftime("%Y-%m-%d")
+            from_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
             # Fetch market indices (SPY as proxy for overall market)
-            spy_data = client.historical.get_eod("SPY.US", limit=30)
+            spy_data = client.historical.get_eod("SPY.US", from_date=from_date, to_date=to_date, order="d")
 
             # Calculate market trend (30-day)
             market_trend = None
             if spy_data and len(spy_data) >= 2:
-                current_price = spy_data[0].get("close", 0)
-                month_ago_price = spy_data[-1].get("close", 1)
+                current_price = spy_data[0].get("close", 0)  # Most recent (descending order)
+                month_ago_price = spy_data[-1].get("close", 1)  # 30 days ago
                 market_trend = ((current_price - month_ago_price) / month_ago_price) * 100
 
             # Fetch VIX (volatility index) if available
-            vix_data = client.historical.get_eod("^VIX", limit=1)
-            vix = vix_data[0].get("close") if vix_data else None
+            # VIX is an index, not a stock, so use .INDX suffix
+            try:
+                vix_data = client.historical.get_eod("VIX.INDX", from_date=to_date, to_date=to_date, order="d")
+                vix = vix_data[0].get("close") if vix_data and len(vix_data) > 0 else None
+            except:
+                vix = None
 
             return {
                 "market_trend_30d": market_trend,

@@ -1,14 +1,23 @@
 // components/stocks/StockNewsTab.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../lib/api';
-import NewsList from '../NewsList';
 import SentimentAnalysis from '../SentimentAnalysis';
 
 interface StockNewsTabProps {
   ticker: string;
 }
+
+// Helper function outside component to prevent Fast Refresh issues
+const formatDate = (dateStr: string) => {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+};
 
 export default function StockNewsTab({ ticker }: StockNewsTabProps) {
   const [news, setNews] = useState<any[]>([]);
@@ -16,11 +25,7 @@ export default function StockNewsTab({ ticker }: StockNewsTabProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [ticker]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -42,7 +47,12 @@ export default function StockNewsTab({ ticker }: StockNewsTabProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [ticker]);
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker]);
 
   if (loading) {
     return (
@@ -72,9 +82,64 @@ export default function StockNewsTab({ ticker }: StockNewsTabProps) {
 
       {/* News Articles */}
       <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-        <h3 className="text-xl font-bold mb-4">Recent News</h3>
+        <h3 className="text-xl font-bold mb-4">Recent News ({news.length})</h3>
         {news.length > 0 ? (
-          <NewsList news={news} />
+          <div className="space-y-4">
+            {news.map((article: any, idx: number) => (
+              <div key={idx} className="border-b border-slate-700/50 pb-4 last:border-b-0">
+                <a
+                  href={article.link || article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-lg font-semibold text-white hover:text-blue-400 transition-colors block mb-2"
+                >
+                  {article.title}
+                </a>
+
+                {/* Metadata */}
+                <div className="flex items-center gap-2 mb-2 text-sm">
+                  {article.date && (
+                    <span className="text-slate-400">{formatDate(article.date)}</span>
+                  )}
+                  {article.symbols && article.symbols.length > 0 && (
+                    <>
+                      <span className="text-slate-600">•</span>
+                      <div className="flex gap-1">
+                        {article.symbols.slice(0, 3).map((sym: string, i: number) => (
+                          <span key={i} className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+                            {sym}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {article.sentiment && (
+                    <>
+                      <span className="text-slate-600">•</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        (typeof article.sentiment === 'object' && article.sentiment.polarity > 0.5) || article.sentiment === 'positive'
+                          ? 'bg-green-900/30 text-green-400'
+                          : (typeof article.sentiment === 'object' && article.sentiment.polarity < -0.5) || article.sentiment === 'negative'
+                          ? 'bg-red-900/30 text-red-400'
+                          : 'bg-yellow-900/30 text-yellow-400'
+                      }`}>
+                        {typeof article.sentiment === 'object'
+                          ? (article.sentiment.polarity > 0.5 ? 'Positive' : article.sentiment.polarity < -0.5 ? 'Negative' : 'Neutral')
+                          : article.sentiment}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Content Preview */}
+                {article.content && (
+                  <p className="text-sm text-slate-300 line-clamp-3">
+                    {article.content}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="text-center py-8 text-slate-400">
             No news articles available for {ticker}

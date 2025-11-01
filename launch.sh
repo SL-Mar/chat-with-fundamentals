@@ -17,6 +17,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Project root directory
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$PROJECT_ROOT"
+
 # Check if Python is installed
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}Error: Python 3 is not installed${NC}"
@@ -31,31 +35,46 @@ fi
 
 echo -e "${BLUE}Checking environment...${NC}"
 
-# Check for .env file
+# Check for backend .env file
 if [ ! -f "backend/.env" ]; then
     echo -e "${YELLOW}Warning: backend/.env not found${NC}"
     echo "Creating sample .env file..."
     cat > backend/.env << 'ENVEOF'
-# API Keys
+# EODHD API (required for data)
 EODHD_API_KEY=your_eodhd_api_key_here
+
+# OpenAI API (required for AI features)
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Database Configuration
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/fundamentals
-REDIS_URL=redis://localhost:6379/0
+# Application API Key (optional - dev mode if not set)
+APP_API_KEY=your_secure_key
+
+# Tavily API (optional - for Deep Research)
+TAVILY_API_KEY=your_tavily_api_key_here
+
+# Database
+DATABASE_URL=sqlite:///./chat_with_fundamentals.db
+
+# CORS Configuration
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3004
 
 # Server Configuration
 BACKEND_HOST=0.0.0.0
 BACKEND_PORT=8000
-FRONTEND_PORT=3000
-
-# CORS Configuration
-ALLOWED_ORIGINS=http://localhost:3000
 
 # Optional: Logging
 LOG_LEVEL=INFO
 ENVEOF
     echo -e "${YELLOW}Please edit backend/.env with your API keys${NC}"
+    echo -e "${YELLOW}Minimum required: EODHD_API_KEY and OPENAI_API_KEY${NC}"
+fi
+
+# Check for frontend .env.local file
+if [ ! -f "frontend/.env.local" ]; then
+    echo -e "${YELLOW}Creating frontend/.env.local...${NC}"
+    cat > frontend/.env.local << 'ENVEOF'
+NEXT_PUBLIC_API_URL=http://localhost:8000
+ENVEOF
 fi
 
 # Install backend dependencies if needed
@@ -65,8 +84,11 @@ if [ ! -d "backend/venv" ]; then
     python3 -m venv venv
     source venv/bin/activate
     echo -e "${BLUE}Installing Python dependencies...${NC}"
+    pip install --upgrade pip
     pip install -r requirements.txt
     cd ..
+else
+    echo -e "${GREEN}✓ Python virtual environment exists${NC}"
 fi
 
 # Install frontend dependencies if needed
@@ -75,16 +97,19 @@ if [ ! -d "frontend/node_modules" ]; then
     cd frontend
     npm install
     cd ..
+else
+    echo -e "${GREEN}✓ Node.js dependencies installed${NC}"
 fi
 
 echo ""
 echo -e "${GREEN}Environment ready!${NC}"
 echo ""
 
-# Kill any existing processes on ports 8000 and 3000
+# Kill any existing processes on ports 8000 and 3004
 echo -e "${BLUE}Checking for existing processes...${NC}"
 lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+lsof -ti:3004 | xargs kill -9 2>/dev/null || true
+sleep 1
 
 # Create logs directory
 mkdir -p logs
@@ -94,6 +119,8 @@ cleanup() {
     echo ""
     echo -e "${YELLOW}Shutting down servers...${NC}"
     kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+    lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+    lsof -ti:3004 | xargs kill -9 2>/dev/null || true
     echo -e "${GREEN}Servers stopped${NC}"
     exit 0
 }
@@ -105,46 +132,60 @@ trap cleanup SIGINT SIGTERM
 echo -e "${BLUE}Starting backend server...${NC}"
 cd backend
 source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload > ../logs/backend.log 2>&1 &
+python main.py > ../logs/backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 
 # Wait for backend to start
 echo -e "${YELLOW}Waiting for backend to start...${NC}"
-sleep 3
-
-# Check if backend is running
-if ! curl -s http://localhost:8000/ > /dev/null 2>&1; then
-    echo -e "${RED}Error: Backend failed to start. Check logs/backend.log${NC}"
-    tail -20 logs/backend.log
-    cleanup
-fi
-
-echo -e "${GREEN}✓ Backend running on http://localhost:8000${NC}"
+for i in {1..15}; do
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Backend running on http://localhost:8000${NC}"
+        break
+    fi
+    if [ $i -eq 15 ]; then
+        echo -e "${RED}Error: Backend failed to start. Check logs/backend.log${NC}"
+        echo -e "${YELLOW}Last 30 lines of backend log:${NC}"
+        tail -30 logs/backend.log
+        cleanup
+    fi
+    sleep 1
+done
 
 # Start frontend server
 echo -e "${BLUE}Starting frontend server...${NC}"
 cd frontend
-npm run dev > ../logs/frontend.log 2>&1 &
+PORT=3004 npm run dev > ../logs/frontend.log 2>&1 &
 FRONTEND_PID=$!
 cd ..
 
 # Wait for frontend to start
 echo -e "${YELLOW}Waiting for frontend to start...${NC}"
-sleep 5
-
-echo -e "${GREEN}✓ Frontend running on http://localhost:3000${NC}"
+for i in {1..20}; do
+    if curl -s http://localhost:3004 > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Frontend running on http://localhost:3004${NC}"
+        break
+    fi
+    if [ $i -eq 20 ]; then
+        echo -e "${YELLOW}Frontend may still be starting (Next.js can take time)${NC}"
+        echo -e "${YELLOW}Check logs/frontend.log for details${NC}"
+    fi
+    sleep 1
+done
 
 echo ""
 echo "========================================="
 echo -e "${GREEN}Application is running!${NC}"
 echo "========================================="
 echo ""
-echo -e "Frontend:     ${BLUE}http://localhost:3000${NC}"
-echo -e "Backend API:  ${BLUE}http://localhost:8000${NC}"
-echo -e "API Docs:     ${BLUE}http://localhost:8000/docs${NC}"
+echo -e "Frontend:        ${BLUE}http://localhost:3004${NC}"
+echo -e "Backend API:     ${BLUE}http://localhost:8000${NC}"
+echo -e "API Docs:        ${BLUE}http://localhost:8000/docs${NC}"
+echo -e "Health Check:    ${BLUE}http://localhost:8000/health${NC}"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop all servers${NC}"
+echo ""
+echo -e "${BLUE}Tailing logs (Ctrl+C to exit)...${NC}"
 echo ""
 
 # Show logs in real-time

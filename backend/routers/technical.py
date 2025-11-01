@@ -47,9 +47,12 @@ async def get_technical_indicator(
     # Add exchange suffix if not present
     ticker_with_exchange = format_ticker_for_eodhd(ticker)
 
+    # EODHD requires lowercase function names
+    function_lower = function.lower()
+
     url = f"https://eodhd.com/api/technical/{ticker_with_exchange}"
     params = {
-        "function": function,
+        "function": function_lower,
         "period": period,
         "order": "a",
         "api_token": settings.eodhd_api_key,
@@ -74,8 +77,13 @@ async def get_technical_indicator(
             resp = await client.get(url, params=params, timeout=20)
             resp.raise_for_status()
             data = resp.json()
+    except httpx.HTTPStatusError as e:
+        logger.error("EODHD technical fetch failed for %s (%s): HTTP %s - %s", ticker, function_lower, e.response.status_code, e.response.text[:200])
+        if e.response.status_code == 422:
+            raise HTTPException(502, f"Technical indicator '{function}' not available or parameters invalid")
+        raise HTTPException(502, f"Data provider error (HTTP {e.response.status_code})")
     except Exception as e:
-        logger.error("EODHD technical fetch failed for %s (%s)", ticker, e.__class__.__name__)
+        logger.error("EODHD technical fetch failed for %s (%s): %s", ticker, e.__class__.__name__, str(e))
         raise HTTPException(502, "Data provider error")
 
     logger.info("[TECHNICAL] fetched %s for %s", function, ticker)

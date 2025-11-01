@@ -74,7 +74,7 @@ class StockFundamentalsAgent(BaseAgent):
     async def fetch_data(self, asset_id: str) -> Dict[str, Any]:
         """Fetch fundamental data from EODHD API or database."""
         try:
-            from services.eodhd_client import EODHDClient
+            from tools.eodhd_client import EODHDClient
 
             client = EODHDClient()
             ticker = asset_id

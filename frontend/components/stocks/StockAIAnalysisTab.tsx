@@ -34,10 +34,9 @@ interface StockAIAnalysisTabProps {
 }
 
 export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) {
-  const [deepResearch, setDeepResearch] = useState(false);
   const [history, setHistory] = useState<AnalysisResult[]>([]);
 
-  // Use shared AI analysis hook
+  // Use shared AI analysis hook (deep research disabled - not needed)
   const { result, loading, error, runAnalysis } = useAIAnalysis('stock');
 
   useEffect(() => {
@@ -54,7 +53,7 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
   };
 
   const handleRunAnalysis = async () => {
-    await runAnalysis(ticker, deepResearch);
+    await runAnalysis(ticker, false); // Always false - deep research disabled
     fetchHistory(); // Refresh history after analysis
   };
 
@@ -63,16 +62,8 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
       {/* Controls */}
       <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={deepResearch}
-                onChange={(e) => setDeepResearch(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm font-semibold">Enable Deep Research (Tavily)</span>
-            </label>
+          <div className="text-sm text-slate-400">
+            AI-powered multi-agent analysis using real market data
           </div>
 
           <button
@@ -186,7 +177,7 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
               <div className="animate-spin text-6xl mb-4">⟳</div>
               <h3 className="text-xl font-bold mb-2">Analyzing {ticker}</h3>
               <p className="text-slate-400">
-                Running {deepResearch ? '5 agents + deep research' : '5 agents'}...
+                Running 5 agents...
               </p>
             </div>
           )}

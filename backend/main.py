@@ -47,6 +47,7 @@ from routers.macro         import router as macro_router       # Macroeconomic i
 from routers.monitoring    import router as monitoring_router  # NEW: Monitoring & metrics (Phase 2C)
 from routers.admin         import router as admin_router       # NEW: Admin endpoints for DB management
 from routers.ai_analysis   import router as ai_analysis_router # NEW: MarketSense AI analysis
+from routers.portfolios    import router as portfolios_router  # NEW: Portfolio management
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -116,8 +117,9 @@ async def lifespan(app: FastAPI):
         start_cache_warming()
 
         # Start data refresh pipeline (Phase 2D - Incremental Refresh)
-        logging.getLogger("main").info("🚀 Starting data refresh pipeline...")
-        start_data_refresh_pipeline()
+        # TEMPORARILY DISABLED - blocking server startup
+        # logging.getLogger("main").info("🚀 Starting data refresh pipeline...")
+        # start_data_refresh_pipeline()
 
         logging.getLogger("main").info("✅ All background services started successfully")
     except Exception as e:
@@ -132,7 +134,7 @@ async def lifespan(app: FastAPI):
     logging.getLogger("main").info("⏹️  Stopping background services...")
     try:
         stop_cache_warming()
-        stop_data_refresh_pipeline()
+        # stop_data_refresh_pipeline()  # Disabled above
         logging.getLogger("main").info("✅ Background services stopped successfully")
     except Exception as e:
         logging.getLogger("main").error(f"⚠️  Error stopping background services: {e}")
@@ -153,13 +155,13 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # 4) CORS configuration (local Next.js front-end + production)
 # ──────────────────────────────────────────────────────────────────────
 # Get allowed origins from environment variable for production
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3003,http://localhost:3005").split(",")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004,http://localhost:3005").split(",")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],  # Only allow needed methods (more secure)
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Include OPTIONS for CORS preflight
     allow_headers=["Content-Type", "X-API-Key"],  # Explicitly allow API key header
 )
 
@@ -200,7 +202,8 @@ app.include_router(historical_router, dependencies=[Depends(verify_api_key)])   
 app.include_router(macro_router, dependencies=[Depends(verify_api_key)])        # NEW: Macroeconomic data
 app.include_router(monitoring_router, dependencies=[Depends(verify_api_key)])  # NEW: Monitoring & metrics (requires auth)
 app.include_router(admin_router, dependencies=[Depends(verify_api_key)])       # NEW: Admin endpoints (requires auth)
-app.include_router(ai_analysis_router, dependencies=[Depends(verify_api_key)]) # NEW: MarketSense AI analysis (requires auth)
+app.include_router(ai_analysis_router) # NEW: MarketSense AI analysis (WebSocket auth handled internally)
+app.include_router(portfolios_router, dependencies=[Depends(verify_api_key)]) # NEW: Portfolio management (requires auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream
@@ -237,6 +240,15 @@ async def root():
         "service": "Chat with Fundamentals API",
         "version": "1.0",
         "auth_required": os.getenv("APP_API_KEY") is not None
+    }
+
+@app.get("/health")
+async def health():
+    """Public health check endpoint - no authentication required."""
+    return {
+        "status": "healthy",
+        "service": "Chat with Fundamentals API",
+        "version": "1.0"
     }
 
 @app.get("/log-test", dependencies=[Depends(verify_api_key)])

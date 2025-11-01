@@ -283,6 +283,26 @@ class ImprovedDatabaseQueries:
 
         return float(result[0]) if result else None
 
+    @with_session
+    def get_latest_ohlcv(
+        self,
+        ticker: str,
+        db: Session = None
+    ) -> Optional[OHLCV]:
+        """
+        Get latest OHLCV record for a ticker
+
+        Args:
+            ticker: Stock symbol (e.g., AAPL.US)
+            db: Database session
+
+        Returns:
+            Latest OHLCV record or None
+        """
+        return db.query(OHLCV).join(Company).filter(
+            Company.ticker == ticker.upper()
+        ).order_by(desc(OHLCV.date)).first()
+
     # =========================================================================
     # FUNDAMENTAL QUERIES
     # =========================================================================

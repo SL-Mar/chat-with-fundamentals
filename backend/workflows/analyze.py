@@ -299,7 +299,14 @@ Return only the executive summary text.
         )
 
         result = crew.kickoff()
-        self.state.summary.Ex_summary = result.raw.strip()
+        # Strip any "Executive Summary:" prefix from the LLM output to avoid duplication in frontend
+        summary_text = result.raw.strip()
+        if summary_text.startswith("Executive Summary:"):
+            summary_text = summary_text[len("Executive Summary:"):].strip()
+        elif summary_text.startswith("Executive Summary"):
+            summary_text = summary_text[len("Executive Summary"):].strip()
+
+        self.state.summary.Ex_summary = summary_text
         self.logger.info("[ANALYSIS] Executive summary generated.")
 
     @listen(analyze_data)

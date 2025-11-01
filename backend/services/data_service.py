@@ -242,13 +242,16 @@ class DataService:
 
         try:
             # Check database for recent price (last 15 seconds)
-            recent_threshold = datetime.now() - timedelta(
+            recent_threshold = datetime.now(tz=None) - timedelta(
                 seconds=DataFreshnessConfig.OHLCV_LIVE_TTL_SECONDS
             )
 
             latest_record = self.db_queries.get_latest_ohlcv(ticker, db=db)
 
-            if latest_record and latest_record.updated_at >= recent_threshold:
+            # Convert latest_record.date to naive datetime for comparison
+            record_date = latest_record.date.replace(tzinfo=None) if latest_record and latest_record.date else None
+
+            if record_date and record_date >= recent_threshold:
                 logger.info(f"[DATA_SERVICE] Cache HIT: {ticker} live price from database")
                 return self._serialize_ohlcv([latest_record])[0]
 
@@ -483,8 +486,11 @@ class DataService:
         # Get latest record date
         latest_record = max(records, key=lambda x: x.date)
 
+        # Convert latest_record.date (datetime) to date for comparison
+        latest_date = latest_record.date.date() if isinstance(latest_record.date, datetime) else latest_record.date
+
         # Check if latest record is recent enough
-        age = to_date - latest_record.date
+        age = to_date - latest_date
         return age.days < DataFreshnessConfig.OHLCV_EOD_TTL_HOURS / 24
 
     def _serialize_ohlcv(self, records: List[OHLCV]) -> List[Dict[str, Any]]:

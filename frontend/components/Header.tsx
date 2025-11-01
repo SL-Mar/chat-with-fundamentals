@@ -1,27 +1,22 @@
-// Header.tsx
-
+// Header.tsx - Clean navigation matching QuantCoderFS design
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faHome, faInfoCircle, faEnvelope,
-  faBookOpen, faCog, faCodeBranch, faSignOutAlt, faHandshake,
-  faComments, faChartLine, faNewspaper, faCalendarAlt, faEye,
-  faDashboard, faChartArea, faChartBar, faBuildingColumns,
-  faGlobe, faFlask, faUserShield, faBars, faTimes
+  faChartLine, faGlobe, faBuildingColumns, faChartBar,
+  faDashboard, faComments, faFilter, faCog, faSignOutAlt, faDatabase
 } from '@fortawesome/free-solid-svg-icons';
 
 const Header = () => {
   const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const currentPath = router.pathname;
 
   const handleLogout = async () => {
     try {
-      fetch('http://localhost:8000/shutdown', { method: 'POST' });
-
+      await fetch('http://localhost:8000/shutdown', { method: 'POST' });
       setTimeout(() => {
         window.location.href = '/goodbye';
       }, 300);
@@ -31,205 +26,152 @@ const Header = () => {
     }
   };
 
+  const isActive = (path: string) => currentPath.startsWith(path);
+
   return (
-    <header className="bg-gray-200 dark:bg-gray-800 shadow-md">
-      <div className="container mx-auto px-4 py-4">
-        {/* Header Title */}
-        <div className="text-center mb-3">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">
-            Chat with Fundamentals
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Equity Research with EODHD APIs
-          </p>
-        </div>
-
-        {/* Mobile Menu Toggle */}
-        <div className="md:hidden flex justify-center mb-2">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="text-gray-800 dark:text-gray-200 p-2"
-          >
-            <FontAwesomeIcon icon={mobileMenuOpen ? faTimes : faBars} size="lg" />
-          </button>
-        </div>
-
-        {/* Navigation Menu */}
-        <nav className={`${mobileMenuOpen ? 'block' : 'hidden'} md:block`}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-
-            {/* Column 1: Asset Classes */}
-            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
-              <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2 text-xs uppercase">
-                🎯 Asset Classes
-              </h3>
-              <ul className="space-y-1">
-                <li>
-                  <Link href="/stocks" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
-                    <FontAwesomeIcon icon={faChartLine} className="mr-2 w-4" />
-                    Stocks
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/currencies" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
-                    <FontAwesomeIcon icon={faGlobe} className="mr-2 w-4" />
-                    Currencies
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/etfs" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
-                    <FontAwesomeIcon icon={faBuildingColumns} className="mr-2 w-4" />
-                    ETFs
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/macro" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
-                    <FontAwesomeIcon icon={faChartBar} className="mr-2 w-4" />
-                    Macro Indicators
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/portfolios" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center font-semibold">
-                    <FontAwesomeIcon icon={faDashboard} className="mr-2 w-4" />
-                    Portfolios
-                  </Link>
-                </li>
-                <li className="pt-2 border-t border-gray-300 dark:border-gray-700 mt-2">
-                  <Link href="/unified-chat" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faComments} className="mr-2 w-4" />
-                    AI Chat
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/screener" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faChartLine} className="mr-2 w-4" />
-                    Screener
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 2: Market Data */}
-            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
-              <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2 text-xs uppercase">
-                📊 Market Data
-              </h3>
-              <ul className="space-y-1">
-                <li>
-                  <Link href="/economic-dashboard" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faGlobe} className="mr-2 w-4" />
-                    Economic Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/etf-analyzer" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faBuildingColumns} className="mr-2 w-4" />
-                    ETF Analyzer
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/calendar" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faCalendarAlt} className="mr-2 w-4" />
-                    Calendar
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/demo" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faChartLine} className="mr-2 w-4" />
-                    Demo
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 3: System & Admin */}
-            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
-              <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2 text-xs uppercase">
-                ⚙️ System
-              </h3>
-              <ul className="space-y-1">
-                <li>
-                  <Link href="/monitoring" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faEye} className="mr-2 w-4" />
-                    Monitoring
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/admin" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faUserShield} className="mr-2 w-4" />
-                    Admin
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/settings" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faCog} className="mr-2 w-4" />
-                    Settings
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/logs" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faCodeBranch} className="mr-2 w-4" />
-                    Logs
-                  </Link>
-                </li>
-                <li>
-                  <button
-                    onClick={handleLogout}
-                    className="text-red-500 dark:text-red-400 hover:underline flex items-center w-full text-left"
-                  >
-                    <FontAwesomeIcon icon={faSignOutAlt} className="mr-2 w-4" />
-                    Logout
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Information */}
-            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
-              <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2 text-xs uppercase">
-                ℹ️ Information
-              </h3>
-              <ul className="space-y-1">
-                <li>
-                  <Link href="/" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faHome} className="mr-2 w-4" />
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/gettingstarted" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faInfoCircle} className="mr-2 w-4" />
-                    Getting Started
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/documentation" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faBookOpen} className="mr-2 w-4" />
-                    Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contribute" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faHandshake} className="mr-2 w-4" />
-                    Contribute
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faEnvelope} className="mr-2 w-4" />
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/disclaimer" className="text-gray-800 dark:text-gray-200 hover:underline flex items-center">
-                    <FontAwesomeIcon icon={faInfoCircle} className="mr-2 w-4" />
-                    Disclaimer
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
+    <header className="bg-[#161b22] border-b border-[#30363d] px-6 py-4">
+      <div className="flex items-center justify-between max-w-screen-2xl mx-auto">
+        {/* Left: Logo + Brand */}
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-lg">C</span>
           </div>
+          <div>
+            <h1 className="text-lg font-bold text-[#c9d1d9]">
+              Chat with Fundamentals
+            </h1>
+            <p className="text-xs text-[#6e7681]">Multi-Asset Market Intelligence</p>
+          </div>
+        </div>
+
+        {/* Right: Main Navigation */}
+        <nav className="flex items-center space-x-6">
+          {/* Asset Modules */}
+          <Link
+            href="/stocks"
+            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
+              isActive('/stocks')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faChartLine} className="text-sm" />
+            <span>Stocks</span>
+          </Link>
+
+          <Link
+            href="/etfs"
+            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
+              isActive('/etfs')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faBuildingColumns} className="text-sm" />
+            <span>ETFs</span>
+          </Link>
+
+          <Link
+            href="/currencies"
+            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
+              isActive('/currencies')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faGlobe} className="text-sm" />
+            <span>Currencies</span>
+          </Link>
+
+          <Link
+            href="/macro"
+            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
+              isActive('/macro')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faChartBar} className="text-sm" />
+            <span>Macro</span>
+          </Link>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-[#30363d]" />
+
+          {/* Tools */}
+          <Link
+            href="/portfolios"
+            className={`flex items-center space-x-2 transition-colors text-sm ${
+              isActive('/portfolios')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faDashboard} className="text-sm" />
+            <span>Portfolio</span>
+          </Link>
+
+          <Link
+            href="/screener"
+            className={`flex items-center space-x-2 transition-colors text-sm ${
+              isActive('/screener')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faFilter} className="text-sm" />
+            <span>Screener</span>
+          </Link>
+
+          <Link
+            href="/chat"
+            className={`flex items-center space-x-2 transition-colors text-sm ${
+              isActive('/chat')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faComments} className="text-sm" />
+            <span>AI Chat</span>
+          </Link>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-[#30363d]" />
+
+          {/* Database */}
+          <Link
+            href="/database"
+            className={`flex items-center space-x-2 transition-colors text-sm ${
+              isActive('/database')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faDatabase} className="text-sm" />
+            <span>Database</span>
+          </Link>
+
+          {/* Settings */}
+          <Link
+            href="/settings"
+            className={`flex items-center space-x-2 transition-colors text-sm ${
+              isActive('/settings')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faCog} className="text-sm" />
+            <span>Settings</span>
+          </Link>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="p-2 text-[#8b949e] hover:text-[#f85149] transition-colors"
+            title="Exit application"
+          >
+            <FontAwesomeIcon icon={faSignOutAlt} className="text-base" />
+          </button>
         </nav>
       </div>
     </header>

@@ -62,7 +62,7 @@ async def get_news_articles(
             # General market news - fetch from API (no database caching for general news)
             client = EODHDClient()
             news = client.news.get_news(
-                s=ticker,
+                symbol=ticker,
                 tag=tag,
                 limit=limit,
                 offset=offset

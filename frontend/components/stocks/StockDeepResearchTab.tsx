@@ -20,34 +20,26 @@ export default function StockDeepResearchTab({ ticker }: StockDeepResearchTabPro
       setError(null);
       setResults(null);
 
-      // Note: This would call a Tavily research endpoint
-      // For now, we'll simulate the response
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the real Tavily research endpoint
+      const apiKey = localStorage.getItem('apiKey');
+      const response = await fetch(
+        `http://localhost:8000/api/v2/deep-research?query=${encodeURIComponent(query)}&depth=${depth}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey || '',
+          },
+        }
+      );
 
-      setResults({
-        query,
-        summary: `Comprehensive research summary for ${ticker}. This would contain AI-generated insights from multiple sources including recent news, financial reports, analyst opinions, and market trends. The Tavily API would provide deep contextual analysis combining information from various reliable sources.`,
-        results: [
-          {
-            title: `${ticker} Q4 Earnings Beat Expectations`,
-            url: 'https://example.com/article1',
-            content: 'The company reported strong quarterly results...',
-            score: 0.95
-          },
-          {
-            title: `Industry Analysis: ${ticker.split('.')[0]} Sector Trends`,
-            url: 'https://example.com/article2',
-            content: 'Market dynamics show positive momentum...',
-            score: 0.89
-          },
-          {
-            title: `Analyst Upgrades ${ticker} to Buy`,
-            url: 'https://example.com/article3',
-            content: 'Leading analysts revised their outlook...',
-            score: 0.87
-          }
-        ]
-      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Research failed');
+      }
+
+      const data = await response.json();
+      setResults(data);
     } catch (err: any) {
       console.error('Research failed:', err);
       setError(err.message || 'Research failed');

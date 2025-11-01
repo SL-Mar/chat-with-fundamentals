@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 import logging
 
-from ..types import AgentOutput
+from ..types import AgentOutput, SignalType
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,9 @@ class SignalGeneratorAgent(BaseAgent):
     async def synthesize(
         self,
         agent_outputs: Dict[str, AgentOutput],
-        research_context: Optional[Dict[str, Any]] = None
+        research_context: Optional[Dict[str, Any]] = None,
+        asset_type: Optional[Any] = None,
+        asset_id: str = ""
     ):
         """
         Synthesize all agent outputs into final signal.
@@ -134,6 +136,8 @@ class SignalGeneratorAgent(BaseAgent):
         Args:
             agent_outputs: Dictionary of agent outputs by agent name
             research_context: Optional deep research results
+            asset_type: Asset type (stock, currency, etc.)
+            asset_id: Asset identifier (ticker, pair, etc.)
 
         Returns:
             AnalysisResult with final signal, confidence, and reasoning
@@ -174,8 +178,8 @@ class SignalGeneratorAgent(BaseAgent):
             deep_research_summary = research_context["summary"]
 
         return AnalysisResult(
-            asset_type=None,  # Will be set by framework
-            asset_id="",      # Will be set by framework
+            asset_type=asset_type,
+            asset_id=asset_id,
             signal=signal,
             confidence=confidence,
             weighted_score=weighted_score,

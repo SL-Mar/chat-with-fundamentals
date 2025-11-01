@@ -71,25 +71,58 @@ class StockPriceDynamicsAgent(BaseAgent):
     async def fetch_data(self, asset_id: str) -> Dict[str, Any]:
         """Fetch price data and technical indicators."""
         try:
-            from services.eodhd_client import EODHDClient
+            from tools.eodhd_client import EODHDClient
 
             client = EODHDClient()
             ticker = asset_id
 
-            # Fetch technical indicators
-            technicals = client.technical.get_technicals(ticker)
+            # Ensure ticker has exchange suffix
+            if '.' not in ticker:
+                ticker = f"{ticker}.US"
 
-            # Extract key indicators
+            # Fetch technical indicators individually
             indicators = {}
-            if technicals:
-                indicators = {
-                    "rsi": technicals.get("RSI", {}).get("value"),
-                    "macd": technicals.get("MACD", {}).get("value"),
-                    "macd_signal": technicals.get("MACD", {}).get("signal"),
-                    "sma_50": technicals.get("SMA50", {}).get("value"),
-                    "sma_200": technicals.get("SMA200", {}).get("value"),
-                    "current_price": technicals.get("close")
-                }
+
+            try:
+                # RSI (14-period)
+                rsi_data = client.technical.get_technical_indicator(ticker, "rsi", period=14)
+                if rsi_data and isinstance(rsi_data, list) and len(rsi_data) > 0:
+                    indicators["rsi"] = rsi_data[0].get("rsi")
+            except:
+                pass
+
+            try:
+                # MACD
+                macd_data = client.technical.get_technical_indicator(ticker, "macd")
+                if macd_data and isinstance(macd_data, list) and len(macd_data) > 0:
+                    indicators["macd"] = macd_data[0].get("macd")
+                    indicators["macd_signal"] = macd_data[0].get("signal")
+            except:
+                pass
+
+            try:
+                # SMA 50
+                sma50_data = client.technical.get_technical_indicator(ticker, "sma", period=50)
+                if sma50_data and isinstance(sma50_data, list) and len(sma50_data) > 0:
+                    indicators["sma_50"] = sma50_data[0].get("sma")
+            except:
+                pass
+
+            try:
+                # SMA 200
+                sma200_data = client.technical.get_technical_indicator(ticker, "sma", period=200)
+                if sma200_data and isinstance(sma200_data, list) and len(sma200_data) > 0:
+                    indicators["sma_200"] = sma200_data[0].get("sma")
+            except:
+                pass
+
+            try:
+                # Current price from EOD data
+                eod_data = client.historical.get_eod(ticker, limit=1)
+                if eod_data and len(eod_data) > 0:
+                    indicators["current_price"] = eod_data[0].get("close")
+            except:
+                pass
 
             return {
                 "indicators": indicators,

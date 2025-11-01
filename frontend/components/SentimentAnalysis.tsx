@@ -175,14 +175,16 @@ export default function SentimentAnalysis({ ticker }: SentimentAnalysisProps) {
                       <span className="text-xs text-slate-600">•</span>
                       <span
                         className={`text-xs font-semibold ${
-                          article.sentiment === 'positive'
+                          (typeof article.sentiment === 'object' && article.sentiment.polarity > 0.5) || article.sentiment === 'positive'
                             ? 'text-green-400'
-                            : article.sentiment === 'negative'
+                            : (typeof article.sentiment === 'object' && article.sentiment.polarity < -0.5) || article.sentiment === 'negative'
                             ? 'text-red-400'
                             : 'text-yellow-400'
                         }`}
                       >
-                        {article.sentiment}
+                        {typeof article.sentiment === 'object'
+                          ? (article.sentiment.polarity > 0.5 ? 'Positive' : article.sentiment.polarity < -0.5 ? 'Negative' : 'Neutral')
+                          : article.sentiment}
                       </span>
                     </>
                   )}

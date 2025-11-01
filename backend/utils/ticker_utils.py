@@ -24,15 +24,15 @@ def format_ticker_for_eodhd(ticker: str, exchange_code: Optional[str] = None) ->
     Format ticker with exchange suffix for EODHD API.
 
     EODHD API requires tickers in format: SYMBOL.EXCHANGE
-    Examples: AAPL.US, BMW.XETRA, 7203.T
+    Examples: AAPL.US, BMW.XETRA, 7203.T, EURUSD.FOREX
 
     Args:
         ticker: Base ticker symbol (e.g., 'AAPL' or 'AAPL.US')
-        exchange_code: Exchange code (e.g., 'US', 'XETRA', 'T')
-                      If None and ticker has no exchange, defaults to 'US'
+        exchange_code: Exchange code (e.g., 'US', 'XETRA', 'T', 'FOREX')
+                      If None and ticker has no exchange, defaults to 'US' (or 'FOREX' for currency pairs)
 
     Returns:
-        Formatted ticker with exchange suffix (e.g., 'AAPL.US')
+        Formatted ticker with exchange suffix (e.g., 'AAPL.US', 'EURUSD.FOREX')
 
     Examples:
         >>> format_ticker_for_eodhd('AAPL', 'US')
@@ -46,6 +46,9 @@ def format_ticker_for_eodhd(ticker: str, exchange_code: Optional[str] = None) ->
 
         >>> format_ticker_for_eodhd('AAPL')
         'AAPL.US'  # Default to US
+
+        >>> format_ticker_for_eodhd('EURUSD')
+        'EURUSD.FOREX'  # Auto-detect currency pair
     """
     # Normalize to uppercase
     ticker = ticker.upper().strip()
@@ -58,6 +61,12 @@ def format_ticker_for_eodhd(ticker: str, exchange_code: Optional[str] = None) ->
     if exchange_code:
         exchange_code = exchange_code.upper().strip()
         return f"{ticker}.{exchange_code}"
+
+    # Auto-detect currency pairs (6 characters, common forex pattern)
+    # Examples: EURUSD, GBPJPY, USDJPY, etc.
+    if len(ticker) == 6 and ticker.isalpha():
+        logger.debug(f"Detected currency pair {ticker}, using .FOREX suffix")
+        return f"{ticker}.FOREX"
 
     # Default to US exchange for backward compatibility
     logger.debug(f"No exchange specified for {ticker}, defaulting to .US")

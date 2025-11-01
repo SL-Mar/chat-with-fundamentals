@@ -64,21 +64,20 @@ export default function AnalystRatings({ ticker }: AnalystRatingsProps) {
   }
 
   // Parse ratings data (structure depends on EODHD API response)
-  // API returns: { AnalystRatings: { Rating: {...}, TargetPrice: {...} } }
-  const analystData = ratings?.AnalystRatings || ratings;
-
-  const buyCount = analystData?.Rating?.Buy || 0;
-  const holdCount = analystData?.Rating?.Hold || 0;
-  const sellCount = analystData?.Rating?.Sell || 0;
-  const strongBuyCount = analystData?.Rating?.StrongBuy || 0;
-  const strongSellCount = analystData?.Rating?.StrongSell || 0;
+  // API now returns flat structure: { Rating, TargetPrice, StrongBuy, Buy, Hold, Sell, StrongSell }
+  const buyCount = ratings?.Buy || 0;
+  const holdCount = ratings?.Hold || 0;
+  const sellCount = ratings?.Sell || 0;
+  const strongBuyCount = ratings?.StrongBuy || 0;
+  const strongSellCount = ratings?.StrongSell || 0;
 
   const totalAnalysts = buyCount + holdCount + sellCount + strongBuyCount + strongSellCount;
 
-  const targetHigh = analystData?.TargetPrice?.High;
-  const targetAvg = analystData?.TargetPrice?.Avg || analystData?.TargetPrice?.Average;
-  const targetLow = analystData?.TargetPrice?.Low;
-  const currentPrice = analystData?.TargetPrice?.Current;
+  const targetPrice = ratings?.TargetPrice;
+  const targetHigh = undefined; // Not available in current API response
+  const targetAvg = targetPrice;
+  const targetLow = undefined; // Not available in current API response
+  const currentPrice = undefined; // Not available in current API response
 
   // Calculate consensus
   const bullishCount = strongBuyCount + buyCount;
