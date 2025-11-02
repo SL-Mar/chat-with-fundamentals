@@ -8,6 +8,7 @@ from .market_data import OHLCV, Fundamental, TechnicalIndicator
 from .news import News, AnalystRating, InsiderTransaction
 from .dividends import Dividend
 from .monitoring import DataIngestionLog, APIRateLimit
+from .portfolio import Portfolio, PortfolioStock
 
 __all__ = [
     'Base',
@@ -24,4 +25,6 @@ __all__ = [
     'Dividend',
     'DataIngestionLog',
     'APIRateLimit',
+    'Portfolio',
+    'PortfolioStock',
 ]

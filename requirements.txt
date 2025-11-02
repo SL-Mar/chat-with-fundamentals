@@ -16,6 +16,10 @@ openai==1.37.0
 numpy==1.26.4
 pandas==2.2.0
 python-dateutil==2.9.0
+scipy==1.11.4
+
+# Portfolio optimization
+PyPortfolioOpt==1.5.5
 
 # Security and rate limiting
 slowapi==0.1.9
