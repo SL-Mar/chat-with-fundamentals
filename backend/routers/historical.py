@@ -2,11 +2,15 @@
 # Historical price data endpoints: intraday, live prices, EOD
 # NOW WITH DATABASE-FIRST APPROACH (Phase 2B)
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, List
 import logging
+from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 from tools.eodhd_client import EODHDClient
 from services.data_service import DataService
+from services.intraday_data_service import IntradayDataService
+from database.config_multi import get_intraday_db
 from utils.ticker_utils import validate_and_format_ticker, format_ticker_for_eodhd
 
 router = APIRouter(prefix="/historical", tags=["Historical Data"])
@@ -19,9 +23,10 @@ data_service = DataService()
 @router.get("/intraday")
 async def get_intraday_prices(
     ticker: str = Query(..., description="Stock symbol (e.g., AAPL.US)"),
-    interval: str = Query("5m", description="Time interval: 1m, 5m, 15m, 30m, 1h"),
+    interval: str = Query("5m", description="Time interval: 1m, 5m, 15m, 1h"),
     from_timestamp: Optional[int] = Query(None, description="Unix timestamp start"),
-    to_timestamp: Optional[int] = Query(None, description="Unix timestamp end")
+    to_timestamp: Optional[int] = Query(None, description="Unix timestamp end"),
+    db: Session = Depends(get_intraday_db)
 ):
     """Get intraday price data at specified intervals.
 
@@ -29,16 +34,16 @@ async def get_intraday_prices(
     - 1m: 1-minute candles
     - 5m: 5-minute candles
     - 15m: 15-minute candles
-    - 30m: 30-minute candles
     - 1h: 1-hour candles
 
     Returns OHLCV data for intraday trading analysis.
 
-    **NEW: Database-First Approach (Phase 3D)**
-    - Checks database first for cached intraday data (5 minute TTL)
+    **NEW: Multi-Database Architecture (Phase 3E)**
+    - Uses dedicated intraday database (TimescaleDB hypertables)
+    - Checks database first for cached intraday data
     - Falls back to EODHD API if data missing/stale
     - Automatically stores API response in database for future queries
-    - Uses TimescaleDB hypertables with compression and retention policies
+    - Automatic compression for data older than 30 days
 
     Example: /historical/intraday?ticker=AAPL.US&interval=5m
     """
@@ -46,27 +51,53 @@ async def get_intraday_prices(
         # Validate and format ticker
         ticker = validate_and_format_ticker(ticker)
 
-        # Add exchange suffix if not present
-        ticker = format_ticker_for_eodhd(ticker)
+        # Remove exchange suffix for our new service (it adds it internally)
+        ticker_clean = ticker.replace('.US', '')
 
-        # Validate interval
-        valid_intervals = ["1m", "5m", "15m", "30m", "1h"]
-        if interval not in valid_intervals:
+        # Map 30m to 15m (we only support 1m, 5m, 15m, 1h in new system)
+        timeframe_map = {
+            "1m": "1m",
+            "5m": "5m",
+            "15m": "15m",
+            "30m": "15m",  # Map 30m to 15m
+            "1h": "1h"
+        }
+
+        if interval not in timeframe_map:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid interval. Must be one of: {', '.join(valid_intervals)}"
+                detail=f"Invalid interval. Must be one of: 1m, 5m, 15m, 30m, 1h"
             )
 
-        # DATABASE-FIRST: Check DB with 5 minute TTL, fallback to API
-        intraday_data = data_service.get_intraday_data(
-            ticker=ticker,
-            interval=interval,
-            from_timestamp=from_timestamp,
-            to_timestamp=to_timestamp
+        timeframe = timeframe_map[interval]
+
+        # Convert timestamps to datetime
+        if from_timestamp:
+            start_date = datetime.fromtimestamp(from_timestamp)
+        else:
+            start_date = datetime.now() - timedelta(days=1)
+
+        if to_timestamp:
+            end_date = datetime.fromtimestamp(to_timestamp)
+        else:
+            end_date = datetime.now()
+
+        # Use new intraday service with dedicated database
+        intraday_service = IntradayDataService(db)
+        data = intraday_service.get_intraday_data(
+            ticker=ticker_clean,
+            timeframe=timeframe,
+            start_date=start_date,
+            end_date=end_date
         )
 
-        logger.info(f"[INTRADAY] Fetched {interval} data for {ticker} ({len(intraday_data)} records)")
-        return intraday_data
+        logger.info(f"[INTRADAY] Fetched {timeframe} data for {ticker} ({len(data)} records)")
+
+        # Return in format expected by frontend
+        return {
+            "ticker": ticker,
+            "data": data
+        }
 
     except HTTPException:
         raise
