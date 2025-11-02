@@ -48,6 +48,7 @@ from routers.monitoring    import router as monitoring_router  # NEW: Monitoring
 from routers.admin         import router as admin_router       # NEW: Admin endpoints for DB management
 from routers.ai_analysis   import router as ai_analysis_router # NEW: MarketSense AI analysis
 from routers.portfolios    import router as portfolios_router  # NEW: Portfolio management
+from routers.intraday      import router as intraday_router    # NEW: Intraday multi-granularity data
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -204,6 +205,7 @@ app.include_router(monitoring_router, dependencies=[Depends(verify_api_key)])  #
 app.include_router(admin_router, dependencies=[Depends(verify_api_key)])       # NEW: Admin endpoints (requires auth)
 app.include_router(ai_analysis_router) # NEW: MarketSense AI analysis (WebSocket auth handled internally)
 app.include_router(portfolios_router, dependencies=[Depends(verify_api_key)]) # NEW: Portfolio management (requires auth)
+app.include_router(intraday_router, dependencies=[Depends(verify_api_key)])   # NEW: Intraday multi-granularity data (requires auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL with TimescaleDB extension
+  # PostgreSQL with TimescaleDB extension (Daily/EOD Data)
   postgres:
     image: timescale/timescaledb:latest-pg15
     container_name: chat-fundamentals-db
@@ -15,6 +15,26 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/database/schemas:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL with TimescaleDB for Intraday Data (1m, 5m, 15m, 1h)
+  postgres-intraday:
+    image: timescale/timescaledb:latest-pg15
+    container_name: chat-fundamentals-db-intraday
+    environment:
+      POSTGRES_DB: chat_fundamentals_intraday
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_intraday_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -52,6 +72,7 @@ services:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - postgres
+      - postgres-intraday
     restart: unless-stopped
 
   # Redis Commander for Redis management (optional)
@@ -68,6 +89,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  postgres_intraday_data:
     driver: local
   redis_data:
     driver: local
