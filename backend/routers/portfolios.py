@@ -17,8 +17,11 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
+import logging
 from scipy.optimize import minimize
 from scipy import stats
+
+logger = logging.getLogger(__name__)
 from pypfopt import EfficientFrontier, BlackLittermanModel, risk_models, expected_returns
 
 from database.models.base import get_db
@@ -45,6 +48,25 @@ class AddStockRequest(BaseModel):
     ticker: str
     weight: Optional[float] = None  # 0-1 (e.g., 0.25 for 25%)
     shares: Optional[float] = None
+
+
+class BulkWeightUpdate(BaseModel):
+    weights: Dict[str, float]  # ticker -> weight (0-1)
+
+
+class BulkSharesUpdate(BaseModel):
+    shares: Dict[str, float]  # ticker -> number of shares
+
+
+class WeightsToSharesRequest(BaseModel):
+    weights: Dict[str, float]  # ticker -> weight (0-1)
+    portfolio_value: float  # Total portfolio value in dollars
+
+
+class WeightsToSharesResponse(BaseModel):
+    shares: Dict[str, float]  # ticker -> number of shares
+    total_value: float
+    current_prices: Dict[str, float]  # ticker -> current price
 
 
 class PortfolioStockResponse(BaseModel):
@@ -79,6 +101,7 @@ class PortfolioAnalysisResponse(BaseModel):
     equity_curve: List[Dict[str, Any]]  # [{date: str, value: float, daily_return: float}]
     metrics: Dict[str, float]  # {total_return, annualized_return, volatility, sharpe_ratio, max_drawdown}
     weights: Dict[str, float]  # {ticker: weight}
+    rolling_sharpe_curves: Optional[Dict[str, List[Dict[str, Any]]]] = None  # {rolling_sharpe_5d: [{date, value}], ...}
 
 
 class MonteCarloPath(BaseModel):
@@ -120,6 +143,44 @@ class VaRResponse(BaseModel):
 
 
 # ========== Helper Functions ==========
+
+def calculate_portfolio_value_at_date(
+    portfolio: Portfolio,
+    prices_df: pd.DataFrame,
+    date_index: int = 0
+) -> float:
+    """
+    Calculate portfolio value from actual shares at a specific date.
+
+    Args:
+        portfolio: Portfolio object with shares
+        prices_df: Price data DataFrame
+        date_index: Index in prices_df (0 = first date, -1 = last date)
+
+    Returns:
+        Total portfolio value (sum of shares × price_at_date for each stock)
+    """
+    if prices_df.empty:
+        return 0.0
+
+    portfolio_value = 0.0
+    target_date = prices_df.index[date_index]
+
+    for stock in portfolio.stocks:
+        if not stock.shares or stock.shares <= 0:
+            continue
+
+        if stock.ticker not in prices_df.columns:
+            logger.warning(f"No price data for {stock.ticker}, skipping from portfolio value")
+            continue
+
+        # Get price at target date
+        price_at_date = float(prices_df.loc[target_date, stock.ticker])
+        stock_value = stock.shares * price_at_date
+        portfolio_value += stock_value
+
+    return portfolio_value
+
 
 def fetch_price_data(
     tickers: List[str],
@@ -202,7 +263,7 @@ def calculate_portfolio_metrics(
     portfolio_returns: pd.Series,
     initial_value: float = 10000
 ) -> Dict[str, float]:
-    """Calculate portfolio performance metrics."""
+    """Calculate portfolio performance metrics with rolling Sharpe ratios."""
 
     # Calculate equity curve
     equity_curve = (1 + portfolio_returns).cumprod() * initial_value
@@ -227,12 +288,31 @@ def calculate_portfolio_metrics(
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = drawdown.min() * 100
 
+    # Rolling Sharpe ratios (20, 60 trading days)
+    # Calculate annualized rolling mean and std, then Sharpe
+    rolling_sharpe_20 = None
+    rolling_sharpe_60 = None
+
+    if len(portfolio_returns) >= 20:
+        rolling_mean_20 = portfolio_returns.rolling(window=20).mean() * 252
+        rolling_std_20 = portfolio_returns.rolling(window=20).std() * np.sqrt(252)
+        rolling_sharpe_20 = (rolling_mean_20 / rolling_std_20).iloc[-1]
+        rolling_sharpe_20 = round(float(rolling_sharpe_20), 2) if not pd.isna(rolling_sharpe_20) else None
+
+    if len(portfolio_returns) >= 60:
+        rolling_mean_60 = portfolio_returns.rolling(window=60).mean() * 252
+        rolling_std_60 = portfolio_returns.rolling(window=60).std() * np.sqrt(252)
+        rolling_sharpe_60 = (rolling_mean_60 / rolling_std_60).iloc[-1]
+        rolling_sharpe_60 = round(float(rolling_sharpe_60), 2) if not pd.isna(rolling_sharpe_60) else None
+
     return {
         "total_return": round(total_return, 2),
         "annualized_return": round(annualized_return, 2),
         "volatility": round(volatility, 2),
         "sharpe_ratio": round(sharpe_ratio, 2),
-        "max_drawdown": round(max_drawdown, 2)
+        "max_drawdown": round(max_drawdown, 2),
+        "rolling_sharpe_20d": rolling_sharpe_20,
+        "rolling_sharpe_60d": rolling_sharpe_60
     }
 
 
@@ -302,7 +382,10 @@ def add_stock_to_portfolio(
     stock: AddStockRequest,
     db: Session = Depends(get_db)
 ):
-    """Add a stock to a portfolio."""
+    """
+    Add a stock to a portfolio.
+    If shares are provided, weights will be automatically calculated for ALL stocks.
+    """
     portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
@@ -325,6 +408,56 @@ def add_stock_to_portfolio(
     )
     db.add(portfolio_stock)
     db.commit()
+
+    # If shares were provided, recalculate weights for entire portfolio
+    logger.info(f"Stock added: {stock.ticker}, shares={stock.shares}, weight={stock.weight}")
+    if stock.shares is not None and stock.shares > 0:
+        logger.info(f"Recalculating weights for portfolio {portfolio_id} (shares provided: {stock.shares})")
+        eodhd = EODHDClient(api_key=os.getenv("EODHD_API_KEY"))
+        portfolio_values = {}
+
+        # Get all stocks including the newly added one
+        all_stocks = db.query(PortfolioStock).filter(
+            PortfolioStock.portfolio_id == portfolio_id
+        ).all()
+
+        # Calculate portfolio value
+        for pstock in all_stocks:
+            if pstock.shares is None or pstock.shares == 0:
+                # Skip stocks without shares
+                continue
+
+            try:
+                end_date = datetime.now().strftime("%Y-%m-%d")
+                start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+
+                # Add .US suffix if not present (EODHD requires exchange suffix)
+                ticker_with_exchange = pstock.ticker if '.' in pstock.ticker else f"{pstock.ticker}.US"
+                eod_data = eodhd.historical.get_eod(ticker_with_exchange, from_date=start_date, to_date=end_date)
+                if not eod_data:
+                    logger.warning(f"No price data for {pstock.ticker}, skipping weight calculation")
+                    continue
+
+                df = pd.DataFrame(eod_data)
+                current_price = float(df.iloc[-1]['close'])
+                position_value = pstock.shares * current_price
+                portfolio_values[pstock.ticker] = (pstock.shares, current_price, position_value)
+            except Exception as e:
+                logger.error(f"Failed to fetch price for {pstock.ticker}: {e}")
+                continue
+
+        # Calculate total value and update weights
+        if portfolio_values:
+            total_value = sum(pv[2] for pv in portfolio_values.values())
+
+            for pstock in all_stocks:
+                if pstock.ticker in portfolio_values:
+                    _, _, value = portfolio_values[pstock.ticker]
+                    pstock.weight = value / total_value
+
+            db.commit()
+            logger.info(f"Recalculated weights for portfolio {portfolio_id}. Total value: ${total_value:,.2f}")
+
     db.refresh(portfolio)
     return portfolio
 
@@ -374,7 +507,342 @@ def update_stock_in_portfolio(
     return {"message": "Stock updated successfully"}
 
 
+@router.put("/{portfolio_id}/shares", response_model=PortfolioResponse)
+def update_portfolio_shares(
+    portfolio_id: int,
+    shares_update: BulkSharesUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update shares for all stocks in portfolio and automatically calculate weights.
+    Weights are calculated based on: (shares × current_price) / total_portfolio_value
+    """
+    # Verify portfolio exists
+    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    # Get current prices for all stocks
+    eodhd = EODHDClient(api_key=os.getenv("EODHD_API_KEY"))
+    portfolio_values = {}  # ticker -> (shares, price, value)
+
+    for ticker, shares in shares_update.shares.items():
+        ticker_upper = ticker.upper()
+
+        # Fetch current price from EODHD (latest close price)
+        try:
+            # Get last 1 day of data
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+
+            # Add .US suffix if not present (EODHD requires exchange suffix)
+            ticker_with_exchange = ticker_upper if '.' in ticker_upper else f"{ticker_upper}.US"
+            eod_data = eodhd.historical.get_eod(ticker_with_exchange, from_date=start_date, to_date=end_date)
+            if not eod_data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No price data available for {ticker_upper}"
+                )
+
+            df = pd.DataFrame(eod_data)
+            current_price = float(df.iloc[-1]['close'])
+            position_value = shares * current_price
+            portfolio_values[ticker_upper] = (shares, current_price, position_value)
+
+        except Exception as e:
+            logger.error(f"Failed to fetch price for {ticker_upper}: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to fetch current price for {ticker_upper}"
+            )
+
+    # Calculate total portfolio value
+    total_value = sum(pv[2] for pv in portfolio_values.values())
+
+    if total_value == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Portfolio value is zero - cannot calculate weights"
+        )
+
+    # Update shares and weights for each stock
+    updated_count = 0
+    for ticker_upper, (shares, price, value) in portfolio_values.items():
+        weight = value / total_value
+
+        stock = db.query(PortfolioStock).filter(
+            PortfolioStock.portfolio_id == portfolio_id,
+            PortfolioStock.ticker == ticker_upper
+        ).first()
+
+        if stock:
+            stock.shares = shares
+            stock.weight = weight
+            updated_count += 1
+        else:
+            logger.warning(f"Stock {ticker_upper} not found in portfolio {portfolio_id}")
+
+    # Update portfolio timestamp
+    portfolio.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(portfolio)
+
+    logger.info(f"Updated {updated_count} stocks in portfolio {portfolio_id}. Total value: ${total_value:,.2f}")
+
+    return portfolio
+
+
+@router.post("/{portfolio_id}/weights-to-shares", response_model=WeightsToSharesResponse)
+def convert_weights_to_shares(
+    portfolio_id: int,
+    request: WeightsToSharesRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Convert optimized weights to number of shares based on target portfolio value.
+    This is used when applying optimization results to determine how many shares to buy.
+    """
+    # Verify portfolio exists
+    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    # Get current prices for all stocks
+    eodhd = EODHDClient(api_key=os.getenv("EODHD_API_KEY"))
+    current_prices = {}
+    shares_result = {}
+
+    for ticker, weight in request.weights.items():
+        ticker_upper = ticker.upper()
+
+        # Fetch current price
+        try:
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+
+            # Add .US suffix if not present (EODHD requires exchange suffix)
+            ticker_with_exchange = ticker_upper if '.' in ticker_upper else f"{ticker_upper}.US"
+            eod_data = eodhd.historical.get_eod(ticker_with_exchange, from_date=start_date, to_date=end_date)
+            if not eod_data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No price data available for {ticker_upper}"
+                )
+
+            df = pd.DataFrame(eod_data)
+            current_price = float(df.iloc[-1]['close'])
+            current_prices[ticker_upper] = current_price
+
+            # Calculate shares: (portfolio_value × weight) / current_price
+            target_value = request.portfolio_value * weight
+            shares = target_value / current_price
+            # Round to whole shares (no fractional shares)
+            shares_result[ticker_upper] = round(shares)
+
+        except Exception as e:
+            logger.error(f"Failed to fetch price for {ticker_upper}: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to fetch current price for {ticker_upper}"
+            )
+
+    # Calculate actual total value (may differ slightly due to rounding)
+    total_value = sum(
+        shares_result[ticker] * current_prices[ticker]
+        for ticker in shares_result.keys()
+    )
+
+    return WeightsToSharesResponse(
+        shares=shares_result,
+        total_value=total_value,
+        current_prices=current_prices
+    )
+
+
+@router.put("/{portfolio_id}/weights", response_model=PortfolioResponse)
+def update_portfolio_weights(
+    portfolio_id: int,
+    weight_update: BulkWeightUpdate,
+    db: Session = Depends(get_db)
+):
+    """Bulk update weights for all stocks in portfolio."""
+    # Verify portfolio exists
+    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    # Validate weights sum to 1.0 (with small tolerance for floating point)
+    total_weight = sum(weight_update.weights.values())
+    if abs(total_weight - 1.0) > 0.01:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Weights must sum to 1.0 (100%), got {total_weight:.4f}"
+        )
+
+    # Update each stock's weight
+    updated_count = 0
+    for ticker, weight in weight_update.weights.items():
+        stock = db.query(PortfolioStock).filter(
+            PortfolioStock.portfolio_id == portfolio_id,
+            PortfolioStock.ticker == ticker.upper()
+        ).first()
+
+        if stock:
+            stock.weight = weight
+            updated_count += 1
+        else:
+            logger.warning(f"Stock {ticker} not found in portfolio {portfolio_id}")
+
+    # Update portfolio timestamp
+    portfolio.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(portfolio)
+
+    return portfolio
+
+
 # ========== Analysis Endpoints ==========
+
+@router.get("/{portfolio_id}/analysis/actual", response_model=PortfolioAnalysisResponse)
+def analyze_actual_portfolio(
+    portfolio_id: int,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    use_adjusted: bool = True,
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze portfolio based on ACTUAL shares held.
+    Uses current weights calculated from shares × prices.
+    Returns equity curve and performance metrics.
+    """
+    # Get portfolio
+    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    if len(portfolio.stocks) == 0:
+        raise HTTPException(status_code=400, detail="Portfolio has no stocks")
+
+    # Check if all stocks have shares defined
+    stocks_with_shares = [s for s in portfolio.stocks if s.shares and s.shares > 0]
+    if len(stocks_with_shares) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No stocks have shares defined. Add shares to stocks first."
+        )
+
+    tickers = [stock.ticker for stock in portfolio.stocks]
+
+    # Set default date range (last 1 year)
+    if not end_date:
+        end_date = datetime.now().strftime("%Y-%m-%d")
+    if not start_date:
+        start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+
+    # Fetch price data
+    prices_df = fetch_price_data(
+        tickers, start_date, end_date, db, use_adjusted
+    )
+
+    # Normalize actual portfolio to $10,000 starting value for fair comparison
+    # Calculate weights based on actual shares at start date
+    starting_portfolio_value = 10000
+    equity_curve_data = []
+
+    # Calculate actual portfolio value at start date
+    start_date_obj = prices_df.index[0]
+    actual_start_value = 0.0
+    for stock in portfolio.stocks:
+        if stock.shares and stock.shares > 0 and stock.ticker in prices_df.columns:
+            price_at_start = float(prices_df.loc[start_date_obj, stock.ticker])
+            actual_start_value += stock.shares * price_at_start
+
+    # Calculate scaling factor to normalize to $10,000
+    scaling_factor = starting_portfolio_value / actual_start_value if actual_start_value > 0 else 0
+
+    # Calculate normalized shares (scaled to start at $10,000)
+    normalized_shares = {}
+    for stock in portfolio.stocks:
+        if stock.shares and stock.shares > 0:
+            normalized_shares[stock.ticker] = stock.shares * scaling_factor
+
+    for date in prices_df.index:
+        portfolio_value = 0.0
+
+        for ticker, shares in normalized_shares.items():
+            if ticker not in prices_df.columns:
+                continue
+
+            # Get price at this date
+            price_at_date = float(prices_df.loc[date, ticker])
+            stock_value = shares * price_at_date
+            portfolio_value += stock_value
+
+        # Calculate daily return (percentage change from previous day)
+        daily_return = 0.0
+        if len(equity_curve_data) > 0:
+            prev_value = equity_curve_data[-1]["value"]
+            if prev_value > 0:
+                daily_return = (portfolio_value - prev_value) / prev_value
+
+        equity_curve_data.append({
+            "date": str(date.date()),
+            "value": float(portfolio_value),
+            "daily_return": float(daily_return)
+        })
+
+    # Calculate weights at the start date (based on actual portfolio composition)
+    weights = {}
+    total_value_start = equity_curve_data[0]["value"] if equity_curve_data else 0
+
+    for ticker, shares in normalized_shares.items():
+        if ticker in prices_df.columns:
+            price = float(prices_df.loc[start_date_obj, ticker])
+            stock_value = shares * price
+            weights[ticker] = stock_value / total_value_start if total_value_start > 0 else 0
+
+    # Calculate returns for metrics (daily percentage changes)
+    values = pd.Series([item["value"] for item in equity_curve_data], index=prices_df.index)
+    portfolio_returns = values.pct_change().dropna()
+
+    # Calculate metrics
+    metrics = calculate_portfolio_metrics(portfolio_returns)
+
+    # Calculate rolling Sharpe ratio curves (time series)
+    rolling_sharpe_curves = {}
+
+    for window, label in [(20, 'rolling_sharpe_20d'), (60, 'rolling_sharpe_60d')]:
+        if len(portfolio_returns) >= window:
+            rolling_mean = portfolio_returns.rolling(window=window).mean() * 252
+            rolling_std = portfolio_returns.rolling(window=window).std() * np.sqrt(252)
+            rolling_sharpe = rolling_mean / rolling_std
+
+            # Convert to list of {date, value} objects
+            rolling_sharpe_curves[label] = [
+                {
+                    "date": str(date.date()),
+                    "value": float(sharpe) if not pd.isna(sharpe) else None
+                }
+                for date, sharpe in rolling_sharpe.items()
+            ]
+
+    equity_data = equity_curve_data
+
+    return PortfolioAnalysisResponse(
+        portfolio_id=portfolio_id,
+        portfolio_name=portfolio.name,
+        tickers=tickers,
+        start_date=start_date,
+        end_date=end_date,
+        equity_curve=equity_data,
+        metrics=metrics,
+        weights=weights,
+        rolling_sharpe_curves=rolling_sharpe_curves
+    )
+
 
 @router.get("/{portfolio_id}/analysis/equal-weight", response_model=PortfolioAnalysisResponse)
 def analyze_equal_weight_portfolio(
@@ -386,6 +854,7 @@ def analyze_equal_weight_portfolio(
 ):
     """
     Analyze portfolio with equal weighting.
+    Uses the same starting portfolio value as actual portfolio for fair comparison.
     Returns equity curve and performance metrics.
     """
     # Get portfolio
@@ -408,30 +877,59 @@ def analyze_equal_weight_portfolio(
     # Fetch price data
     prices_df = fetch_price_data(tickers, start_date, end_date, db, use_adjusted)
 
-    # Calculate returns
-    returns = prices_df.pct_change().dropna()
+    # For Equal Weight, use a generic starting value of $10,000
+    # This allows fair comparison against actual portfolio performance
+    starting_portfolio_value = 10000
 
     # Equal weight
     n_stocks = len(prices_df.columns)
-    weights = {ticker: 1.0 / n_stocks for ticker in prices_df.columns}
+    equal_weights = {ticker: 1.0 / n_stocks for ticker in prices_df.columns}
 
-    # Calculate portfolio returns
-    portfolio_returns = returns.mean(axis=1)  # Equal weight = simple average
+    # Calculate portfolio value at each date using equal weights
+    # Imagine we allocated starting_portfolio_value equally across stocks at start date
+    # Then track how that allocation performs over time
+    equity_curve_data = []
+
+    # Calculate initial shares for each stock based on equal weight allocation
+    start_date = prices_df.index[0]
+    initial_investment_per_stock = starting_portfolio_value / n_stocks
+    shares_per_stock = {}
+
+    for ticker in prices_df.columns:
+        start_price = float(prices_df.loc[start_date, ticker])
+        if start_price > 0:
+            shares_per_stock[ticker] = initial_investment_per_stock / start_price
+        else:
+            shares_per_stock[ticker] = 0
+
+    # Now calculate portfolio value at each date
+    for date in prices_df.index:
+        portfolio_value = 0.0
+
+        for ticker in prices_df.columns:
+            if ticker in shares_per_stock and shares_per_stock[ticker] > 0:
+                price_at_date = float(prices_df.loc[date, ticker])
+                portfolio_value += shares_per_stock[ticker] * price_at_date
+
+        # Calculate daily return
+        daily_return = 0.0
+        if len(equity_curve_data) > 0:
+            prev_value = equity_curve_data[-1]["value"]
+            if prev_value > 0:
+                daily_return = (portfolio_value - prev_value) / prev_value
+
+        equity_curve_data.append({
+            "date": str(date.date()),
+            "value": float(portfolio_value),
+            "daily_return": float(daily_return)
+        })
+
+    # Calculate returns for metrics
+    values = pd.Series([item["value"] for item in equity_curve_data], index=prices_df.index)
+    portfolio_returns = values.pct_change().dropna()
 
     # Calculate metrics
-    initial_value = 10000
-    equity_curve = (1 + portfolio_returns).cumprod() * initial_value
-    metrics = calculate_portfolio_metrics(portfolio_returns, initial_value)
-
-    # Build equity curve response
-    equity_curve_data = []
-    for date, value in equity_curve.items():
-        daily_return = portfolio_returns.loc[date] * 100 if date in portfolio_returns.index else 0
-        equity_curve_data.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "value": round(float(value), 2),
-            "daily_return": round(float(daily_return), 4)
-        })
+    metrics = calculate_portfolio_metrics(portfolio_returns)
 
     return PortfolioAnalysisResponse(
         portfolio_id=portfolio_id,
@@ -441,7 +939,7 @@ def analyze_equal_weight_portfolio(
         end_date=prices_df.index[-1].strftime("%Y-%m-%d"),
         equity_curve=equity_curve_data,
         metrics=metrics,
-        weights=weights
+        weights=equal_weights
     )
 
 
@@ -456,6 +954,7 @@ def analyze_optimized_portfolio(
 ):
     """
     Analyze portfolio with optimization methods.
+    Uses the same starting portfolio value as actual portfolio for fair comparison.
 
     Methods:
     - mvo: Mean-Variance Optimization (maximize Sharpe ratio)
@@ -481,6 +980,10 @@ def analyze_optimized_portfolio(
 
     # Fetch price data
     prices_df = fetch_price_data(tickers, start_date, end_date, db, use_adjusted)
+
+    # For Optimized, use a generic starting value of $10,000
+    # This allows fair comparison against actual portfolio performance
+    starting_portfolio_value = 10000
 
     # Calculate returns
     returns = prices_df.pct_change().dropna()
@@ -540,23 +1043,52 @@ def analyze_optimized_portfolio(
     # Create weights dictionary
     weights_dict = {ticker: float(weight) for ticker, weight in zip(prices_df.columns, optimal_weights)}
 
-    # Calculate portfolio returns with optimal weights
-    portfolio_returns = (returns * optimal_weights).sum(axis=1)
+    # Calculate portfolio value at each date using optimal weights
+    # Imagine we allocated starting_portfolio_value according to optimal weights at start date
+    # Then track how that allocation performs over time
+    equity_curve_data = []
+
+    # Calculate initial shares for each stock based on optimal weight allocation
+    start_date_index = prices_df.index[0]
+    shares_per_stock = {}
+
+    for ticker in prices_df.columns:
+        weight = optimal_weights_dict[ticker]
+        initial_investment_for_stock = starting_portfolio_value * weight
+        start_price = float(prices_df.loc[start_date_index, ticker])
+        if start_price > 0:
+            shares_per_stock[ticker] = initial_investment_for_stock / start_price
+        else:
+            shares_per_stock[ticker] = 0
+
+    # Now calculate portfolio value at each date
+    for date in prices_df.index:
+        portfolio_value = 0.0
+
+        for ticker in prices_df.columns:
+            if ticker in shares_per_stock and shares_per_stock[ticker] > 0:
+                price_at_date = float(prices_df.loc[date, ticker])
+                portfolio_value += shares_per_stock[ticker] * price_at_date
+
+        # Calculate daily return
+        daily_return = 0.0
+        if len(equity_curve_data) > 0:
+            prev_value = equity_curve_data[-1]["value"]
+            if prev_value > 0:
+                daily_return = (portfolio_value - prev_value) / prev_value
+
+        equity_curve_data.append({
+            "date": str(date.date()),
+            "value": float(portfolio_value),
+            "daily_return": float(daily_return)
+        })
+
+    # Calculate returns for metrics
+    values = pd.Series([item["value"] for item in equity_curve_data], index=prices_df.index)
+    portfolio_returns = values.pct_change().dropna()
 
     # Calculate metrics
-    initial_value = 10000
-    equity_curve = (1 + portfolio_returns).cumprod() * initial_value
-    metrics = calculate_portfolio_metrics(portfolio_returns, initial_value)
-
-    # Build equity curve response
-    equity_curve_data = []
-    for date, value in equity_curve.items():
-        daily_return = portfolio_returns.loc[date] * 100 if date in portfolio_returns.index else 0
-        equity_curve_data.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "value": round(float(value), 2),
-            "daily_return": round(float(daily_return), 4)
-        })
+    metrics = calculate_portfolio_metrics(portfolio_returns)
 
     return PortfolioAnalysisResponse(
         portfolio_id=portfolio_id,

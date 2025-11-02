@@ -796,6 +796,74 @@ export const api = {
     return r.json();
   },
 
+  /* ────────── Update Portfolio Weights ──────────── */
+  async updatePortfolioWeights(portfolioId: number, weights: Record<string, number>): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}/weights`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ weights }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Update Individual Stock Weight ──────────── */
+  async updateStockWeight(portfolioId: number, ticker: string, weight: number): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}/stocks/${ticker}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ ticker, weight }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Update Portfolio Shares (Auto-calculates Weights) ──────────── */
+  async updatePortfolioShares(portfolioId: number, shares: Record<string, number>): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}/shares`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ shares }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Convert Weights to Shares ──────────── */
+  async convertWeightsToShares(
+    portfolioId: number,
+    weights: Record<string, number>,
+    portfolioValue: number
+  ): Promise<{shares: Record<string, number>, total_value: number, current_prices: Record<string, number>}> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}/weights-to-shares`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ weights, portfolio_value: portfolioValue }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Actual Portfolio Analysis (based on shares) ──────────── */
+  async fetchActualPortfolioAnalysis(
+    portfolioId: number,
+    startDate?: string,
+    endDate?: string,
+    useAdjusted: boolean = true
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      ...(startDate && { start_date: startDate }),
+      ...(endDate && { end_date: endDate }),
+      use_adjusted: String(useAdjusted),
+    });
+
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}/analysis/actual?${params}`, {
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
   /* ────────── Equal-Weight Analysis ──────────── */
   fetchEqualWeightAnalysis(
     portfolioId: number,
