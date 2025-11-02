@@ -33,7 +33,8 @@ export default function PortfoliosPage() {
       setLoading(true);
       setError(null);
       const data = await api.fetchPortfolios();
-      setPortfolios(data.portfolios || []);
+      // Backend returns array directly, not wrapped in object
+      setPortfolios(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error('Failed to load portfolios:', err);
       setError(err.message || 'Failed to load portfolios');
