@@ -14,6 +14,7 @@ import AIAnalysisTab from './tabs/AIAnalysisTab';
 import PlaceholderTab from './tabs/PlaceholderTab';
 import StockPeerComparisonTab from '../stocks/StockPeerComparisonTab';
 import StockDeepResearchTab from '../stocks/StockDeepResearchTab';
+import ReturnsTab from './tabs/ReturnsTab';
 
 interface AssetDetailPageProps {
   ticker: string;
@@ -134,23 +135,7 @@ export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overv
         );
 
       case 'risk':
-        return (
-          <PlaceholderTab
-            title="Risk Analysis (VaR)"
-            icon={faExclamationTriangle}
-            description="Value at Risk and risk metrics analysis"
-            features={[
-              'Value at Risk (VaR) - 1-day, 5-day, 30-day horizons',
-              'Conditional VaR (CVaR) - Expected tail loss',
-              'Historical VaR based on actual price movements',
-              'Parametric VaR assuming normal distribution',
-              'Volatility analysis and beta calculation',
-              'Sharpe ratio and risk-adjusted returns',
-              'Maximum drawdown and recovery analysis',
-              'Correlation with market indices'
-            ]}
-          />
-        );
+        return <ReturnsTab ticker={ticker} />;
 
       case 'signals':
         return (

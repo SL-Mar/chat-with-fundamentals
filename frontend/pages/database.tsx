@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
   const [stats, setStats] = useState<any>(null)
+  const [intradayStats, setIntradayStats] = useState<any>(null)
   const [inventory, setInventory] = useState<TickerInventory | null>(null)
   const [search, setSearch] = useState('')
   const [filterMissing, setFilterMissing] = useState(false)
@@ -40,6 +41,15 @@ export default function AdminPage() {
       setStats(data)
     } catch (error: any) {
       console.error('Error fetching stats:', error)
+    }
+  }
+
+  const fetchIntradayStats = async () => {
+    try {
+      const data = await api.fetchIntradayMetrics()
+      setIntradayStats(data)
+    } catch (error: any) {
+      console.error('Error fetching intraday stats:', error)
     }
   }
 
@@ -142,6 +152,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchStats()
+    fetchIntradayStats()
     fetchInventory()
   }, [])
 
@@ -199,6 +210,49 @@ export default function AdminPage() {
                 <div className="text-2xl font-bold">{stats.statistics.sectors}</div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Intraday Stats */}
+        {intradayStats && (
+          <div className="bg-gray-800 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Intraday Data Status</h2>
+              <div className="text-sm text-gray-400">
+                DB Size: {intradayStats.database_size}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {['1m', '5m', '15m', '1h'].map((tf) => {
+                const stats = intradayStats.timeframes[tf]
+                return (
+                  <div key={tf} className="bg-gray-700 rounded p-4">
+                    <div className="text-sm text-gray-400 mb-2">{tf} Candles</div>
+                    <div className="space-y-1">
+                      <div className="text-lg font-bold text-white">
+                        {stats?.total_records?.toLocaleString() || '0'} records
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {stats?.unique_tickers || 0} tickers
+                      </div>
+                      {stats?.last_timestamp && (
+                        <div className="text-xs text-green-400">
+                          Latest: {new Date(stats.last_timestamp).toLocaleString()}
+                        </div>
+                      )}
+                      {!stats?.total_records && (
+                        <div className="text-xs text-gray-500">No data</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {intradayStats.data_status && (
+              <div className="mt-4 text-xs text-gray-400">
+                Tracked ticker/timeframe combinations: {intradayStats.data_status.total_tracked_combinations}
+              </div>
+            )}
           </div>
         )}
 

@@ -9,8 +9,10 @@ from database.models.company import Company
 from database.models.financial import OHLCV as OHLCVModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import numpy as np
+import pandas as pd
 
 router = APIRouter(
     prefix="/quantanalyzer",
@@ -153,5 +155,115 @@ async def get_eod_data(
                 logger.error(f"[EOD] Failed to fetch data for {ticker_with_exchange}: {e}")
                 raise HTTPException(502, f"Failed to fetch data: {str(e)}")
 
+    finally:
+        db.close()
+
+
+@router.get("/returns")
+async def returns_analysis(
+    ticker: str = Query(..., description="US ticker, e.g. TSLA"),
+    years: int = Query(3, ge=1, le=10),
+    benchmark: str = Query("SPY"),
+):
+    """
+    Calculate returns distribution and beta analysis
+
+    Returns:
+    - returns.list: Array of daily returns for histogram
+    - scatter.x: Benchmark returns
+    - scatter.y: Ticker returns
+    - scatter.beta: Beta coefficient
+    - scatter.alpha: Alpha coefficient
+    - scatter.r2: R-squared value
+    """
+    # Add .US suffix if not present
+    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
+    benchmark_with_exchange = benchmark if "." in benchmark else f"{benchmark}.US"
+
+    logger.info(f"[RETURNS] Analyzing {ticker_with_exchange} vs {benchmark_with_exchange} for {years} years")
+
+    db: Session = next(get_db())
+
+    try:
+        # Calculate days to fetch (years * 365.25 + buffer)
+        days = int(years * 365.25) + 30
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        # Get company IDs
+        ticker_company = db.query(Company).filter(Company.ticker == ticker_with_exchange).first()
+        benchmark_company = db.query(Company).filter(Company.ticker == benchmark_with_exchange).first()
+
+        if not ticker_company:
+            raise HTTPException(404, f"Company {ticker_with_exchange} not found in database")
+        if not benchmark_company:
+            raise HTTPException(404, f"Benchmark {benchmark_with_exchange} not found in database")
+
+        # Fetch OHLCV data for ticker
+        ticker_data = db.query(OHLCVModel).filter(
+            OHLCVModel.company_id == ticker_company.id,
+            OHLCVModel.date >= cutoff_date
+        ).order_by(OHLCVModel.date).all()
+
+        # Fetch OHLCV data for benchmark
+        benchmark_data = db.query(OHLCVModel).filter(
+            OHLCVModel.company_id == benchmark_company.id,
+            OHLCVModel.date >= cutoff_date
+        ).order_by(OHLCVModel.date).all()
+
+        if len(ticker_data) < 60:
+            raise HTTPException(400, f"Insufficient history for {ticker_with_exchange} (<60 trading days)")
+        if len(benchmark_data) < 60:
+            raise HTTPException(400, f"Insufficient history for {benchmark_with_exchange} (<60 trading days)")
+
+        # Convert to pandas Series
+        ticker_series = pd.Series(
+            [float(record.close) for record in ticker_data],
+            index=[record.date for record in ticker_data]
+        )
+        benchmark_series = pd.Series(
+            [float(record.close) for record in benchmark_data],
+            index=[record.date for record in benchmark_data]
+        )
+
+        # Calculate returns
+        r1 = ticker_series.pct_change().dropna()
+        r2 = benchmark_series.pct_change().dropna()
+
+        # Merge returns on common dates
+        df = pd.concat([r1, r2], axis=1, join="inner").dropna()
+        if df.empty:
+            raise HTTPException(500, "No overlapping return history")
+
+        y, x = df.iloc[:, 0].values, df.iloc[:, 1].values
+
+        # Calculate beta and alpha using linear regression
+        beta, alpha = np.polyfit(x, y, 1)
+        r2_val = np.corrcoef(x, y)[0, 1] ** 2
+
+        logger.info(f"[RETURNS] Calculated beta={beta:.4f}, alpha={alpha:.4f}, R²={r2_val:.4f} for {ticker_with_exchange}")
+
+        return {
+            "ticker": ticker.upper(),
+            "benchmark": benchmark.upper(),
+            "years": years,
+            "returns": {
+                "list": y.tolist(),
+                "mean": float(y.mean()),
+                "std": float(y.std())
+            },
+            "scatter": {
+                "x": x.tolist(),
+                "y": y.tolist(),
+                "beta": round(beta, 4),
+                "alpha": round(alpha, 4),
+                "r2": round(r2_val, 4),
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[RETURNS] Failed to calculate returns for {ticker_with_exchange}: {e}")
+        raise HTTPException(500, f"Failed to calculate returns: {str(e)}")
     finally:
         db.close()

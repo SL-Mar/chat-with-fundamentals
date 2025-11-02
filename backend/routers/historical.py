@@ -75,14 +75,14 @@ async def get_intraday_prices(
         if from_timestamp:
             start_date = datetime.fromtimestamp(from_timestamp)
         else:
-            start_date = datetime.now() - timedelta(days=1)
+            start_date = datetime.now() - timedelta(days=30)  # Default: last 30 days
 
         if to_timestamp:
             end_date = datetime.fromtimestamp(to_timestamp)
         else:
             end_date = datetime.now()
 
-        # Use new intraday service with dedicated database
+        # Use intraday service (database-first with API fallback)
         intraday_service = IntradayDataService(db)
         data = intraday_service.get_intraday_data(
             ticker=ticker_clean,

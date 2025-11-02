@@ -179,20 +179,34 @@ class IntradayDataService:
 
             api_data = response.json()
 
+            # Check if API returned an error or empty response
+            if not api_data or not isinstance(api_data, list):
+                logger.warning(f"API returned empty or invalid data for {ticker} {timeframe}")
+                return []
+
             # Transform to standard format
             result = []
             for item in api_data:
-                result.append({
-                    'ticker': ticker,
-                    'timeframe': timeframe,
-                    'timestamp': datetime.fromtimestamp(item['timestamp']),
-                    'open': float(item['open']),
-                    'high': float(item['high']),
-                    'low': float(item['low']),
-                    'close': float(item['close']),
-                    'volume': int(item['volume']),
-                })
+                # Skip items with missing critical fields
+                if not item.get('timestamp') or not item.get('close'):
+                    continue
 
+                try:
+                    result.append({
+                        'ticker': ticker,
+                        'timeframe': timeframe,
+                        'timestamp': datetime.fromtimestamp(item['timestamp']),
+                        'open': float(item.get('open', 0)),
+                        'high': float(item.get('high', 0)),
+                        'low': float(item.get('low', 0)),
+                        'close': float(item['close']),
+                        'volume': int(item.get('volume', 0)),
+                    })
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Skipping invalid record for {ticker}: {e}")
+                    continue
+
+            logger.info(f"Processed {len(result)} valid records from API for {ticker} {timeframe}")
             return result
 
         except requests.exceptions.RequestException as e:

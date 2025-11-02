@@ -20,6 +20,8 @@ from database.queries_improved import ImprovedDatabaseQueries
 from services.cache_warming_service import get_cache_warming_service
 from services.data_refresh_pipeline import get_data_refresh_pipeline
 from cache.redis_cache import RedisCache
+from database.config_multi import get_intraday_db
+from database.models.intraday_models import IntradayOHLCV, IntradayDataStatus
 
 router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
 logger = logging.getLogger("monitoring")
@@ -168,6 +170,80 @@ async def database_metrics() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to get database metrics: {str(e)}")
     finally:
         db.close()
+
+    return metrics
+
+
+@router.get("/metrics/intraday")
+async def intraday_metrics() -> Dict[str, Any]:
+    """
+    Intraday database statistics and metrics
+
+    Returns:
+        - Record counts per timeframe
+        - Date ranges per timeframe
+        - Last update times
+        - Unique tickers
+    """
+    intraday_db = next(get_intraday_db())
+    metrics = {
+        "timestamp": datetime.now().isoformat(),
+        "timeframes": {}
+    }
+
+    try:
+        # Valid timeframes based on intraday_models.py
+        timeframes = ['1m', '5m', '15m', '1h']
+
+        for timeframe in timeframes:
+            # Get count for this timeframe
+            count = intraday_db.query(IntradayOHLCV).filter(
+                IntradayOHLCV.timeframe == timeframe
+            ).count()
+
+            # Get unique tickers for this timeframe
+            unique_tickers = intraday_db.query(IntradayOHLCV.ticker).filter(
+                IntradayOHLCV.timeframe == timeframe
+            ).distinct().count()
+
+            # Get date range for this timeframe
+            first_record = intraday_db.query(IntradayOHLCV).filter(
+                IntradayOHLCV.timeframe == timeframe
+            ).order_by(IntradayOHLCV.timestamp.asc()).first()
+
+            last_record = intraday_db.query(IntradayOHLCV).filter(
+                IntradayOHLCV.timeframe == timeframe
+            ).order_by(IntradayOHLCV.timestamp.desc()).first()
+
+            metrics["timeframes"][timeframe] = {
+                "total_records": count,
+                "unique_tickers": unique_tickers,
+                "first_timestamp": first_record.timestamp.isoformat() if first_record else None,
+                "last_timestamp": last_record.timestamp.isoformat() if last_record else None,
+                "last_updated": last_record.updated_at.isoformat() if last_record and last_record.updated_at else None
+            }
+
+        # Get overall stats from IntradayDataStatus table
+        total_status_records = intraday_db.query(IntradayDataStatus).count()
+
+        metrics["data_status"] = {
+            "total_tracked_combinations": total_status_records
+        }
+
+        # Get database size (PostgreSQL-specific)
+        try:
+            result = intraday_db.execute(
+                text("SELECT pg_size_pretty(pg_database_size(current_database())) as size")
+            ).fetchone()
+            metrics["database_size"] = result[0] if result else "Unknown"
+        except:
+            metrics["database_size"] = "Unknown"
+
+    except Exception as e:
+        logger.error(f"Failed to get intraday metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get intraday metrics: {str(e)}")
+    finally:
+        intraday_db.close()
 
     return metrics
 

@@ -213,7 +213,7 @@ export default function StockPeerComparisonTab({ ticker }: StockPeerComparisonTa
                     {stock.epsGrowth ? `${stock.epsGrowth.toFixed(2)}%` : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {stock.divYield ? `${stock.divYield.toFixed(2)}%` : 'N/A'}
+                    {stock.divYield ? (typeof stock.divYield === 'number' ? `${stock.divYield.toFixed(2)}%` : stock.divYield) : 'N/A'}
                   </td>
                 </tr>
               ))}

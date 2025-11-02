@@ -75,7 +75,7 @@ export const api = {
     benchmark = "SPY"
   ): Promise<ReturnsResponse> {
     return getJSON<ReturnsResponse>(
-      `${BASE}/equity/returns?ticker=${ticker}&years=${years}&benchmark=${benchmark}`
+      `${BASE}/quantanalyzer/returns?ticker=${ticker}&years=${years}&benchmark=${benchmark}`
     );
   },
 
@@ -445,6 +445,11 @@ export const api = {
   /* ────────── Dashboard (All Metrics) ────── */
   fetchMonitoringDashboard(): Promise<any> {
     return getJSON<any>(`${BASE}/monitoring/dashboard`);
+  },
+
+  /* ────────── Intraday Metrics ──────────── */
+  fetchIntradayMetrics(): Promise<any> {
+    return getJSON<any>(`${BASE}/monitoring/metrics/intraday`);
   },
 
   /* ────────── Trigger Cache Warming ────────── */
