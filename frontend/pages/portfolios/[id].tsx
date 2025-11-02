@@ -523,23 +523,29 @@ export default function PortfolioDetailPage() {
                     </div>
 
                     {monteCarloData && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <div className="text-sm text-slate-400">Mean Final Value</div>
-                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.mean_final_value)}</div>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <div className="text-sm text-slate-400">Simulations</div>
+                            <div className="text-lg font-semibold">{monteCarloData.num_simulations || 'N/A'}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-slate-400">Time Horizon</div>
+                            <div className="text-lg font-semibold">{monteCarloData.time_horizon_days || 'N/A'} days</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-slate-400">Initial Value</div>
+                            <div className="text-lg font-semibold">{formatCurrency(monteCarloData.initial_value)}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-slate-400">Paths Generated</div>
+                            <div className="text-lg font-semibold">{monteCarloData.paths?.length || 0}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm text-slate-400">Median Final Value</div>
-                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.median_final_value)}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-slate-400">5th Percentile</div>
-                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.percentile_5)}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-slate-400">95th Percentile</div>
-                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.percentile_95)}</div>
-                        </div>
+                        <p className="text-sm text-slate-400">
+                          Monte Carlo simulation completed with {monteCarloData.num_simulations} paths over {monteCarloData.time_horizon_days} days.
+                          View detailed path data in the API response.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -558,18 +564,26 @@ export default function PortfolioDetailPage() {
                     </div>
 
                     {varData && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <div className="text-sm text-slate-400">VaR (95%)</div>
-                          <div className="text-lg font-semibold text-red-400">{formatPercent(varData.var_95)}</div>
+                          <div className="text-lg font-semibold text-red-400">
+                            {formatPercent(varData.var_percent)} ({formatCurrency(varData.var_value)})
+                          </div>
                         </div>
                         <div>
                           <div className="text-sm text-slate-400">CVaR (95%)</div>
-                          <div className="text-lg font-semibold text-red-400">{formatPercent(varData.cvar_95)}</div>
+                          <div className="text-lg font-semibold text-red-400">
+                            {formatPercent(varData.cvar_percent)} ({formatCurrency(varData.cvar_value)})
+                          </div>
                         </div>
                         <div>
-                          <div className="text-sm text-slate-400">Portfolio Vol</div>
-                          <div className="text-lg font-semibold">{formatPercent(varData.portfolio_volatility)}</div>
+                          <div className="text-sm text-slate-400">Historical VaR</div>
+                          <div className="text-lg font-semibold">{formatCurrency(varData.historical_var)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-slate-400">Parametric VaR</div>
+                          <div className="text-lg font-semibold">{formatCurrency(varData.parametric_var)}</div>
                         </div>
                       </div>
                     )}
