@@ -4,65 +4,139 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
-import AgentConsole from '../../components/AgentConsole';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-type TabType = 'overview' | 'holdings' | 'performance' | 'allocation' | 'ai';
+type TabType = 'overview' | 'holdings' | 'analysis' | 'risk' | 'ai';
+type AnalysisMethod = 'equal-weight' | 'mvo' | 'min_variance' | 'black_litterman';
 
-interface Holding {
-  symbol: string;
+interface Portfolio {
+  id: number;
   name: string;
-  quantity: number;
-  avgCost: number;
-  currentPrice: number;
-  value: number;
-  gainLoss: number;
-  gainLossPercent: number;
-  weight: number;
+  description: string | null;
+  created_at: string;
+  stocks: PortfolioStock[];
 }
 
-const SAMPLE_HOLDINGS: Holding[] = [
-  {
-    symbol: 'AAPL.US',
-    name: 'Apple Inc.',
-    quantity: 100,
-    avgCost: 150,
-    currentPrice: 175,
-    value: 17500,
-    gainLoss: 2500,
-    gainLossPercent: 16.67,
-    weight: 35
-  },
-  {
-    symbol: 'MSFT.US',
-    name: 'Microsoft Corporation',
-    quantity: 50,
-    avgCost: 300,
-    currentPrice: 350,
-    value: 17500,
-    gainLoss: 2500,
-    gainLossPercent: 16.67,
-    weight: 35
-  },
-  {
-    symbol: 'GOOGL.US',
-    name: 'Alphabet Inc.',
-    quantity: 100,
-    avgCost: 120,
-    currentPrice: 150,
-    value: 15000,
-    gainLoss: 3000,
-    gainLossPercent: 25,
-    weight: 30
-  },
-];
+interface PortfolioStock {
+  id: number;
+  ticker: string;
+  weight: number | null;
+  shares: number | null;
+  added_at: string;
+}
 
 export default function PortfolioDetailPage() {
   const router = useRouter();
   const { id } = router.query;
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const [holdings] = useState<Holding[]>(SAMPLE_HOLDINGS);
+  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Add stock modal
+  const [showAddStockModal, setShowAddStockModal] = useState(false);
+  const [newTicker, setNewTicker] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  // Analysis data
+  const [analysisMethod, setAnalysisMethod] = useState<AnalysisMethod>('equal-weight');
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+
+  // Monte Carlo data
+  const [monteCarloData, setMonteCarloData] = useState<any>(null);
+  const [loadingMonteCarlo, setLoadingMonteCarlo] = useState(false);
+
+  // VaR data
+  const [varData, setVarData] = useState<any>(null);
+  const [loadingVaR, setLoadingVaR] = useState(false);
+
+  // AI Analysis
   const [aiResult, setAiResult] = useState<any>(null);
   const [loadingAI, setLoadingAI] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      loadPortfolio();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (portfolio && portfolio.stocks.length > 0 && activeTab === 'analysis') {
+      loadAnalysis();
+    }
+  }, [portfolio, activeTab, analysisMethod]);
+
+  const loadPortfolio = async () => {
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.fetchPortfolio(Number(id));
+      setPortfolio(data);
+    } catch (err: any) {
+      console.error('Failed to load portfolio:', err);
+      setError(err.message || 'Failed to load portfolio');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAnalysis = async () => {
+    if (!portfolio || portfolio.stocks.length === 0) return;
+
+    try {
+      setLoadingAnalysis(true);
+      setError(null);
+
+      let data;
+      if (analysisMethod === 'equal-weight') {
+        data = await api.fetchEqualWeightAnalysis(portfolio.id);
+      } else {
+        data = await api.fetchOptimizedPortfolio(portfolio.id, analysisMethod);
+      }
+
+      setAnalysisData(data);
+    } catch (err: any) {
+      console.error('Failed to load analysis:', err);
+      setError(err.message || 'Failed to load analysis');
+    } finally {
+      setLoadingAnalysis(false);
+    }
+  };
+
+  const loadMonteCarlo = async () => {
+    if (!portfolio || portfolio.stocks.length === 0) return;
+
+    try {
+      setLoadingMonteCarlo(true);
+      setError(null);
+      const data = await api.fetchMonteCarloSimulation(portfolio.id);
+      setMonteCarloData(data);
+    } catch (err: any) {
+      console.error('Failed to load Monte Carlo:', err);
+      setError(err.message || 'Failed to load Monte Carlo simulation');
+    } finally {
+      setLoadingMonteCarlo(false);
+    }
+  };
+
+  const loadVaR = async () => {
+    if (!portfolio || portfolio.stocks.length === 0) return;
+
+    try {
+      setLoadingVaR(true);
+      setError(null);
+      const data = await api.fetchVaRAnalysis(portfolio.id);
+      setVarData(data);
+    } catch (err: any) {
+      console.error('Failed to load VaR:', err);
+      setError(err.message || 'Failed to load VaR analysis');
+    } finally {
+      setLoadingVaR(false);
+    }
+  };
 
   const runAIAnalysis = async () => {
     if (!id) return;
@@ -73,9 +147,62 @@ export default function PortfolioDetailPage() {
       setAiResult(result);
     } catch (err) {
       console.error('AI analysis failed:', err);
+      setError('AI analysis failed');
     } finally {
       setLoadingAI(false);
     }
+  };
+
+  const handleAddStock = async () => {
+    if (!portfolio || !newTicker.trim()) {
+      setError('Ticker is required');
+      return;
+    }
+
+    try {
+      setAdding(true);
+      setError(null);
+      await api.addStockToPortfolio(portfolio.id, newTicker.toUpperCase());
+      setShowAddStockModal(false);
+      setNewTicker('');
+      await loadPortfolio();
+    } catch (err: any) {
+      console.error('Failed to add stock:', err);
+      setError(err.message || 'Failed to add stock');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRemoveStock = async (stockId: number) => {
+    if (!portfolio) return;
+
+    if (!confirm('Are you sure you want to remove this stock?')) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.removeStockFromPortfolio(portfolio.id, stockId);
+      await loadPortfolio();
+    } catch (err: any) {
+      console.error('Failed to remove stock:', err);
+      setError(err.message || 'Failed to remove stock');
+    }
+  };
+
+  const formatCurrency = (value: number | undefined): string => {
+    if (value === undefined) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const formatPercent = (value: number | undefined): string => {
+    if (value === undefined) return 'N/A';
+    return `${value.toFixed(2)}%`;
   };
 
   if (!id) {
@@ -89,25 +216,40 @@ export default function PortfolioDetailPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-600 border-t-blue-500 mb-4"></div>
+          <p className="text-slate-400">Loading portfolio...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!portfolio) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white p-6">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold mb-4">Portfolio Not Found</h1>
+          <button
+            onClick={() => router.push('/portfolios')}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+          >
+            Back to Portfolios
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'holdings', label: 'Holdings', icon: '📋' },
-    { id: 'performance', label: 'Performance', icon: '📈' },
-    { id: 'allocation', label: 'Allocation', icon: '🎯' },
+    { id: 'analysis', label: 'Analysis', icon: '📈' },
+    { id: 'risk', label: 'Risk', icon: '⚠️' },
     { id: 'ai', label: 'AI Optimization', icon: '🤖' },
   ];
-
-  const totalValue = holdings.reduce((sum, h) => sum + h.value, 0);
-  const totalGainLoss = holdings.reduce((sum, h) => sum + h.gainLoss, 0);
-  const totalGainLossPercent = (totalGainLoss / (totalValue - totalGainLoss)) * 100;
-
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -124,19 +266,29 @@ export default function PortfolioDetailPage() {
         <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Growth Portfolio</h1>
-              <p className="text-slate-400">High-growth tech and innovation stocks</p>
+              <h1 className="text-3xl font-bold mb-2">{portfolio.name}</h1>
+              {portfolio.description && (
+                <p className="text-slate-400">{portfolio.description}</p>
+              )}
             </div>
-            <div className="text-right">
-              <div className="text-sm text-slate-400 mb-1">Total Value</div>
-              <div className="text-4xl font-bold">{formatCurrency(totalValue)}</div>
-              <div className={`text-lg ${totalGainLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {totalGainLoss >= 0 ? '+' : ''}{formatCurrency(totalGainLoss)} (
-                {totalGainLossPercent >= 0 ? '+' : ''}{totalGainLossPercent.toFixed(2)}%)
-              </div>
-            </div>
+            <button
+              onClick={() => setShowAddStockModal(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold transition-colors"
+            >
+              + Add Stock
+            </button>
           </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-900/50 border border-red-700 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-red-400">⚠️</span>
+              <p className="text-red-200">{error}</p>
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex gap-2 mb-6 border-b border-slate-700 overflow-x-auto">
@@ -160,116 +312,270 @@ export default function PortfolioDetailPage() {
         <div className="pb-12">
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">Total Value</div>
-                  <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
-                </div>
-                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">Total Gain/Loss</div>
-                  <div className={`text-2xl font-bold ${totalGainLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {formatCurrency(totalGainLoss)}
-                  </div>
-                </div>
-                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                  <div className="text-sm text-slate-400 mb-1">Return %</div>
-                  <div className={`text-2xl font-bold ${totalGainLossPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {totalGainLossPercent.toFixed(2)}%
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
                   <div className="text-sm text-slate-400 mb-1">Holdings</div>
-                  <div className="text-2xl font-bold">{holdings.length}</div>
+                  <div className="text-2xl font-bold">{portfolio.stocks.length}</div>
+                </div>
+                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                  <div className="text-sm text-slate-400 mb-1">Status</div>
+                  <div className="text-2xl font-bold text-green-400">Active</div>
+                </div>
+                <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                  <div className="text-sm text-slate-400 mb-1">Created</div>
+                  <div className="text-lg font-bold">
+                    {new Date(portfolio.created_at).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                <h3 className="text-xl font-bold mb-4">Quick Stats</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <div className="text-sm text-slate-400">Volatility (30d)</div>
-                    <div className="text-lg font-semibold">18.5%</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-slate-400">Sharpe Ratio</div>
-                    <div className="text-lg font-semibold">1.45</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-slate-400">Beta</div>
-                    <div className="text-lg font-semibold">1.15</div>
-                  </div>
+              {portfolio.stocks.length === 0 && (
+                <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+                  <div className="text-6xl mb-4">📈</div>
+                  <h3 className="text-xl font-bold mb-2">No Stocks Yet</h3>
+                  <p className="text-slate-400 mb-6">Add stocks to start analyzing your portfolio</p>
+                  <button
+                    onClick={() => setShowAddStockModal(true)}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded font-semibold transition-colors"
+                  >
+                    Add Your First Stock
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {activeTab === 'holdings' && (
             <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="px-6 py-4 text-left font-bold">Symbol</th>
-                    <th className="px-6 py-4 text-right font-bold">Quantity</th>
-                    <th className="px-6 py-4 text-right font-bold">Avg Cost</th>
-                    <th className="px-6 py-4 text-right font-bold">Current Price</th>
-                    <th className="px-6 py-4 text-right font-bold">Value</th>
-                    <th className="px-6 py-4 text-right font-bold">Gain/Loss</th>
-                    <th className="px-6 py-4 text-right font-bold">Weight</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {holdings.map((holding) => (
-                    <tr key={holding.symbol} className="border-b border-slate-700">
-                      <td className="px-6 py-4">
-                        <div className="font-bold">{holding.symbol.replace('.US', '')}</div>
-                        <div className="text-sm text-slate-400">{holding.name}</div>
-                      </td>
-                      <td className="px-6 py-4 text-right">{holding.quantity}</td>
-                      <td className="px-6 py-4 text-right">{formatCurrency(holding.avgCost)}</td>
-                      <td className="px-6 py-4 text-right">{formatCurrency(holding.currentPrice)}</td>
-                      <td className="px-6 py-4 text-right font-semibold">{formatCurrency(holding.value)}</td>
-                      <td className={`px-6 py-4 text-right font-semibold ${
-                        holding.gainLoss >= 0 ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {formatCurrency(holding.gainLoss)}<br />
-                        <span className="text-sm">({holding.gainLossPercent.toFixed(2)}%)</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">{holding.weight.toFixed(1)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {activeTab === 'performance' && (
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-              <h3 className="text-xl font-bold mb-4">Performance Chart</h3>
-              <p className="text-slate-400">Performance chart will be displayed here.</p>
-            </div>
-          )}
-
-          {activeTab === 'allocation' && (
-            <div className="space-y-6">
-              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                <h3 className="text-xl font-bold mb-4">Asset Allocation</h3>
-                <div className="space-y-3">
-                  {holdings.map((holding) => (
-                    <div key={holding.symbol}>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span>{holding.symbol.replace('.US', '')}</span>
-                        <span>{holding.weight.toFixed(1)}%</span>
-                      </div>
-                      <div className="w-full bg-slate-700 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full bg-blue-500"
-                          style={{ width: `${holding.weight}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+              {portfolio.stocks.length === 0 ? (
+                <div className="p-12 text-center">
+                  <p className="text-slate-400">No stocks in this portfolio</p>
                 </div>
-              </div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="px-6 py-4 text-left font-bold">Ticker</th>
+                      <th className="px-6 py-4 text-right font-bold">Weight</th>
+                      <th className="px-6 py-4 text-right font-bold">Shares</th>
+                      <th className="px-6 py-4 text-right font-bold">Added</th>
+                      <th className="px-6 py-4 text-right font-bold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {portfolio.stocks.map((stock) => (
+                      <tr key={stock.id} className="border-b border-slate-700 hover:bg-slate-750">
+                        <td className="px-6 py-4 font-bold">{stock.ticker}</td>
+                        <td className="px-6 py-4 text-right">
+                          {stock.weight ? `${(stock.weight * 100).toFixed(2)}%` : 'Equal'}
+                        </td>
+                        <td className="px-6 py-4 text-right">{stock.shares || '-'}</td>
+                        <td className="px-6 py-4 text-right text-sm text-slate-400">
+                          {new Date(stock.added_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => handleRemoveStock(stock.id)}
+                            className="text-red-400 hover:text-red-300 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'analysis' && (
+            <div className="space-y-6">
+              {portfolio.stocks.length === 0 ? (
+                <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+                  <p className="text-slate-400">Add stocks to view analysis</p>
+                </div>
+              ) : (
+                <>
+                  {/* Analysis Method Selector */}
+                  <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                    <label className="block text-sm font-semibold mb-2">Optimization Method</label>
+                    <select
+                      value={analysisMethod}
+                      onChange={(e) => setAnalysisMethod(e.target.value as AnalysisMethod)}
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="equal-weight">Equal Weight</option>
+                      <option value="mvo">Mean-Variance Optimization (MVO)</option>
+                      <option value="min_variance">Minimum Variance</option>
+                      <option value="black_litterman">Black-Litterman</option>
+                    </select>
+                  </div>
+
+                  {/* Analysis Results */}
+                  {loadingAnalysis ? (
+                    <div className="text-center py-12">
+                      <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-600 border-t-blue-500"></div>
+                      <p className="text-slate-400 mt-4">Loading analysis...</p>
+                    </div>
+                  ) : analysisData ? (
+                    <div className="space-y-6">
+                      {/* Metrics */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                          <div className="text-sm text-slate-400 mb-1">Total Return</div>
+                          <div className="text-2xl font-bold text-green-400">
+                            {formatPercent(analysisData.metrics?.total_return)}
+                          </div>
+                        </div>
+                        <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                          <div className="text-sm text-slate-400 mb-1">Ann. Return</div>
+                          <div className="text-2xl font-bold">
+                            {formatPercent(analysisData.metrics?.annualized_return)}
+                          </div>
+                        </div>
+                        <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                          <div className="text-sm text-slate-400 mb-1">Volatility</div>
+                          <div className="text-2xl font-bold">
+                            {formatPercent(analysisData.metrics?.volatility)}
+                          </div>
+                        </div>
+                        <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                          <div className="text-sm text-slate-400 mb-1">Sharpe Ratio</div>
+                          <div className="text-2xl font-bold">
+                            {analysisData.metrics?.sharpe_ratio?.toFixed(2) || 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Weights */}
+                      {analysisData.weights && (
+                        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                          <h3 className="text-xl font-bold mb-4">Portfolio Weights</h3>
+                          <div className="space-y-3">
+                            {Object.entries(analysisData.weights).map(([ticker, weight]: [string, any]) => (
+                              <div key={ticker}>
+                                <div className="flex items-center justify-between text-sm mb-1">
+                                  <span>{ticker}</span>
+                                  <span>{(weight * 100).toFixed(2)}%</span>
+                                </div>
+                                <div className="w-full bg-slate-700 rounded-full h-2">
+                                  <div
+                                    className="h-2 rounded-full bg-blue-500"
+                                    style={{ width: `${weight * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Equity Curve */}
+                      {analysisData.equity_curve && analysisData.equity_curve.length > 0 && (
+                        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                          <h3 className="text-xl font-bold mb-4">Equity Curve</h3>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={analysisData.equity_curve}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                              <XAxis dataKey="date" stroke="#94a3b8" />
+                              <YAxis stroke="#94a3b8" />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }}
+                                labelStyle={{ color: '#94a3b8' }}
+                              />
+                              <Legend />
+                              <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+                      <p className="text-slate-400">Select an optimization method to view analysis</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'risk' && (
+            <div className="space-y-6">
+              {portfolio.stocks.length === 0 ? (
+                <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+                  <p className="text-slate-400">Add stocks to view risk analysis</p>
+                </div>
+              ) : (
+                <>
+                  {/* Monte Carlo Simulation */}
+                  <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold">Monte Carlo Simulation</h3>
+                      <button
+                        onClick={loadMonteCarlo}
+                        disabled={loadingMonteCarlo}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 rounded font-semibold transition-colors"
+                      >
+                        {loadingMonteCarlo ? 'Running...' : 'Run Simulation'}
+                      </button>
+                    </div>
+
+                    {monteCarloData && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <div className="text-sm text-slate-400">Mean Final Value</div>
+                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.mean_final_value)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-slate-400">Median Final Value</div>
+                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.median_final_value)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-slate-400">5th Percentile</div>
+                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.percentile_5)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-slate-400">95th Percentile</div>
+                          <div className="text-lg font-semibold">{formatCurrency(monteCarloData.percentile_95)}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* VaR Analysis */}
+                  <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold">Value at Risk (VaR)</h3>
+                      <button
+                        onClick={loadVaR}
+                        disabled={loadingVaR}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 rounded font-semibold transition-colors"
+                      >
+                        {loadingVaR ? 'Calculating...' : 'Calculate VaR'}
+                      </button>
+                    </div>
+
+                    {varData && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-sm text-slate-400">VaR (95%)</div>
+                          <div className="text-lg font-semibold text-red-400">{formatPercent(varData.var_95)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-slate-400">CVaR (95%)</div>
+                          <div className="text-lg font-semibold text-red-400">{formatPercent(varData.cvar_95)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-slate-400">Portfolio Vol</div>
+                          <div className="text-lg font-semibold">{formatPercent(varData.portfolio_volatility)}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -285,33 +591,68 @@ export default function PortfolioDetailPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="h-[600px]">
-                  <AgentConsole autoScroll maxLogs={200} />
+              {aiResult && (
+                <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                  <h3 className="text-xl font-bold mb-4">AI Recommendations</h3>
+                  <div className="text-2xl font-bold mb-2">{aiResult.signal}</div>
+                  <p className="text-slate-300">{aiResult.reasoning}</p>
                 </div>
-
-                <div>
-                  {aiResult ? (
-                    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                      <h3 className="text-xl font-bold mb-4">AI Recommendations</h3>
-                      <div className="text-2xl font-bold mb-2">{aiResult.signal}</div>
-                      <p className="text-slate-300">{aiResult.reasoning}</p>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
-                      <div className="text-6xl mb-4">🤖</div>
-                      <h3 className="text-xl font-bold mb-2">AI Portfolio Optimization</h3>
-                      <p className="text-slate-400">
-                        Get AI-powered recommendations for portfolio rebalancing and optimization
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Add Stock Modal */}
+      {showAddStockModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 max-w-md w-full p-6">
+            <h2 className="text-2xl font-bold mb-4">Add Stock</h2>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold mb-2">Ticker Symbol *</label>
+              <input
+                type="text"
+                value={newTicker}
+                onChange={(e) => setNewTicker(e.target.value.toUpperCase())}
+                placeholder="e.g., AAPL"
+                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded focus:outline-none focus:border-blue-500"
+                autoFocus
+              />
+              <p className="text-sm text-slate-400 mt-2">
+                Stock will be added with equal weight by default
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 bg-red-900/50 border border-red-700 rounded p-3">
+                <p className="text-sm text-red-200">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowAddStockModal(false);
+                  setNewTicker('');
+                  setError(null);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold transition-colors"
+                disabled={adding}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddStock}
+                disabled={adding || !newTicker.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-semibold transition-colors"
+              >
+                {adding ? 'Adding...' : 'Add Stock'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -730,4 +730,125 @@ export const api = {
     }
     return r.json();
   },
+
+  /* ═══════════ PORTFOLIO MANAGEMENT ═══════════ */
+
+  /* ────────── List Portfolios ──────────────── */
+  fetchPortfolios(): Promise<any> {
+    return getJSON<any>(`${BASE}/api/portfolios`);
+  },
+
+  /* ────────── Get Portfolio Details ──────────── */
+  fetchPortfolio(portfolioId: number): Promise<any> {
+    return getJSON<any>(`${BASE}/api/portfolios/${portfolioId}`);
+  },
+
+  /* ────────── Create Portfolio ──────────────── */
+  async createPortfolio(name: string, description?: string): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ name, description }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Update Portfolio ──────────────── */
+  async updatePortfolio(portfolioId: number, name?: string, description?: string): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ name, description }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Delete Portfolio ──────────────── */
+  async deletePortfolio(portfolioId: number): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Add Stock to Portfolio ──────────── */
+  async addStockToPortfolio(portfolioId: number, ticker: string, weight?: number, shares?: number): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}/stocks`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ ticker, weight, shares }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Remove Stock from Portfolio ──────── */
+  async removeStockFromPortfolio(portfolioId: number, stockId: number): Promise<any> {
+    const r = await fetch(`${BASE}/api/portfolios/${portfolioId}/stocks/${stockId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  /* ────────── Equal-Weight Analysis ──────────── */
+  fetchEqualWeightAnalysis(
+    portfolioId: number,
+    startDate?: string,
+    endDate?: string,
+    useAdjusted: boolean = true
+  ): Promise<any> {
+    let url = `${BASE}/api/portfolios/${portfolioId}/analysis/equal-weight?use_adjusted=${useAdjusted}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Optimized Portfolio Analysis ──────── */
+  fetchOptimizedPortfolio(
+    portfolioId: number,
+    method: string = "mvo", // "mvo", "min_variance", "black_litterman"
+    startDate?: string,
+    endDate?: string,
+    useAdjusted: boolean = true
+  ): Promise<any> {
+    let url = `${BASE}/api/portfolios/${portfolioId}/analysis/optimized?method=${method}&use_adjusted=${useAdjusted}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── Monte Carlo Simulation ──────────── */
+  fetchMonteCarloSimulation(
+    portfolioId: number,
+    numSimulations: number = 1000,
+    timeHorizonDays: number = 252,
+    initialValue: number = 10000,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    let url = `${BASE}/api/portfolios/${portfolioId}/risk/monte-carlo?num_simulations=${numSimulations}&time_horizon_days=${timeHorizonDays}&initial_value=${initialValue}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    return getJSON<any>(url);
+  },
+
+  /* ────────── VaR Analysis ──────────────────── */
+  fetchVaRAnalysis(
+    portfolioId: number,
+    confidenceLevel: number = 0.95,
+    timeHorizonDays: number = 1,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    let url = `${BASE}/api/portfolios/${portfolioId}/risk/var?confidence_level=${confidenceLevel}&time_horizon_days=${timeHorizonDays}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    return getJSON<any>(url);
+  },
 };

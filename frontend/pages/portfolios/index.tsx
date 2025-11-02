@@ -1,286 +1,256 @@
-// pages/portfolios/index.tsx - Portfolio Module Hub Page
+// pages/portfolios/index.tsx - Portfolio List Page
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { api } from '../../lib/api';
 
 interface Portfolio {
   id: number;
   name: string;
-  description: string;
-  totalValue: number;
-  dayChange: number;
-  dayChangePercent: number;
-  assetCount: number;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  stocks: any[];
 }
 
-const SAMPLE_PORTFOLIOS: Portfolio[] = [
-  {
-    id: 1,
-    name: 'Growth Portfolio',
-    description: 'High-growth tech and innovation stocks',
-    totalValue: 125000,
-    dayChange: 1250,
-    dayChangePercent: 1.01,
-    assetCount: 15
-  },
-  {
-    id: 2,
-    name: 'Dividend Income',
-    description: 'Stable dividend-paying stocks and REITs',
-    totalValue: 85000,
-    dayChange: -320,
-    dayChangePercent: -0.38,
-    assetCount: 22
-  },
-  {
-    id: 3,
-    name: 'Balanced Portfolio',
-    description: 'Mix of stocks, bonds, and ETFs',
-    totalValue: 200000,
-    dayChange: 500,
-    dayChangePercent: 0.25,
-    assetCount: 35
-  },
-];
-
-export default function PortfoliosHubPage() {
+export default function PortfoliosPage() {
   const router = useRouter();
-  const [portfolios] = useState<Portfolio[]>(SAMPLE_PORTFOLIOS);
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newPortfolioName, setNewPortfolioName] = useState('');
-  const [newPortfolioDescription, setNewPortfolioDescription] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const goToPortfolio = (id: number) => {
-    router.push(`/portfolios/${id}`);
+  useEffect(() => {
+    loadPortfolios();
+  }, []);
+
+  const loadPortfolios = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.fetchPortfolios();
+      setPortfolios(data.portfolios || []);
+    } catch (err: any) {
+      console.error('Failed to load portfolios:', err);
+      setError(err.message || 'Failed to load portfolios');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const createNewPortfolio = () => {
-    setShowCreateModal(true);
+  const handleCreatePortfolio = async () => {
+    if (!newName.trim()) {
+      setError('Portfolio name is required');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      setError(null);
+      const portfolio = await api.createPortfolio(newName, newDescription || undefined);
+      setShowCreateModal(false);
+      setNewName('');
+      setNewDescription('');
+      await loadPortfolios();
+      // Navigate to the new portfolio
+      router.push(`/portfolios/${portfolio.id}`);
+    } catch (err: any) {
+      console.error('Failed to create portfolio:', err);
+      setError(err.message || 'Failed to create portfolio');
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const handleCreateSubmit = () => {
-    // In a real implementation, this would call an API to create the portfolio
-    console.log('Creating portfolio:', { name: newPortfolioName, description: newPortfolioDescription });
-    setShowCreateModal(false);
-    setNewPortfolioName('');
-    setNewPortfolioDescription('');
-    // TODO: Add API call to backend to create portfolio
-    alert(`Portfolio "${newPortfolioName}" creation coming soon! Backend integration pending.`);
+  const handleDeletePortfolio = async (portfolioId: number, name: string) => {
+    if (!confirm(`Are you sure you want to delete portfolio "${name}"?`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.deletePortfolio(portfolioId);
+      await loadPortfolios();
+    } catch (err: any) {
+      console.error('Failed to delete portfolio:', err);
+      setError(err.message || 'Failed to delete portfolio');
+    }
   };
 
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
-
-  const totalValue = portfolios.reduce((sum, p) => sum + p.totalValue, 0);
-  const totalDayChange = portfolios.reduce((sum, p) => sum + p.dayChange, 0);
-  const totalDayChangePercent = (totalDayChange / (totalValue - totalDayChange)) * 100;
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
-      {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Portfolios</h1>
-              <p className="text-slate-400">
-                Track performance, optimize allocation, and analyze your investment portfolios
-              </p>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Portfolios</h1>
+            <p className="text-slate-400">Manage and analyze your investment portfolios</p>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded font-semibold transition-colors flex items-center gap-2"
+          >
+            <span>+</span> Create Portfolio
+          </button>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-900/50 border border-red-700 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-red-400">⚠️</span>
+              <p className="text-red-200">{error}</p>
             </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-600 border-t-blue-500"></div>
+            <p className="text-slate-400 mt-4">Loading portfolios...</p>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && portfolios.length === 0 && (
+          <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-bold mb-2">No Portfolios Yet</h3>
+            <p className="text-slate-400 mb-6">
+              Create your first portfolio to start analyzing and optimizing your investments
+            </p>
             <button
-              onClick={createNewPortfolio}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
+              onClick={() => setShowCreateModal(true)}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded font-semibold transition-colors"
             >
-              + Create Portfolio
+              Create Your First Portfolio
             </button>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Total Portfolio Summary */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg p-8 mb-8 border border-slate-700">
-          <h2 className="text-2xl font-bold mb-6">Total Portfolio Value</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <div className="text-sm text-slate-400 mb-2">Total Value</div>
-              <div className="text-4xl font-bold">{formatCurrency(totalValue)}</div>
-            </div>
-            <div>
-              <div className="text-sm text-slate-400 mb-2">Today's Change</div>
-              <div className={`text-3xl font-bold ${totalDayChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {totalDayChange >= 0 ? '+' : ''}{formatCurrency(totalDayChange)}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-slate-400 mb-2">Change %</div>
-              <div className={`text-3xl font-bold ${totalDayChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {totalDayChangePercent >= 0 ? '+' : ''}{totalDayChangePercent.toFixed(2)}%
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Portfolios List */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">Your Portfolios</h2>
+        {/* Portfolio Grid */}
+        {!loading && portfolios.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {portfolios.map((portfolio) => (
               <div
                 key={portfolio.id}
-                onClick={() => goToPortfolio(portfolio.id)}
-                className="bg-slate-800 rounded-lg p-6 cursor-pointer hover:bg-slate-750 transition-colors border border-slate-700 hover:border-blue-500"
+                className="bg-slate-800 rounded-lg border border-slate-700 hover:border-blue-500 transition-colors overflow-hidden"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold mb-1">{portfolio.name}</h3>
-                    <p className="text-sm text-slate-400">{portfolio.description}</p>
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-1">{portfolio.name}</h3>
+                      {portfolio.description && (
+                        <p className="text-sm text-slate-400">{portfolio.description}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeletePortfolio(portfolio.id, portfolio.name);
+                      }}
+                      className="text-slate-400 hover:text-red-400 transition-colors"
+                      title="Delete portfolio"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="px-2 py-1 bg-slate-700 rounded text-xs">
-                    {portfolio.assetCount} assets
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <div>
-                    <div className="text-sm text-slate-400">Total Value</div>
-                    <div className="text-2xl font-bold">{formatCurrency(portfolio.totalValue)}</div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-slate-400">Today</div>
-                    <div className={`font-semibold ${portfolio.dayChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {portfolio.dayChange >= 0 ? '+' : ''}{formatCurrency(portfolio.dayChange)} (
-                      {portfolio.dayChangePercent >= 0 ? '+' : ''}{portfolio.dayChangePercent.toFixed(2)}%)
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400">Holdings</span>
+                      <span className="font-semibold">{portfolio.stocks?.length || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400">Created</span>
+                      <span className="font-semibold">{formatDate(portfolio.created_at)}</span>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => router.push(`/portfolios/${portfolio.id}`)}
+                    className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold transition-colors"
+                  >
+                    View Details
+                  </button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Feature Overview */}
-        <div className="bg-slate-800 rounded-lg p-8 border border-slate-700">
-          <h2 className="text-2xl font-bold mb-6">Portfolio Management Features</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">📊</div>
-                <h3 className="font-semibold text-lg">Performance Tracking</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Real-time portfolio valuation with detailed performance analytics
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">🎯</div>
-                <h3 className="font-semibold text-lg">Asset Allocation</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Visualize and optimize your portfolio allocation by sector, asset class, and geography
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">📈</div>
-                <h3 className="font-semibold text-lg">Risk Analysis</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Calculate portfolio volatility, beta, Sharpe ratio, and risk-adjusted returns
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">🤖</div>
-                <h3 className="font-semibold text-lg">AI Optimization</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Get AI-powered recommendations for portfolio rebalancing and optimization
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">💡</div>
-                <h3 className="font-semibold text-lg">Rebalancing Alerts</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Receive notifications when your portfolio drifts from target allocation
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">📊</div>
-                <h3 className="font-semibold text-lg">Scenario Analysis</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Test your portfolio against different market scenarios and stress tests
-              </p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Create Portfolio Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full border border-slate-700">
-            <h3 className="text-2xl font-bold mb-4">Create New Portfolio</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 max-w-md w-full p-6">
+            <h2 className="text-2xl font-bold mb-4">Create New Portfolio</h2>
 
-            <div className="space-y-4">
+            <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Portfolio Name</label>
+                <label className="block text-sm font-semibold mb-2">Portfolio Name *</label>
                 <input
                   type="text"
-                  value={newPortfolioName}
-                  onChange={(e) => setNewPortfolioName(e.target.value)}
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
                   placeholder="e.g., Growth Portfolio"
-                  className="w-full px-3 py-2 bg-slate-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded focus:outline-none focus:border-blue-500"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Description (Optional)</label>
+                <label className="block text-sm font-semibold mb-2">Description (Optional)</label>
                 <textarea
-                  value={newPortfolioDescription}
-                  onChange={(e) => setNewPortfolioDescription(e.target.value)}
-                  placeholder="Brief description of your portfolio strategy"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="e.g., High-growth tech and innovation stocks"
                   rows={3}
-                  className="w-full px-3 py-2 bg-slate-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded focus:outline-none focus:border-blue-500 resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            {error && (
+              <div className="mb-4 bg-red-900/50 border border-red-700 rounded p-3">
+                <p className="text-sm text-red-200">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
               <button
                 onClick={() => {
                   setShowCreateModal(false);
-                  setNewPortfolioName('');
-                  setNewPortfolioDescription('');
+                  setNewName('');
+                  setNewDescription('');
+                  setError(null);
                 }}
                 className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold transition-colors"
+                disabled={creating}
               >
                 Cancel
               </button>
               <button
-                onClick={handleCreateSubmit}
-                disabled={!newPortfolioName.trim()}
+                onClick={handleCreatePortfolio}
+                disabled={creating || !newName.trim()}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-semibold transition-colors"
               >
-                Create Portfolio
+                {creating ? 'Creating...' : 'Create Portfolio'}
               </button>
             </div>
           </div>
