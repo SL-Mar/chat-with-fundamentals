@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { faMagnifyingGlassChart, faDice, faExclamationTriangle, faBullseye } from '@fortawesome/free-solid-svg-icons';
 import { api } from '../../lib/api';
 import AssetHeader from './AssetHeader';
 import TabNavigation, { AssetTab } from './TabNavigation';
@@ -11,7 +10,6 @@ import ChartsTab from './tabs/ChartsTab';
 import FundamentalsTab from './tabs/FundamentalsTab';
 import NewsTab from './tabs/NewsTab';
 import AIAnalysisTab from './tabs/AIAnalysisTab';
-import PlaceholderTab from './tabs/PlaceholderTab';
 import StockPeerComparisonTab from '../stocks/StockPeerComparisonTab';
 import StockDeepResearchTab from '../stocks/StockDeepResearchTab';
 import ReturnsTab from './tabs/ReturnsTab';
@@ -130,43 +128,20 @@ export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overv
       case 'compare':
         return <StockPeerComparisonTab ticker={ticker} />;
 
-      case 'monte-carlo':
-        return (
-          <PlaceholderTab
-            title="Monte Carlo Simulation"
-            icon={faDice}
-            description="Probabilistic price forecasting using Monte Carlo methods"
-            features={[
-              '10,000+ simulated price paths based on historical volatility',
-              'Probability distribution of future returns',
-              'Confidence intervals (68%, 95%, 99%)',
-              'Expected value and median forecast',
-              'Risk-adjusted return projections',
-              'Scenario analysis (bull, base, bear cases)'
-            ]}
-          />
-        );
-
-      case 'risk':
+      case 'returns':
         return <ReturnsTab ticker={ticker} />;
 
-      case 'signals':
+      case 'modelling':
         return (
-          <PlaceholderTab
-            title="Trading Signals"
-            icon={faBullseye}
-            description="Actionable buy/sell signals from multiple strategies"
-            features={[
-              'Technical signals (RSI, MACD, Moving Average crossovers)',
-              'Fundamental signals (undervalued/overvalued indicators)',
-              'Momentum signals (price momentum, volume surge)',
-              'AI-generated composite signals',
-              'Signal confidence scores and accuracy tracking',
-              'Historical signal performance and backtest results',
-              'Real-time alerts and notifications',
-              'Customizable signal parameters'
-            ]}
-          />
+          <div className="p-6">
+            <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+              <div className="text-6xl mb-4">🤖</div>
+              <div className="text-xl text-slate-400 mb-2">Modelling features coming soon</div>
+              <div className="text-sm text-slate-500">
+                Beta plot and forecasting ML models in development
+              </div>
+            </div>
+          </div>
         );
 
       default:

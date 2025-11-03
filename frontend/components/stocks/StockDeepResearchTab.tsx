@@ -140,21 +140,6 @@ export default function StockDeepResearchTab({ ticker }: StockDeepResearchTabPro
           </p>
         </div>
       )}
-
-      {/* Info Box */}
-      <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <div className="text-2xl">ℹ️</div>
-          <div>
-            <h4 className="font-semibold mb-1">About Deep Research</h4>
-            <p className="text-sm text-slate-300">
-              Deep Research uses Tavily AI to search and analyze information from across the web.
-              It combines multiple sources to provide comprehensive, unbiased insights on your research topic.
-              Results are ranked by relevance and reliability.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

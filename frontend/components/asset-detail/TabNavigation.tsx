@@ -12,9 +12,8 @@ import {
   faBrain,
   faMagnifyingGlassChart,
   faScaleBalanced,
-  faDice,
-  faExclamationTriangle,
-  faBullseye
+  faChartArea,
+  faRobot
 } from '@fortawesome/free-solid-svg-icons';
 
 export type AssetTab =
@@ -26,9 +25,8 @@ export type AssetTab =
   | 'ai-analysis'
   | 'research'
   | 'compare'
-  | 'monte-carlo'
-  | 'risk'
-  | 'signals';
+  | 'returns'
+  | 'modelling';
 
 interface TabConfig {
   id: AssetTab;
@@ -53,7 +51,6 @@ export default function TabNavigation({ activeTab, setActiveTab, assetType }: Ta
       { id: 'live', label: 'Live', icon: faChartLine, enabled: true },
       { id: 'news', label: 'News', icon: faNewspaper, enabled: true },
       { id: 'ai-analysis', label: 'AI Analysis', icon: faBrain, enabled: true },
-      { id: 'signals', label: 'Signals', icon: faBullseye, enabled: true },
     ];
 
     // Asset-specific tabs
@@ -78,18 +75,18 @@ export default function TabNavigation({ activeTab, setActiveTab, assetType }: Ta
       });
     }
 
-    // Risk analysis tabs (all asset types)
+    // Analysis tabs (all asset types except macro)
     baseTabs.push({
-      id: 'monte-carlo',
-      label: 'Monte Carlo',
-      icon: faDice,
+      id: 'returns',
+      label: 'Returns',
+      icon: faChartArea,
       enabled: assetType !== 'macro',
       tooltip: assetType === 'macro' ? 'Not applicable for macro indicators' : undefined
     });
     baseTabs.push({
-      id: 'risk',
-      label: 'Risk (VaR)',
-      icon: faExclamationTriangle,
+      id: 'modelling',
+      label: 'Modelling',
+      icon: faRobot,
       enabled: assetType !== 'macro',
       tooltip: assetType === 'macro' ? 'Not applicable for macro indicators' : undefined
     });
