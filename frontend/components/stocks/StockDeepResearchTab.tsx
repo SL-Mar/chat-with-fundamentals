@@ -9,7 +9,6 @@ interface StockDeepResearchTabProps {
 
 export default function StockDeepResearchTab({ ticker }: StockDeepResearchTabProps) {
   const [query, setQuery] = useState(`Latest news and analysis for ${ticker}`);
-  const [depth, setDepth] = useState<'basic' | 'comprehensive'>('basic');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,10 +19,10 @@ export default function StockDeepResearchTab({ ticker }: StockDeepResearchTabPro
       setError(null);
       setResults(null);
 
-      // Call the real Tavily research endpoint
+      // Call the Tavily research endpoint (single comprehensive mode)
       const apiKey = localStorage.getItem('apiKey');
       const response = await fetch(
-        `http://localhost:8000/api/v2/deep-research?query=${encodeURIComponent(query)}&depth=${depth}`,
+        `http://localhost:8000/api/v2/deep-research?query=${encodeURIComponent(query)}`,
         {
           method: 'POST',
           headers: {
@@ -57,39 +56,12 @@ export default function StockDeepResearchTab({ ticker }: StockDeepResearchTabPro
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-semibold mb-2">Research Topic</label>
-            <input
-              type="text"
+            <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="What would you like to research?"
-              className="w-full px-4 py-2 bg-slate-700 rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
+              placeholder={`e.g., "Provide a comprehensive analysis of ${ticker} including financial performance, competitive positioning, and growth prospects"`}
+              className="w-full h-24 px-4 py-2 bg-slate-700 rounded border border-slate-600 focus:border-blue-500 focus:outline-none resize-none"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold mb-2">Research Depth</label>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDepth('basic')}
-                className={`px-4 py-2 rounded font-semibold transition-colors ${
-                  depth === 'basic'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                Basic (Fast)
-              </button>
-              <button
-                onClick={() => setDepth('comprehensive')}
-                className={`px-4 py-2 rounded font-semibold transition-colors ${
-                  depth === 'comprehensive'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                Comprehensive (Thorough)
-              </button>
-            </div>
           </div>
 
           <button
@@ -114,7 +86,7 @@ export default function StockDeepResearchTab({ ticker }: StockDeepResearchTabPro
           <div className="animate-spin text-6xl mb-4">🔬</div>
           <h3 className="text-xl font-bold mb-2">Researching...</h3>
           <p className="text-slate-400">
-            Analyzing multiple sources with {depth} depth
+            Analyzing multiple sources with comprehensive depth
           </p>
         </div>
       )}

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import TradingViewChart from '../../TradingViewChart';
+import CandlestickChartAdvanced from '../../CandlestickChartAdvanced';
 import { api } from '../../../lib/api';
 
 interface OverviewTabProps {
@@ -14,6 +14,7 @@ interface OverviewTabProps {
 export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTabProps) {
   const [keyMetrics, setKeyMetrics] = useState<any>(null);
   const [recentNews, setRecentNews] = useState<any[]>([]);
+  const [eodData, setEodData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Helper to safely format numbers
@@ -30,6 +31,31 @@ export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTa
   const fetchOverviewData = async () => {
     try {
       setLoading(true);
+
+      // Fetch EOD data for chart
+      try {
+        const eodResult = await api.fetchEODData(ticker);
+        const dataArray = Array.isArray(eodResult) ? eodResult : eodResult?.data || [];
+
+        // Convert OLHCV format to chart format and sort by date
+        const formattedData = dataArray.map((item: any) => ({
+          datetime: item.date,
+          timestamp: item.date,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+          volume: item.volume
+        })).sort((a: any, b: any) => {
+          const timeA = new Date(a.datetime).getTime();
+          const timeB = new Date(b.datetime).getTime();
+          return timeA - timeB;
+        });
+
+        setEodData(formattedData);
+      } catch (err) {
+        console.error('Failed to fetch EOD data:', err);
+      }
 
       // Fetch key metrics (for stocks/ETFs)
       if (assetType === 'stock' || assetType === 'etf') {
@@ -102,13 +128,18 @@ export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTa
         )}
       </div>
 
-      {/* Quick Chart */}
-      <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-        <h3 className="text-xl font-bold mb-4">Price Chart (1 Year)</h3>
-        <div className="h-96">
-          <TradingViewChart ticker={ticker.replace('.US', '').replace('.FOREX', '')} />
+      {/* EOD Price Chart */}
+      {eodData.length > 0 && (
+        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <h3 className="text-xl font-bold mb-4">Price Chart (EOD)</h3>
+          <CandlestickChartAdvanced
+            data={eodData}
+            ticker={ticker}
+            interval="1d"
+            height={500}
+          />
         </div>
-      </div>
+      )}
 
       {/* Key Metrics Grid */}
       {keyMetrics && (
