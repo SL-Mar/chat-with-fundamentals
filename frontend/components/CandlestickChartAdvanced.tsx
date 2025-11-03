@@ -28,6 +28,8 @@ interface CandlestickChartAdvancedProps {
   ticker: string;
   interval?: string;
   height?: number;
+  showIntervalSelector?: boolean;
+  onIntervalChange?: (interval: string) => void;
 }
 
 const BB_PERIOD = 20;
@@ -39,6 +41,8 @@ export default function CandlestickChartAdvanced({
   ticker,
   interval = '5m',
   height = 500,
+  showIntervalSelector = false,
+  onIntervalChange,
 }: CandlestickChartAdvancedProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
@@ -336,13 +340,35 @@ export default function CandlestickChartAdvanced({
 
       {/* Period and Indicator Toggles */}
       <div className="flex gap-3 mb-3 text-sm items-center flex-wrap">
-        <button
-          className="px-3 py-1 rounded border border-slate-700 bg-slate-800 text-white cursor-default"
-          disabled
-        >
-          {interval}
-        </button>
-        <div className="h-4 border-l border-slate-700"></div>
+        {/* Interval Selector (for intraday charts) */}
+        {showIntervalSelector && onIntervalChange ? (
+          <>
+            {['1m', '5m', '15m', '30m', '1h'].map((int) => (
+              <button
+                key={int}
+                onClick={() => onIntervalChange(int)}
+                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                  interval === int
+                    ? 'bg-blue-600 text-white'
+                    : 'border border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white'
+                }`}
+              >
+                {int}
+              </button>
+            ))}
+            <div className="h-4 border-l border-slate-700"></div>
+          </>
+        ) : (
+          <>
+            <button
+              className="px-3 py-1 rounded border border-slate-700 bg-slate-800 text-white cursor-default"
+              disabled
+            >
+              {interval}
+            </button>
+            <div className="h-4 border-l border-slate-700"></div>
+          </>
+        )}
         <button
           onClick={() => setShowSMA(!showSMA)}
           className={`px-2 py-1 rounded text-xs transition-colors ${

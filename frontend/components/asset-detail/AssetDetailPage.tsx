@@ -102,6 +102,19 @@ export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overv
       case 'intraday':
         return <ChartsTab ticker={ticker} assetType={assetType} />;
 
+      case 'live':
+        return (
+          <div className="p-6">
+            <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+              <div className="text-6xl mb-4">📊</div>
+              <div className="text-xl text-slate-400 mb-2">Live data coming soon</div>
+              <div className="text-sm text-slate-500">
+                Real-time WebSocket streaming in development
+              </div>
+            </div>
+          </div>
+        );
+
       case 'fundamentals':
         return <FundamentalsTab ticker={ticker} assetType={assetType} />;
 

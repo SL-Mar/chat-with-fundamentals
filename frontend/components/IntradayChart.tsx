@@ -8,11 +8,13 @@ import CandlestickChartAdvanced from './CandlestickChartAdvanced';
 interface IntradayChartProps {
   ticker: string;
   interval?: '1m' | '5m' | '15m' | '30m' | '1h';
+  onIntervalChange?: (interval: string) => void;
 }
 
 export default function IntradayChart({
   ticker,
   interval = '5m',
+  onIntervalChange,
 }: IntradayChartProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,5 +80,14 @@ export default function IntradayChart({
     );
   }
 
-  return <CandlestickChartAdvanced data={chartData} ticker={ticker} interval={interval} height={500} />;
+  return (
+    <CandlestickChartAdvanced
+      data={chartData}
+      ticker={ticker}
+      interval={interval}
+      height={500}
+      showIntervalSelector={true}
+      onIntervalChange={onIntervalChange}
+    />
+  );
 }
