@@ -49,10 +49,10 @@ export const AgentConsole: React.FC<AgentConsoleProps> = ({
 
     ws.onmessage = (event) => {
       try {
-        const log: AgentLog = JSON.parse(event.data);
-
-        // Filter out heartbeat pings
+        // Filter out heartbeat pings BEFORE parsing
         if (event.data === 'pong') return;
+
+        const log: AgentLog = JSON.parse(event.data);
 
         setLogs((prev) => {
           const updated = [...prev, log];

@@ -21,5 +21,9 @@ class StdoutInterceptor:
     def flush(self):
         self._original_stdout.flush()
 
+    def isatty(self):
+        """Required by gpt-researcher logger to check if stdout is a terminal."""
+        return self._original_stdout.isatty()
+
 def intercept_stdout():
     sys.stdout = StdoutInterceptor()

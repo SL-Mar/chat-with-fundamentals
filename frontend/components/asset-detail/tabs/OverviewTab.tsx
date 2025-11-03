@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import CandlestickChartAdvanced from '../../CandlestickChartAdvanced';
+import InsiderTransactions from '../../InsiderTransactions';
 import { api } from '../../../lib/api';
 
 interface OverviewTabProps {
@@ -90,116 +91,25 @@ export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTa
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Live Price Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {livePrice && (
-          <>
-            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-              <div className="text-sm text-slate-400 mb-1">Current Price</div>
-              <div className="text-2xl font-bold">${livePrice.price?.toFixed(2) || 'N/A'}</div>
-              {livePrice.change !== undefined && (
-                <div className={`text-sm ${livePrice.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {livePrice.change >= 0 ? '+' : ''}{livePrice.change.toFixed(2)} (
-                  {livePrice.change_p?.toFixed(2)}%)
-                </div>
-              )}
-            </div>
-
-            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-              <div className="text-sm text-slate-400 mb-1">Open</div>
-              <div className="text-2xl font-bold">${livePrice.open?.toFixed(2) || 'N/A'}</div>
-            </div>
-
-            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-              <div className="text-sm text-slate-400 mb-1">High / Low</div>
-              <div className="text-xl font-bold">
-                ${livePrice.high?.toFixed(2) || 'N/A'} / ${livePrice.low?.toFixed(2) || 'N/A'}
-              </div>
-            </div>
-
-            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-              <div className="text-sm text-slate-400 mb-1">Volume</div>
-              <div className="text-2xl font-bold">
-                {livePrice.volume ? (livePrice.volume / 1_000_000).toFixed(2) + 'M' : 'N/A'}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Chart and Metrics Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* EOD Chart - Takes 3 columns */}
-        <div className="lg:col-span-3">
-          {eodData.length > 0 && (
+    <div className="p-6 space-y-4">
+      {/* Chart + Insider Transactions Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* Left: Chart (50% width) */}
+        {eodData.length > 0 && (
+          <div className="min-w-0">
             <CandlestickChartAdvanced
               data={eodData}
               ticker={ticker}
               interval="1d"
-              height={500}
+              height={600}
             />
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Key Metrics Sidebar - Takes 1 column */}
-        {keyMetrics && (
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-              <h3 className="text-lg font-bold mb-4">Key Metrics</h3>
-              <div className="space-y-3">
-                {keyMetrics.marketCap && keyMetrics.marketCap !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">Market Cap</div>
-                    <div className="text-sm font-semibold">
-                      ${formatNumber(parseFloat(keyMetrics.marketCap) / 1_000_000_000, 2)}B
-                    </div>
-                  </div>
-                )}
-                {keyMetrics.peRatio && keyMetrics.peRatio !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">P/E Ratio</div>
-                    <div className="text-sm font-semibold">{formatNumber(keyMetrics.peRatio)}</div>
-                  </div>
-                )}
-                {keyMetrics.eps && keyMetrics.eps !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">EPS</div>
-                    <div className="text-sm font-semibold">${formatNumber(keyMetrics.eps)}</div>
-                  </div>
-                )}
-                {keyMetrics.dividendYield && keyMetrics.dividendYield !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">Dividend Yield</div>
-                    <div className="text-sm font-semibold">{formatNumber(keyMetrics.dividendYield)}%</div>
-                  </div>
-                )}
-                {keyMetrics['52WeekHigh'] && keyMetrics['52WeekHigh'] !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">52 Week High</div>
-                    <div className="text-sm font-semibold">${formatNumber(keyMetrics['52WeekHigh'])}</div>
-                  </div>
-                )}
-                {keyMetrics['52WeekLow'] && keyMetrics['52WeekLow'] !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">52 Week Low</div>
-                    <div className="text-sm font-semibold">${formatNumber(keyMetrics['52WeekLow'])}</div>
-                  </div>
-                )}
-                {keyMetrics.beta && keyMetrics.beta !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">Beta</div>
-                    <div className="text-sm font-semibold">{formatNumber(keyMetrics.beta)}</div>
-                  </div>
-                )}
-                {keyMetrics.wallStreetTargetPrice && keyMetrics.wallStreetTargetPrice !== 'N/A' && (
-                  <div>
-                    <div className="text-xs text-slate-400">Analyst Target</div>
-                    <div className="text-sm font-semibold">${formatNumber(keyMetrics.wallStreetTargetPrice)}</div>
-                  </div>
-                )}
-              </div>
-            </div>
+        {/* Right: Insider Transactions (50% width) */}
+        {(assetType === 'stock' || assetType === 'etf') && (
+          <div className="w-full">
+            <InsiderTransactions ticker={ticker.replace('.US', '')} limit={20} />
           </div>
         )}
       </div>

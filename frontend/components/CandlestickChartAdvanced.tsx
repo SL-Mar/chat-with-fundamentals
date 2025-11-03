@@ -326,7 +326,7 @@ export default function CandlestickChartAdvanced({
   return (
     <div
       ref={wrapperRef}
-      className="rounded-xl border border-slate-700 bg-slate-900 p-4 mx-auto w-full max-w-[1400px]"
+      className="rounded-xl border border-slate-700 bg-slate-900 p-4 w-full"
     >
       <div className="flex justify-between items-center mb-3">
         <div className="text-lg font-semibold text-slate-200">{ticker}</div>

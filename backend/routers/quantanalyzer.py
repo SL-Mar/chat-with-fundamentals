@@ -21,6 +21,22 @@ router = APIRouter(
 
 logger = setup_logger().getChild("quantanalyzer")
 
+def add_exchange_suffix(ticker: str) -> str:
+    """
+    Add appropriate exchange suffix to ticker if not already present.
+
+    - Currency pairs (6 chars, all uppercase) → .FOREX
+    - All other tickers → .US
+    """
+    if "." in ticker:
+        return ticker
+
+    # Detect currency pairs (e.g., EURUSD, GBPJPY)
+    if len(ticker) == 6 and ticker.isupper():
+        return f"{ticker}.FOREX"
+
+    return f"{ticker}.US"
+
 @router.get("/eod", response_model=EODResult)
 async def get_eod_data(
     ticker: str = Query(..., description="Ticker symbol, e.g., TSLA"),
@@ -35,8 +51,7 @@ async def get_eod_data(
     3. If no/partial data → fetch from API, store in database, return
     4. Future requests use incremental updates
     """
-    # Add .US suffix only if ticker doesn't already have an exchange
-    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
+    ticker_with_exchange = add_exchange_suffix(ticker)
 
     db: Session = next(get_db())
 
@@ -176,9 +191,8 @@ async def returns_analysis(
     - scatter.alpha: Alpha coefficient
     - scatter.r2: R-squared value
     """
-    # Add .US suffix if not present
-    ticker_with_exchange = ticker if "." in ticker else f"{ticker}.US"
-    benchmark_with_exchange = benchmark if "." in benchmark else f"{benchmark}.US"
+    ticker_with_exchange = add_exchange_suffix(ticker)
+    benchmark_with_exchange = add_exchange_suffix(benchmark)
 
     logger.info(f"[RETURNS] Analyzing {ticker_with_exchange} vs {benchmark_with_exchange} for {years} years")
 

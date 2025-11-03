@@ -22,6 +22,7 @@ from database.models.market_data import OHLCV, Fundamental
 from database.models.intraday_data import IntradayOHLCV, IntradayQuote
 from database.models.news import News, AnalystRating
 from database.models.dividends import Dividend
+from database.models.financial import InsiderTransaction
 from database.models.base import SessionLocal
 from database.query_config import QueryConfig
 from cache.redis_cache import RedisCache, CacheConfig
@@ -575,3 +576,39 @@ class ImprovedDatabaseQueries:
                 IntradayQuote.timestamp <= to_datetime
             )
         ).order_by(desc(IntradayQuote.timestamp)).limit(limit).all()
+
+    @with_session
+    def get_insider_transactions(
+        self,
+        ticker: str,
+        limit: int = 50,
+        db: Optional[Session] = None
+    ) -> List[InsiderTransaction]:
+        """
+        Get insider transactions for a company
+
+        Args:
+            ticker: Stock symbol
+            limit: Max number of transactions
+            db: Database session
+
+        Returns:
+            List of InsiderTransaction records
+        """
+        # Get company
+        company = self.get_company(ticker, db=db)
+        if not company:
+            logger.warning(f"Company {ticker} not found")
+            return []
+
+        # Validate limit
+        if limit > QueryConfig.MAX_LIMIT:
+            limit = QueryConfig.MAX_LIMIT
+
+        # Query insider transactions
+        transactions = db.query(InsiderTransaction).filter(
+            InsiderTransaction.company_id == company.id
+        ).order_by(desc(InsiderTransaction.transaction_date)).limit(limit).all()
+
+        logger.info(f"Found {len(transactions)} insider transactions for {ticker}")
+        return transactions

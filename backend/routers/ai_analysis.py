@@ -469,71 +469,78 @@ async def analyze_portfolio(
 # ──────────────────────────────────────────────────────────────
 
 @router.post("/deep-research", dependencies=[Depends(verify_api_key)])
-@limiter.limit("10/minute")  # Rate limit: 10 requests per minute (Tavily is expensive)
+@limiter.limit("10/minute")  # Rate limit: 10 requests per minute (expensive operation)
 async def deep_research(
     request: Request,
     query: str = Query(..., description="Research query", min_length=3, max_length=500),
-    depth: str = Query("basic", description="Research depth: 'basic' or 'comprehensive'"),
+    ticker: str = Query(None, description="Optional ticker for context"),
 ):
     """
-    Run Tavily deep research for any query.
+    Run GPT-Researcher deep research for any query.
 
-    **Purpose**: Comprehensive AI-powered web research using Tavily API.
+    **Purpose**: Comprehensive AI-powered web research using GPT-Researcher
+    (recursive web search + AI-generated report).
 
     **Parameters**:
     - query: Research topic or question
-    - depth: "basic" (fast, 5 sources) or "comprehensive" (deep, 20+ sources)
+    - ticker: Optional ticker symbol for context (e.g., "AAPL.US")
 
-    **Rate Limits**: 10 requests per minute (Tavily API costs)
+    **Rate Limits**: 10 requests per minute (expensive operation)
 
     **Example**:
     ```
-    POST /api/v2/deep-research?query=Latest%20developments%20in%20AAPL%20stock&depth=comprehensive
+    POST /api/v2/deep-research?query=Latest%20developments%20in%20AAPL%20stock&ticker=AAPL.US
     ```
 
     **Response**:
     ```json
     {
         "query": "Latest developments in AAPL stock",
-        "summary": "AI-generated summary of findings...",
-        "results": [
-            {
-                "title": "Article title",
-                "url": "https://...",
-                "content": "Excerpt...",
-                "score": 0.95
-            }
-        ]
+        "report": "# Research Report\\n\\nComprehensive markdown report...",
+        "sources": ["https://...", "https://..."],
+        "report_type": "research_report",
+        "ticker": "AAPL.US"
     }
     ```
 
     **Authentication**: Requires API key in X-API-Key header.
     """
 
-    from services.tavily_research import TavilyResearch
+    from services.gpt_researcher_service import GPTResearcherService
+    from core.config import settings
 
     try:
-        # Validate depth parameter
-        if depth not in ["basic", "comprehensive"]:
+        logger.info(f"Starting GPT-Researcher deep research: query='{query}', ticker={ticker}")
+
+        # Get API keys from settings
+        openai_key = settings.openai_api_key
+        tavily_key = os.getenv("TAVILY_API_KEY")
+
+        if not openai_key:
             raise HTTPException(
-                status_code=400,
-                detail="Invalid depth parameter. Must be 'basic' or 'comprehensive'."
+                status_code=500,
+                detail="OPENAI_API_KEY not configured - deep research unavailable"
             )
 
-        logger.info(f"Starting deep research: query='{query}', depth={depth}")
+        if not tavily_key:
+            raise HTTPException(
+                status_code=500,
+                detail="TAVILY_API_KEY not configured - deep research unavailable"
+            )
 
-        tavily = TavilyResearch()
-        results = await tavily.research(query=query, depth=depth)
+        # Initialize GPT-Researcher service
+        service = GPTResearcherService(
+            ticker=ticker or "General",
+            openai_key=openai_key,
+            tavily_key=tavily_key
+        )
 
-        # Check for errors in results
-        if results.get("error"):
-            error_msg = results.get("summary", "Research failed")
-            logger.error(f"Tavily research error: {error_msg}")
-            raise HTTPException(status_code=500, detail=error_msg)
+        # Generate research report
+        result = await service.generate_research_report(query=query)
 
-        logger.info(f"Deep research complete: {len(results.get('results', []))} sources found")
+        logger.info(f"Deep research complete: {len(result.get('report', ''))} chars, {len(result.get('sources', []))} sources")
 
-        return results
+        return result
 
     except HTTPException:
         raise

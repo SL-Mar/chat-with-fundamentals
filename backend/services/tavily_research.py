@@ -46,7 +46,7 @@ class TavilyResearch:
             query: Search query
             depth: Research depth
                 - "basic": Fast search (5 sources, ~10 seconds)
-                - "comprehensive": Deep search (20+ sources, ~30-60 seconds)
+                - "advanced": Deep search (20+ sources, ~30-60 seconds)
             max_results: Maximum number of results to return
 
         Returns:
@@ -187,7 +187,7 @@ class TavilyResearch:
             Research results
         """
         query = f"Latest news, earnings, developments, and analysis for {ticker} stock"
-        return await self.research(query, depth="comprehensive")
+        return await self.research(query, depth="advanced")
 
     async def research_currency(self, pair: str) -> Dict[str, Any]:
         """
@@ -200,7 +200,7 @@ class TavilyResearch:
             Research results
         """
         query = f"Latest developments, forecasts, and analysis affecting {pair} exchange rate"
-        return await self.research(query, depth="comprehensive")
+        return await self.research(query, depth="advanced")
 
     async def research_etf(self, symbol: str) -> Dict[str, Any]:
         """
@@ -213,7 +213,7 @@ class TavilyResearch:
             Research results
         """
         query = f"Latest news, holdings changes, and performance for {symbol} ETF"
-        return await self.research(query, depth="comprehensive")
+        return await self.research(query, depth="advanced")
 
     async def research_macro(self, indicator: str) -> Dict[str, Any]:
         """
@@ -226,4 +226,4 @@ class TavilyResearch:
             Research results
         """
         query = f"Latest economic data, forecasts, and analysis for {indicator} indicator"
-        return await self.research(query, depth="comprehensive")
+        return await self.research(query, depth="advanced")

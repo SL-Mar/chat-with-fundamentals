@@ -21,7 +21,18 @@ VALID_TIMEFRAMES = ['1m', '5m', '15m', '1h']
 
 # API configuration
 EODHD_API_KEY = os.getenv('EODHD_API_KEY', '67545463280a10.78461538')
-EODHD_INTRADAY_URL = 'https://eodhd.com/api/intraday/{ticker}.US'
+EODHD_INTRADAY_URL = 'https://eodhd.com/api/intraday/{ticker_with_exchange}'
+
+def get_ticker_with_exchange(ticker: str) -> str:
+    """Add appropriate exchange suffix to ticker if needed."""
+    if '.' in ticker:
+        return ticker
+
+    # Detect currency pairs (6 chars, all uppercase)
+    if len(ticker) == 6 and ticker.isupper():
+        return f"{ticker}.FOREX"
+
+    return f"{ticker}.US"
 
 
 class IntradayDataService:
@@ -163,8 +174,9 @@ class IntradayDataService:
             }
             interval = interval_map[timeframe]
 
-            # Build API request
-            url = EODHD_INTRADAY_URL.format(ticker=ticker)
+            # Build API request with proper exchange suffix
+            ticker_with_exchange = get_ticker_with_exchange(ticker)
+            url = EODHD_INTRADAY_URL.format(ticker_with_exchange=ticker_with_exchange)
             params = {
                 'api_token': EODHD_API_KEY,
                 'interval': interval,
@@ -192,6 +204,10 @@ class IntradayDataService:
                     continue
 
                 try:
+                    # Handle volume (may be None for currency pairs)
+                    volume_raw = item.get('volume')
+                    volume = int(volume_raw) if volume_raw is not None else 0
+
                     result.append({
                         'ticker': ticker,
                         'timeframe': timeframe,
@@ -200,7 +216,7 @@ class IntradayDataService:
                         'high': float(item.get('high', 0)),
                         'low': float(item.get('low', 0)),
                         'close': float(item['close']),
-                        'volume': int(item.get('volume', 0)),
+                        'volume': volume,
                     })
                 except (ValueError, TypeError) as e:
                     logger.warning(f"Skipping invalid record for {ticker}: {e}")

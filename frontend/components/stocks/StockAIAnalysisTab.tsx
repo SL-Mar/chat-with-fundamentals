@@ -177,7 +177,7 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
               <div className="animate-spin text-6xl mb-4">⟳</div>
               <h3 className="text-xl font-bold mb-2">Analyzing {ticker}</h3>
               <p className="text-slate-400">
-                Running 5 agents...
+                Running 4 specialized agents...
               </p>
             </div>
           )}

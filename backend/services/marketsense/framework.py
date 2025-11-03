@@ -244,6 +244,7 @@ class MarketSenseAI:
                 metadata={"asset_id": self.asset_id, "asset_type": self.asset_type.value}
             )
             try:
-                await ws_manager.broadcast(log_message.dict())
+                # Use model_dump() with JSON mode to handle datetime serialization
+                await ws_manager.broadcast(log_message.model_dump(mode='json'))
             except Exception as e:
                 logger.error(f"Failed to send WebSocket log: {e}")

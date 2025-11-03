@@ -253,16 +253,81 @@ class DataService:
 
             if record_date and record_date >= recent_threshold:
                 logger.info(f"[DATA_SERVICE] Cache HIT: {ticker} live price from database")
-                return self._serialize_ohlcv([latest_record])[0]
+                # Convert OHLCV format to live price format
+                close_price = float(latest_record.close)
+                open_price = float(latest_record.open)
+                change = close_price - open_price
+                change_p = (change / open_price * 100) if open_price != 0 else 0
+
+                return {
+                    'code': ticker.split('.')[0],
+                    'timestamp': int(latest_record.date.timestamp()) if latest_record.date else None,
+                    'gmtoffset': 0,
+                    'open': open_price,
+                    'high': float(latest_record.high),
+                    'low': float(latest_record.low),
+                    'close': close_price,
+                    'volume': latest_record.volume,
+                    'previousClose': open_price,
+                    'change': change,
+                    'change_p': change_p,
+                    'price': close_price  # Use close as current price
+                }
 
             # Fetch from API
             logger.info(f"[DATA_SERVICE] Cache MISS: {ticker} live price")
-            api_data = self.eodhd_client.historical.get_live_price(ticker)
+            try:
+                api_data = self.eodhd_client.historical.get_live_price(ticker)
+                logger.info(f"[DATA_SERVICE] API returned data for {ticker}: {api_data}")
 
-            # Note: Live price is NOT stored in OHLCV table (incomplete candle)
-            # It would be stored when EOD data is updated
+                # If API returns valid data, use it
+                if api_data and api_data.get('price') is not None:
+                    logger.info(f"[DATA_SERVICE] Using API data for {ticker}, price={api_data.get('price')}")
+                    return api_data
+                else:
+                    logger.warning(f"[DATA_SERVICE] API returned invalid/empty data for {ticker}: {api_data}")
+            except Exception as e:
+                logger.error(f"[DATA_SERVICE] API call failed for {ticker}: {e}", exc_info=True)
 
-            return api_data
+            # Fallback: Use most recent database record (even if old)
+            if latest_record:
+                logger.info(f"[DATA_SERVICE] Fallback: Using latest database record for {ticker}")
+                # Convert OHLCV format to live price format
+                close_price = float(latest_record.close)
+                open_price = float(latest_record.open)
+                change = close_price - open_price
+                change_p = (change / open_price * 100) if open_price != 0 else 0
+
+                return {
+                    'code': ticker.split('.')[0],
+                    'timestamp': int(latest_record.date.timestamp()) if latest_record.date else None,
+                    'gmtoffset': 0,
+                    'open': open_price,
+                    'high': float(latest_record.high),
+                    'low': float(latest_record.low),
+                    'close': close_price,
+                    'volume': latest_record.volume,
+                    'previousClose': open_price,
+                    'change': change,
+                    'change_p': change_p,
+                    'price': close_price  # Use close as current price
+                }
+
+            # Last resort: Return empty structure with zeros (better than None for display)
+            logger.warning(f"[DATA_SERVICE] No data available for {ticker}")
+            return {
+                'code': ticker.split('.')[0],
+                'price': 0,
+                'open': 0,
+                'high': 0,
+                'low': 0,
+                'close': 0,
+                'volume': 0,
+                'change': 0,
+                'change_p': 0,
+                'timestamp': None,
+                'previousClose': 0
+            }
 
         finally:
             if close_db:

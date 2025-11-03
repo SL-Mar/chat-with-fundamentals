@@ -217,6 +217,34 @@ export const api = {
     return getJSON<any>(url);
   },
 
+  /* ────────── Peer Companies ───────── */
+  fetchPeers(ticker: string, limit: number = 10): Promise<any> {
+    return getJSON<any>(`${BASE}/special/${ticker}/peers?limit=${limit}`);
+  },
+
+  /* ────────── Peer Comparison ───────── */
+  async fetchPeerComparison(
+    ticker: string,
+    peerTickers: string[],
+    period: string = "1y",
+    useAdjusted: boolean = true
+  ): Promise<any> {
+    const r = await fetch(`${BASE}/special/${ticker}/peer-comparison`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({
+        peer_tickers: peerTickers,
+        period,
+        use_adjusted: useAdjusted,
+      }),
+    });
+    if (!r.ok) {
+      const { detail } = await r.json();
+      throw new Error(detail || "Peer comparison error");
+    }
+    return r.json();
+  },
+
   /* ────────── Financial Statements ───────── */
   fetchFinancials(
     ticker: string,

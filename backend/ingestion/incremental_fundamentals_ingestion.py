@@ -128,17 +128,28 @@ class IncrementalFundamentalsIngestion(BaseIngestion):
             api_data = self.client.fundamental.get_fundamentals(symbol=ticker)
 
             if not api_data:
+                # Check if it's a non-US stock (likely no fundamentals available)
+                if '.' in ticker and not ticker.endswith('.US'):
+                    logger.info(f"[INCREMENTAL] ℹ️  {ticker} - Non-US stock, fundamentals not available via API")
+                    return False
                 logger.warning(f"[INCREMENTAL] No fundamentals data for {ticker}")
                 return False
 
-            # Step 3: Store using bulk insert with UPSERT
-            # Note: bulk_insert expects a list, so wrap single record
-            self.bulk_insert(db, company_id, [api_data], on_conflict='update')
+            # Step 3: Store fundamental data
+            from ingestion.fundamental_ingestion import FundamentalIngestion
+            fundamental_ingestion = FundamentalIngestion(self.api_key)
+
+            # Use the FundamentalIngestion's bulk_insert method
+            fundamental_ingestion.bulk_insert(db, company_id, [api_data], on_conflict='update')
 
             logger.info(f"[INCREMENTAL] ✅ Refreshed fundamentals for {ticker}")
             return True
 
         except Exception as e:
+            # Handle non-US stocks gracefully
+            if '.' in ticker and not ticker.endswith('.US'):
+                logger.info(f"[INCREMENTAL] ℹ️  {ticker} - Non-US stock, fundamentals not available")
+                return False
             logger.error(f"[INCREMENTAL] ❌ Failed to refresh {ticker}: {e}")
             raise
 

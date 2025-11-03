@@ -37,9 +37,9 @@ export default function AssetHeader({ ticker, assetType, livePrice, companyData 
     }
   }, [ticker, assetType]);
 
-  // Format price change
-  const priceChange = livePrice?.change || 0;
-  const priceChangePercent = livePrice?.change_p || 0;
+  // Format price change - ensure we have valid numbers
+  const priceChange = typeof livePrice?.change === 'number' ? livePrice.change : 0;
+  const priceChangePercent = typeof livePrice?.change_p === 'number' ? livePrice.change_p : 0;
   const isPositive = priceChange >= 0;
 
   // Format market cap
@@ -89,7 +89,10 @@ export default function AssetHeader({ ticker, assetType, livePrice, companyData 
               </span>
             </div>
             <p className="text-lg text-slate-400 mt-1">
-              {companyData?.name || 'Loading...'}
+              {assetType === 'macro'
+                ? ticker.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()
+                : (companyData?.name || 'Loading...')
+              }
             </p>
             {companyData?.exchange && (
               <p className="text-sm text-slate-500">
@@ -99,8 +102,8 @@ export default function AssetHeader({ ticker, assetType, livePrice, companyData 
           </div>
         </div>
 
-        {/* Right: Live Price */}
-        {livePrice && (
+        {/* Right: Live Price (not for macro indicators) */}
+        {livePrice && assetType !== 'macro' && (
           <div className="text-right">
             <div className="text-4xl font-bold text-white">
               ${livePrice.price?.toFixed(2) || 'N/A'}
@@ -108,35 +111,36 @@ export default function AssetHeader({ ticker, assetType, livePrice, companyData 
             <div className={`text-lg font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
               {isPositive ? '+' : ''}{priceChange.toFixed(2)} ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
             </div>
-            <div className="text-sm text-slate-400 mt-1">
-              {livePrice.timestamp ? new Date(livePrice.timestamp * 1000).toLocaleString() : 'Live'}
+            {/* Timestamp */}
+            <div className="text-sm text-slate-300 mt-2 font-medium">
+              {livePrice.timestamp ? new Date(livePrice.timestamp * 1000).toLocaleString() : 'Unknown'}
             </div>
           </div>
         )}
       </div>
 
-      {/* Quick Stats Row */}
-      {(companyData || livePrice) && (
-        <div className="mt-4 flex gap-6 text-sm">
-          {livePrice?.open && (
+      {/* Quick Stats Row (not for macro indicators) */}
+      {(companyData || livePrice) && assetType !== 'macro' && (
+        <div className="mt-4 flex flex-wrap gap-6 text-sm">
+          {livePrice?.open && typeof livePrice.open === 'number' && (
             <div>
               <span className="text-slate-500">Open:</span>
               <span className="ml-2 text-white font-semibold">${livePrice.open.toFixed(2)}</span>
             </div>
           )}
-          {livePrice?.high && (
+          {livePrice?.high && typeof livePrice.high === 'number' && (
             <div>
               <span className="text-slate-500">High:</span>
               <span className="ml-2 text-white font-semibold">${livePrice.high.toFixed(2)}</span>
             </div>
           )}
-          {livePrice?.low && (
+          {livePrice?.low && typeof livePrice.low === 'number' && (
             <div>
               <span className="text-slate-500">Low:</span>
               <span className="ml-2 text-white font-semibold">${livePrice.low.toFixed(2)}</span>
             </div>
           )}
-          {livePrice?.volume && (
+          {livePrice?.volume && typeof livePrice.volume === 'number' && (
             <div>
               <span className="text-slate-500">Volume:</span>
               <span className="ml-2 text-white font-semibold">
@@ -152,11 +156,59 @@ export default function AssetHeader({ ticker, assetType, livePrice, companyData 
               </span>
             </div>
           )}
-          {companyData?.pe && (
+          {companyData?.peRatio && companyData.peRatio !== 'N/A' && (
             <div>
               <span className="text-slate-500">P/E:</span>
               <span className="ml-2 text-white font-semibold">
-                {companyData.pe.toFixed(2)}
+                {typeof companyData.peRatio === 'number' ? companyData.peRatio.toFixed(2) : companyData.peRatio}
+              </span>
+            </div>
+          )}
+          {companyData?.eps && companyData.eps !== 'N/A' && (
+            <div>
+              <span className="text-slate-500">EPS:</span>
+              <span className="ml-2 text-white font-semibold">
+                ${typeof companyData.eps === 'number' ? companyData.eps.toFixed(2) : companyData.eps}
+              </span>
+            </div>
+          )}
+          {companyData?.dividendYield && companyData.dividendYield !== 'N/A' && (
+            <div>
+              <span className="text-slate-500">Div Yield:</span>
+              <span className="ml-2 text-white font-semibold">
+                {typeof companyData.dividendYield === 'number' ? companyData.dividendYield.toFixed(2) : companyData.dividendYield}%
+              </span>
+            </div>
+          )}
+          {companyData?.['52WeekHigh'] && companyData['52WeekHigh'] !== 'N/A' && (
+            <div>
+              <span className="text-slate-500">52W High:</span>
+              <span className="ml-2 text-white font-semibold">
+                ${typeof companyData['52WeekHigh'] === 'number' ? companyData['52WeekHigh'].toFixed(2) : companyData['52WeekHigh']}
+              </span>
+            </div>
+          )}
+          {companyData?.['52WeekLow'] && companyData['52WeekLow'] !== 'N/A' && (
+            <div>
+              <span className="text-slate-500">52W Low:</span>
+              <span className="ml-2 text-white font-semibold">
+                ${typeof companyData['52WeekLow'] === 'number' ? companyData['52WeekLow'].toFixed(2) : companyData['52WeekLow']}
+              </span>
+            </div>
+          )}
+          {companyData?.beta && companyData.beta !== 'N/A' && (
+            <div>
+              <span className="text-slate-500">Beta:</span>
+              <span className="ml-2 text-white font-semibold">
+                {typeof companyData.beta === 'number' ? companyData.beta.toFixed(2) : companyData.beta}
+              </span>
+            </div>
+          )}
+          {companyData?.wallStreetTargetPrice && companyData.wallStreetTargetPrice !== 'N/A' && (
+            <div>
+              <span className="text-slate-500">Target:</span>
+              <span className="ml-2 text-white font-semibold">
+                ${typeof companyData.wallStreetTargetPrice === 'number' ? companyData.wallStreetTargetPrice.toFixed(2) : companyData.wallStreetTargetPrice}
               </span>
             </div>
           )}

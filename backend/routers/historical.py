@@ -52,7 +52,7 @@ async def get_intraday_prices(
         ticker = validate_and_format_ticker(ticker)
 
         # Remove exchange suffix for our new service (it adds it internally)
-        ticker_clean = ticker.replace('.US', '')
+        ticker_clean = ticker.replace('.US', '').replace('.FOREX', '').replace('.PA', '').replace('.L', '')
 
         # Map 30m to 15m (we only support 1m, 5m, 15m, 1h in new system)
         timeframe_map = {

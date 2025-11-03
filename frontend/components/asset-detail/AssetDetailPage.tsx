@@ -106,9 +106,9 @@ export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overv
           <div className="p-6">
             <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
               <div className="text-6xl mb-4">📊</div>
-              <div className="text-xl text-slate-400 mb-2">Live data coming soon</div>
+              <div className="text-xl text-slate-400 mb-2">Live data unavailable</div>
               <div className="text-sm text-slate-500">
-                Real-time WebSocket streaming in development
+                EODHD API has 15-20 minute delay - not suitable for live streaming
               </div>
             </div>
           </div>

@@ -13,6 +13,8 @@ from database.models.company import Company, Exchange, Sector
 from database.models.market_data import OHLCV, Fundamental
 from database.models.news import News
 from database.models.dividends import Dividend
+from database.models.intraday_models import IntradayDataStatus
+from database.models.intraday_base import get_db as get_intraday_db
 from core.config import settings
 from sqlalchemy import func, desc
 
@@ -42,11 +44,18 @@ class DataStatus(BaseModel):
     date_range: Optional[str] = None
 
 
+class IntradayStatus(BaseModel):
+    available: bool
+    timeframes: Optional[Dict[str, int]] = None  # {'1m': 1000, '5m': 500, ...}
+    last_update: Optional[str] = None
+
+
 class TickerInfo(BaseModel):
     ticker: str
     name: str
     exchange: str
     ohlcv: DataStatus
+    intraday: Optional[IntradayStatus] = None
     fundamentals: DataStatus
     news: DataStatus
     dividends: DataStatus
@@ -290,11 +299,33 @@ async def get_database_stats():
     """
     try:
         db = next(get_db())
+        intraday_db = next(get_intraday_db())
 
         company_count = db.query(Company).count()
         active_company_count = db.query(Company).filter_by(is_active=True).count()
         exchange_count = db.query(Exchange).count()
         sector_count = db.query(Sector).count()
+
+        # Count companies with each data type
+        companies_with_ohlcv = db.query(func.count(func.distinct(OHLCV.company_id))).scalar()
+        companies_with_fundamentals = db.query(func.count(func.distinct(Fundamental.company_id))).scalar()
+        companies_with_news = db.query(func.count(func.distinct(News.company_id))).scalar()
+        companies_with_dividends = db.query(func.count(func.distinct(Dividend.company_id))).scalar()
+
+        # Count intraday data by timeframe
+        intraday_counts = {}
+        try:
+            timeframe_stats = intraday_db.query(
+                IntradayDataStatus.timeframe,
+                func.count(func.distinct(IntradayDataStatus.ticker)).label('ticker_count')
+            ).group_by(IntradayDataStatus.timeframe).all()
+
+            for timeframe, count in timeframe_stats:
+                intraday_counts[timeframe] = count
+        except Exception as e:
+            logger.warning(f"[ADMIN] Failed to get intraday stats: {e}")
+
+        intraday_db.close()
 
         return {
             "status": "healthy",
@@ -303,6 +334,13 @@ async def get_database_stats():
                 "active_companies": active_company_count,
                 "exchanges": exchange_count,
                 "sectors": sector_count
+            },
+            "data_availability": {
+                "ohlcv": companies_with_ohlcv,
+                "fundamentals": companies_with_fundamentals,
+                "news": companies_with_news,
+                "dividends": companies_with_dividends,
+                "intraday": intraday_counts
             },
             "message": "Database is operational"
         }
@@ -316,7 +354,7 @@ async def get_database_stats():
 async def get_ticker_inventory(
     search: Optional[str] = None,
     filter_missing: bool = False,
-    limit: int = 100,
+    limit: int = 1000,
     offset: int = 0
 ):
     """
@@ -324,7 +362,7 @@ async def get_ticker_inventory(
 
     Args:
         search: Optional search term for ticker or name
-        filter_missing: Only show tickers missing some data
+        filter_missing: Only show tickers missing some data (filter_missing=true shows only incomplete)
         limit: Number of results per page
         offset: Pagination offset
 
@@ -345,55 +383,170 @@ async def get_ticker_inventory(
                 (Company.name.ilike(search_term))
             )
 
+        # Filter to only show tickers with at least one dataset
+        # Get companies with any data (OHLCV, fundamentals, news, or dividends)
+        companies_with_data_ids = set()
+
+        # Companies with OHLCV
+        ohlcv_company_ids = db.query(OHLCV.company_id).distinct().all()
+        companies_with_data_ids.update([row[0] for row in ohlcv_company_ids])
+
+        # Companies with fundamentals
+        fund_company_ids = db.query(Fundamental.company_id).distinct().all()
+        companies_with_data_ids.update([row[0] for row in fund_company_ids])
+
+        # Companies with news
+        news_company_ids = db.query(News.company_id).distinct().all()
+        companies_with_data_ids.update([row[0] for row in news_company_ids])
+
+        # Companies with dividends
+        div_company_ids = db.query(Dividend.company_id).distinct().all()
+        companies_with_data_ids.update([row[0] for row in div_company_ids])
+
+        # Filter query to only include companies with at least one dataset
+        if companies_with_data_ids:
+            query = query.filter(Company.id.in_(list(companies_with_data_ids)))
+
         # Get total count
         total_count = query.count()
 
         # Get companies with pagination
         companies = query.order_by(Company.ticker).limit(limit).offset(offset).all()
 
+        if not companies:
+            return TickerInventoryResponse(total_tickers=0, tickers=[])
+
+        # Extract company IDs for batch queries
+        company_ids = [c.id for c in companies]
+        ticker_to_company = {c.ticker: c for c in companies}
+
+        # === BATCH QUERY 1: OHLCV data ===
+        ohlcv_stats = db.query(
+            OHLCV.company_id,
+            func.count(OHLCV.date).label('count'),
+            func.min(OHLCV.date).label('first_date'),
+            func.max(OHLCV.date).label('last_date')
+        ).filter(OHLCV.company_id.in_(company_ids)).group_by(OHLCV.company_id).all()
+
+        ohlcv_lookup = {row.company_id: row for row in ohlcv_stats}
+
+        # === BATCH QUERY 2: Fundamentals ===
+        fundamentals = db.query(Fundamental).filter(Fundamental.company_id.in_(company_ids)).all()
+        fundamentals_lookup = {f.company_id: f for f in fundamentals}
+
+        # === BATCH QUERY 3: News data ===
+        news_stats = db.query(
+            News.company_id,
+            func.count(News.id).label('count'),
+            func.max(News.published_at).label('last_date')
+        ).filter(News.company_id.in_(company_ids)).group_by(News.company_id).all()
+
+        news_lookup = {row.company_id: row for row in news_stats}
+
+        # === BATCH QUERY 4: Dividends data ===
+        dividend_stats = db.query(
+            Dividend.company_id,
+            func.count(Dividend.id).label('count'),
+            func.max(Dividend.ex_date).label('last_date')
+        ).filter(Dividend.company_id.in_(company_ids)).group_by(Dividend.company_id).all()
+
+        dividend_lookup = {row.company_id: row for row in dividend_stats}
+
+        # === BATCH QUERY 5: Intraday data (from separate database) ===
+        intraday_lookup = {}
+        try:
+            intraday_db = next(get_intraday_db())
+
+            # Get base tickers (strip exchange suffix)
+            base_tickers = list(set([
+                c.ticker.split('.')[0] if '.' in c.ticker else c.ticker
+                for c in companies
+            ]))
+
+            # Query all intraday records at once
+            all_intraday_records = intraday_db.query(IntradayDataStatus).filter(
+                IntradayDataStatus.ticker.in_(base_tickers)
+            ).all()
+
+            # Group by ticker
+            from collections import defaultdict
+            intraday_by_ticker = defaultdict(list)
+            for record in all_intraday_records:
+                intraday_by_ticker[record.ticker].append(record)
+
+            intraday_lookup = dict(intraday_by_ticker)
+            intraday_db.close()
+        except Exception as e:
+            logger.warning(f"[ADMIN] Failed to fetch intraday data in batch: {e}")
+
+        # === Build response from pre-fetched data ===
         tickers_info = []
 
         for company in companies:
-            # OHLCV status
-            ohlcv_count = db.query(func.count(OHLCV.date)).filter(OHLCV.company_id == company.id).scalar()
-            ohlcv_last_date = db.query(func.max(OHLCV.date)).filter(OHLCV.company_id == company.id).scalar()
-            ohlcv_first_date = db.query(func.min(OHLCV.date)).filter(OHLCV.company_id == company.id).scalar()
+            # OHLCV status (from batch data)
+            ohlcv_data = ohlcv_lookup.get(company.id)
+            if ohlcv_data:
+                ohlcv_status = DataStatus(
+                    available=True,
+                    record_count=ohlcv_data.count,
+                    last_update=ohlcv_data.last_date.isoformat() if ohlcv_data.last_date else None,
+                    date_range=f"{ohlcv_data.first_date.isoformat()} to {ohlcv_data.last_date.isoformat()}" if ohlcv_data.first_date and ohlcv_data.last_date else None
+                )
+            else:
+                ohlcv_status = DataStatus(available=False, record_count=0)
 
-            ohlcv_status = DataStatus(
-                available=ohlcv_count > 0,
-                record_count=ohlcv_count,
-                last_update=ohlcv_last_date.isoformat() if ohlcv_last_date else None,
-                date_range=f"{ohlcv_first_date.isoformat()} to {ohlcv_last_date.isoformat()}" if ohlcv_first_date and ohlcv_last_date else None
-            )
-
-            # Fundamentals status
-            fundamental = db.query(Fundamental).filter(Fundamental.company_id == company.id).first()
+            # Fundamentals status (from batch data)
+            fundamental = fundamentals_lookup.get(company.id)
             fundamentals_status = DataStatus(
                 available=fundamental is not None,
                 last_update=fundamental.updated_at.isoformat() if fundamental and fundamental.updated_at else None
             )
 
-            # News status
-            news_count = db.query(func.count(News.id)).filter(News.company_id == company.id).scalar()
-            news_last_date = db.query(func.max(News.published_at)).filter(News.company_id == company.id).scalar()
+            # News status (from batch data)
+            news_data = news_lookup.get(company.id)
+            if news_data:
+                news_status = DataStatus(
+                    available=True,
+                    record_count=news_data.count,
+                    last_update=news_data.last_date.isoformat() if news_data.last_date else None
+                )
+            else:
+                news_status = DataStatus(available=False, record_count=0)
 
-            news_status = DataStatus(
-                available=news_count > 0,
-                record_count=news_count,
-                last_update=news_last_date.isoformat() if news_last_date else None
-            )
+            # Dividends status (from batch data)
+            dividend_data = dividend_lookup.get(company.id)
+            if dividend_data:
+                dividends_status = DataStatus(
+                    available=True,
+                    record_count=dividend_data.count,
+                    last_update=dividend_data.last_date.isoformat() if dividend_data.last_date else None
+                )
+            else:
+                dividends_status = DataStatus(available=False, record_count=0)
 
-            # Dividends status
-            dividend_count = db.query(func.count(Dividend.id)).filter(Dividend.company_id == company.id).scalar()
-            dividend_last_date = db.query(func.max(Dividend.ex_date)).filter(Dividend.company_id == company.id).scalar()
+            # Intraday status (from batch data)
+            base_ticker = company.ticker.split('.')[0] if '.' in company.ticker else company.ticker
+            intraday_records = intraday_lookup.get(base_ticker, [])
 
-            dividends_status = DataStatus(
-                available=dividend_count > 0,
-                record_count=dividend_count,
-                last_update=dividend_last_date.isoformat() if dividend_last_date else None
-            )
+            if intraday_records:
+                timeframes = {}
+                last_update = None
 
-            # Calculate completeness score
+                for record in intraday_records:
+                    timeframes[record.timeframe] = record.total_records
+                    if record.last_timestamp:
+                        if last_update is None or record.last_timestamp > last_update:
+                            last_update = record.last_timestamp
+
+                intraday_status = IntradayStatus(
+                    available=len(timeframes) > 0,
+                    timeframes=timeframes,
+                    last_update=last_update.isoformat() if last_update else None
+                )
+            else:
+                intraday_status = IntradayStatus(available=False)
+
+            # Calculate completeness score (including intraday as optional)
             available_count = sum([
                 ohlcv_status.available,
                 fundamentals_status.available,
@@ -411,6 +564,7 @@ async def get_ticker_inventory(
                 name=company.name,
                 exchange=company.exchange.code if company.exchange else "N/A",
                 ohlcv=ohlcv_status,
+                intraday=intraday_status,
                 fundamentals=fundamentals_status,
                 news=news_status,
                 dividends=dividends_status,

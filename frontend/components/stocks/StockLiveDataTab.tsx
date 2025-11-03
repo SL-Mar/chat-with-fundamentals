@@ -1,6 +1,4 @@
 // components/stocks/StockLiveDataTab.tsx
-'use client';
-
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../lib/api';
 import IntradayChart from '../IntradayChart';
@@ -128,7 +126,7 @@ export default function StockLiveDataTab({ ticker }: StockLiveDataTabProps) {
               <div>
                 <div className="text-sm text-slate-400 mb-1">Current Price</div>
                 <div className="text-5xl font-bold">
-                  ${liveData.price?.toFixed(2) || 'N/A'}
+                  ${liveData.close?.toFixed(2) || 'N/A'}
                 </div>
               </div>
               {liveData.change !== undefined && (

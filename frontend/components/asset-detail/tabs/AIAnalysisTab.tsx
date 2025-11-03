@@ -38,9 +38,9 @@ export default function AIAnalysisTab({ ticker, assetType }: AIAnalysisTabProps)
                 market conditions, and sector performance for broader context.
               </p>
               <p className="mt-3 pt-3 border-t border-blue-700">
-                <strong className="text-white">Composite Signal:</strong> All agents collaborate to generate
-                a final recommendation with confidence score. The system weights each agent based on data
-                quality and relevance to current market conditions.
+                <strong className="text-white">Signal Generator:</strong> Synthesizes all 4 agent outputs to generate
+                a final BUY/HOLD/SELL recommendation with weighted scoring (Fundamentals: 30%, News: 25%,
+                Price Dynamics: 25%, Macro: 20%).
               </p>
             </div>
           </div>

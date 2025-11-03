@@ -4,17 +4,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 
+// ONLY indicators actually available in the backend
 const INDICATORS = [
-  { id: 'GDP', name: 'Gross Domestic Product', country: 'USA', category: 'Growth' },
-  { id: 'CPI', name: 'Consumer Price Index (Inflation)', country: 'USA', category: 'Inflation' },
-  { id: 'UNEMPLOYMENT', name: 'Unemployment Rate', country: 'USA', category: 'Employment' },
-  { id: 'INTEREST_RATE', name: 'Federal Funds Rate', country: 'USA', category: 'Monetary Policy' },
-  { id: 'RETAIL_SALES', name: 'Retail Sales', country: 'USA', category: 'Consumption' },
-  { id: 'PMI', name: 'Purchasing Managers Index', country: 'USA', category: 'Manufacturing' },
-  { id: 'HOUSING_STARTS', name: 'Housing Starts', country: 'USA', category: 'Real Estate' },
-  { id: 'TRADE_BALANCE', name: 'Trade Balance', country: 'USA', category: 'Trade' },
-  { id: 'INDUSTRIAL_PRODUCTION', name: 'Industrial Production', country: 'USA', category: 'Manufacturing' },
-  { id: 'CONSUMER_CONFIDENCE', name: 'Consumer Confidence Index', country: 'USA', category: 'Sentiment' },
+  { id: 'USA_10Y', name: 'US 10-Year Treasury Yield', country: 'USA', indicator: 'government_bond_10y', category: 'Interest Rates' },
+  { id: 'UK_10Y', name: 'UK 10-Year Government Bond', country: 'UK', indicator: 'government_bond_10y', category: 'Interest Rates' },
+  { id: 'DE_10Y', name: 'Germany 10-Year Bund', country: 'DE', indicator: 'government_bond_10y', category: 'Interest Rates' },
+  { id: 'FR_10Y', name: 'France 10-Year Government Bond', country: 'FR', indicator: 'government_bond_10y', category: 'Interest Rates' },
+  { id: 'IT_10Y', name: 'Italy 10-Year Government Bond', country: 'IT', indicator: 'government_bond_10y', category: 'Interest Rates' },
+  { id: 'JP_10Y', name: 'Japan 10-Year Government Bond', country: 'JP', indicator: 'government_bond_10y', category: 'Interest Rates' },
+  { id: 'CN_10Y', name: 'China 10-Year Government Bond', country: 'CN', indicator: 'government_bond_10y', category: 'Interest Rates' },
+  { id: 'EURIBOR_3M', name: '3-Month EURIBOR', country: 'EUR', indicator: 'euribor_3m', category: 'Money Market' },
+  { id: 'EURIBOR_6M', name: '6-Month EURIBOR', country: 'EUR', indicator: 'euribor_6m', category: 'Money Market' },
+  { id: 'EURIBOR_12M', name: '12-Month EURIBOR', country: 'EUR', indicator: 'euribor_12m', category: 'Money Market' },
+  { id: 'LIBOR_USD_3M', name: '3-Month USD LIBOR', country: 'USD', indicator: 'libor_usd_3m', category: 'Money Market' },
+  { id: 'LIBOR_EUR_3M', name: '3-Month EUR LIBOR', country: 'EUR', indicator: 'libor_eur_3m', category: 'Money Market' },
+  { id: 'LIBOR_GBP_3M', name: '3-Month GBP LIBOR', country: 'GBP', indicator: 'libor_gbp_3m', category: 'Money Market' },
 ];
 
 export default function MacroHubPage() {
@@ -22,12 +26,18 @@ export default function MacroHubPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const categories = ['all', 'Growth', 'Inflation', 'Employment', 'Monetary Policy', 'Consumption', 'Manufacturing'];
+  const categories = ['all', 'Interest Rates', 'Money Market'];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/macro/${searchQuery.toUpperCase()}`);
+      const match = INDICATORS.find(ind =>
+        ind.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ind.id.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (match) {
+        router.push(`/macro/${match.id}`);
+      }
     }
   };
 
@@ -46,7 +56,7 @@ export default function MacroHubPage() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <h1 className="text-4xl font-bold mb-2">Macroeconomic Indicators</h1>
           <p className="text-slate-400">
-            Track key economic indicators, analyze trends, and understand macro environment impact
+            Track government bond yields and money market rates
           </p>
         </div>
       </div>
@@ -60,7 +70,7 @@ export default function MacroHubPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search indicator (e.g., GDP, CPI, UNEMPLOYMENT)..."
+                placeholder="Search indicator (e.g., US Treasury, EURIBOR)..."
                 className="flex-1 px-6 py-4 bg-slate-800 rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none text-lg"
               />
               <button
@@ -75,18 +85,7 @@ export default function MacroHubPage() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div
-            onClick={() => router.push('/economic-dashboard')}
-            className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform"
-          >
-            <div className="text-4xl mb-3">📊</div>
-            <h3 className="text-xl font-bold mb-2">Economic Dashboard</h3>
-            <p className="text-blue-100 text-sm">
-              Comprehensive view of all major economic indicators
-            </p>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           <div
             onClick={() => router.push('/calendar')}
             className="bg-gradient-to-br from-green-600 to-green-800 rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform"
@@ -98,6 +97,13 @@ export default function MacroHubPage() {
             </p>
           </div>
 
+          <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg p-6">
+            <div className="text-4xl mb-3">📊</div>
+            <h3 className="text-xl font-bold mb-2">Available Data</h3>
+            <p className="text-blue-100 text-sm">
+              Government bond yields (10Y) and money market rates (LIBOR, EURIBOR)
+            </p>
+          </div>
         </div>
 
         {/* Category Filter */}
@@ -122,7 +128,7 @@ export default function MacroHubPage() {
         {/* Indicators Grid */}
         <div>
           <h2 className="text-2xl font-bold mb-4">
-            {selectedCategory === 'all' ? 'All Indicators' : selectedCategory}
+            {selectedCategory === 'all' ? 'All Indicators' : selectedCategory} ({filteredIndicators.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredIndicators.map((indicator) => (

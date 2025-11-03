@@ -3,7 +3,15 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+from datetime import datetime, timedelta
 import logging
+import json
+import re
+import statistics
+import numpy as np
+import urllib.request
+import urllib.parse
 from tools.eodhd_client import EODHDClient
 
 router = APIRouter(prefix="/special", tags=["Special Data"])
@@ -453,3 +461,299 @@ async def get_financial_statements(
     except Exception as e:
         logger.error(f"[FINANCIALS] Failed to fetch {statement} for {ticker}: {e}")
         raise HTTPException(status_code=502, detail=f"Failed to fetch financial statements: {str(e)}")
+
+
+@router.get("/{ticker}/peers")
+async def get_peers(
+    ticker: str,
+    limit: int = Query(default=10, ge=1, le=50)
+):
+    """Get peer companies in the same sector, ranked by market cap.
+    
+    Returns:
+    - List of peer companies with ticker, name, sector, market_cap, exchange
+    
+    Example: /special/AAPL.US/peers?limit=10
+    """
+    try:
+        client = EODHDClient()
+
+        # First get the sector using urllib
+        api_key = client.fundamental.api_key  # Get from sub-client that has EODHDBaseClient
+        params = urllib.parse.urlencode({
+            "fmt": "json",
+            "api_token": api_key
+        })
+        url = f"https://eodhd.com/api/fundamentals/{ticker}?{params}"
+
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read())
+
+        sector = data.get("General", {}).get("Sector", "")
+        
+        if not sector or sector == "Unknown":
+            raise HTTPException(status_code=404, detail="Sector not found for this ticker")
+        
+        # Get stocks in the same sector using screener
+        filters = json.dumps([
+            ["sector", "=", sector],
+            ["market_capitalization", ">", "100000000"],  # Min $100M market cap
+            ["exchange", "=", "us"]  # Only US exchanges
+        ])
+
+        params = urllib.parse.urlencode({
+            "filters": filters,
+            "sort": "market_capitalization.desc",
+            "limit": str(limit * 3),
+            "api_token": api_key,
+            "fmt": "json"
+        })
+
+        url = f"https://eodhd.com/api/screener?{params}"
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read())
+        
+        if not data or "data" not in data:
+            return []
+        
+        # Extract base ticker (without exchange suffix)
+        ticker_base = ticker.split('.')[0].upper()
+        
+        # Track seen companies to avoid duplicates
+        seen_companies = {}
+        peers = []
+        
+        for stock in data["data"]:
+            code = stock.get("code", "")
+            name = stock.get("name", "")
+            exchange = stock.get("exchange", "")
+            market_cap = stock.get("market_capitalization", 0)
+            
+            if not code or not name:
+                continue
+            
+            # Skip the ticker itself
+            code_base = code.split('.')[0].upper()
+            if code_base == ticker_base:
+                continue
+            
+            # Skip non-US exchanges
+            if exchange.upper() != "US":
+                continue
+            
+            # Normalize company name for deduplication
+            normalized_name = name.upper()
+            
+            # Remove suffixes
+            suffixes_pattern = r'\s+(INC\.?|CORP\.?|CORPORATION|LTD\.?|LIMITED|CO\.?|ADR|PLC|COMPANY|NV|SA|SE|LLC|LP|LLP)$'
+            prev_name = None
+            while prev_name != normalized_name:
+                prev_name = normalized_name
+                normalized_name = re.sub(suffixes_pattern, '', normalized_name)
+            
+            # Remove class designations
+            normalized_name = re.sub(r'\s+(CLASS [A-Z]|COMMON STOCK)\s*', ' ', normalized_name)
+            normalized_name = normalized_name.strip()
+            
+            # Take first 2 words to catch variations
+            words = normalized_name.split()
+            if len(words) > 2:
+                normalized_name = " ".join(words[:2])
+            
+            # If we've seen this company, keep the one with higher market cap
+            if normalized_name in seen_companies:
+                existing_ticker, existing_cap = seen_companies[normalized_name]
+                if market_cap > existing_cap:
+                    seen_companies[normalized_name] = (code, market_cap)
+                    # Update in list
+                    for i, peer in enumerate(peers):
+                        if peer["ticker"] == existing_ticker:
+                            peers[i] = {
+                                "ticker": code,
+                                "name": name,
+                                "sector": stock.get("sector", ""),
+                                "market_cap": market_cap,
+                                "exchange": exchange
+                            }
+                            break
+            else:
+                seen_companies[normalized_name] = (code, market_cap)
+                peers.append({
+                    "ticker": code,
+                    "name": name,
+                    "sector": stock.get("sector", ""),
+                    "market_cap": market_cap,
+                    "exchange": exchange
+                })
+            
+            if len(peers) >= limit:
+                break
+        
+        logger.info(f"[PEERS] Fetched {len(peers)} peers for {ticker}")
+        return peers
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[PEERS] Failed to fetch peers for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch peers: {str(e)}")
+
+
+class PeerComparisonRequest(BaseModel):
+    peer_tickers: List[str]
+    period: str = "1y"
+    use_adjusted: bool = True
+
+
+@router.post("/{ticker}/peer-comparison")
+async def get_peer_comparison(
+    ticker: str,
+    req: PeerComparisonRequest
+):
+    """Get peer comparison data with price history and calculated metrics.
+    
+    Returns:
+    - price_data: Dictionary of ticker -> list of {date, close, normalized_close}
+    - metrics: Dictionary of ticker -> {return_1y, beta, correlation, volatility}
+    - sector_avg: Average metrics across all peers
+    
+    Example: /special/AAPL.US/peer-comparison
+    """
+    try:
+        client = EODHDClient()
+        api_key = client.fundamental.api_key  # Get from sub-client that has EODHDBaseClient
+
+        # Calculate date range
+        end_date = datetime.now()
+        period_map = {
+            "1m": 30,
+            "3m": 90,
+            "6m": 180,
+            "1y": 365,
+            "3y": 1095,
+            "5y": 1825
+        }
+        days = period_map.get(req.period, 365)
+        start_date = end_date - timedelta(days=days)
+
+        # Fetch price data for all tickers
+        all_tickers = [ticker] + req.peer_tickers
+        price_data = {}
+
+        for t in all_tickers:
+            try:
+                params = urllib.parse.urlencode({
+                    "from": start_date.strftime("%Y-%m-%d"),
+                    "to": end_date.strftime("%Y-%m-%d"),
+                    "period": "d",
+                    "fmt": "json",
+                    "api_token": api_key
+                })
+
+                url = f"https://eodhd.com/api/eod/{t}?{params}"
+                with urllib.request.urlopen(url) as response:
+                    eod_data = json.loads(response.read())
+                
+                if eod_data:
+                    # Use adjusted_close or close
+                    price_field = 'adjusted_close' if req.use_adjusted else 'close'
+                    closes = [float(d[price_field]) for d in eod_data]
+                    dates = [d["date"] for d in eod_data]
+                    
+                    if closes:
+                        start_price = closes[0]
+                        normalized = [(c / start_price) * 100 for c in closes]
+                        
+                        price_data[t] = [
+                            {
+                                "date": dates[i],
+                                "close": closes[i],
+                                "normalized_close": normalized[i]
+                            }
+                            for i in range(len(dates))
+                        ]
+            except Exception as e:
+                logger.warning(f"[PEER_COMPARISON] Failed to fetch price data for {t}: {e}")
+                continue
+        
+        # Calculate metrics
+        metrics = {}
+        returns_list = []
+        
+        for t, data in price_data.items():
+            if len(data) < 2:
+                continue
+            
+            closes = [d["close"] for d in data]
+            
+            # Calculate returns
+            returns = [(closes[i] - closes[i-1]) / closes[i-1] for i in range(1, len(closes))]
+            total_return = (closes[-1] - closes[0]) / closes[0]
+            
+            # Calculate volatility
+            if len(returns) > 1:
+                volatility = statistics.stdev(returns) * (252 ** 0.5)
+            else:
+                volatility = 0
+            
+            metrics[t] = {
+                "return_1y": round(total_return * 100, 2),
+                "volatility": round(volatility * 100, 2),
+                "returns": returns
+            }
+            
+            if t != ticker:
+                returns_list.append(total_return)
+        
+        # Calculate beta and correlation
+        if ticker in metrics and metrics[ticker].get("returns"):
+            main_returns = metrics[ticker]["returns"]
+            
+            for t in req.peer_tickers:
+                if t in metrics and metrics[t].get("returns"):
+                    peer_returns = metrics[t]["returns"]
+                    
+                    min_len = min(len(main_returns), len(peer_returns))
+                    main_r = main_returns[:min_len]
+                    peer_r = peer_returns[:min_len]
+                    
+                    if min_len > 1:
+                        try:
+                            correlation = np.corrcoef(main_r, peer_r)[0, 1]
+                            metrics[t]["correlation"] = round(float(correlation), 3)
+                        except:
+                            metrics[t]["correlation"] = 0.0
+                        
+                        try:
+                            covariance = np.cov(peer_r, main_r)[0, 1]
+                            variance = np.var(main_r)
+                            if variance > 0:
+                                beta = covariance / variance
+                                metrics[t]["beta"] = round(float(beta), 3)
+                            else:
+                                metrics[t]["beta"] = 1.0
+                        except:
+                            metrics[t]["beta"] = 1.0
+        
+        # Calculate sector averages
+        sector_avg = {}
+        if returns_list:
+            sector_avg["return_1y"] = round(statistics.mean(returns_list) * 100, 2)
+        
+        # Remove temporary returns
+        for t in metrics:
+            if "returns" in metrics[t]:
+                del metrics[t]["returns"]
+        
+        logger.info(f"[PEER_COMPARISON] Compared {ticker} with {len(req.peer_tickers)} peers")
+        return {
+            "price_data": price_data,
+            "metrics": metrics,
+            "sector_avg": sector_avg
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[PEER_COMPARISON] Failed for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get peer comparison: {str(e)}")
