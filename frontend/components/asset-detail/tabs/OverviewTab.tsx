@@ -128,77 +128,81 @@ export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTa
         )}
       </div>
 
-      {/* EOD Price Chart */}
-      {eodData.length > 0 && (
-        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-          <h3 className="text-xl font-bold mb-4">Price Chart (EOD)</h3>
-          <CandlestickChartAdvanced
-            data={eodData}
-            ticker={ticker}
-            interval="1d"
-            height={500}
-          />
+      {/* Chart and Metrics Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* EOD Chart - Takes 3 columns */}
+        <div className="lg:col-span-3">
+          {eodData.length > 0 && (
+            <CandlestickChartAdvanced
+              data={eodData}
+              ticker={ticker}
+              interval="1d"
+              height={500}
+            />
+          )}
         </div>
-      )}
 
-      {/* Key Metrics Grid */}
-      {keyMetrics && (
-        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-          <h3 className="text-xl font-bold mb-4">Key Metrics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {keyMetrics.marketCap && keyMetrics.marketCap !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">Market Cap</div>
-                <div className="text-lg font-semibold">
-                  ${formatNumber(parseFloat(keyMetrics.marketCap) / 1_000_000_000, 2)}B
-                </div>
+        {/* Key Metrics Sidebar - Takes 1 column */}
+        {keyMetrics && (
+          <div className="lg:col-span-1 space-y-4">
+            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+              <h3 className="text-lg font-bold mb-4">Key Metrics</h3>
+              <div className="space-y-3">
+                {keyMetrics.marketCap && keyMetrics.marketCap !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">Market Cap</div>
+                    <div className="text-sm font-semibold">
+                      ${formatNumber(parseFloat(keyMetrics.marketCap) / 1_000_000_000, 2)}B
+                    </div>
+                  </div>
+                )}
+                {keyMetrics.peRatio && keyMetrics.peRatio !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">P/E Ratio</div>
+                    <div className="text-sm font-semibold">{formatNumber(keyMetrics.peRatio)}</div>
+                  </div>
+                )}
+                {keyMetrics.eps && keyMetrics.eps !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">EPS</div>
+                    <div className="text-sm font-semibold">${formatNumber(keyMetrics.eps)}</div>
+                  </div>
+                )}
+                {keyMetrics.dividendYield && keyMetrics.dividendYield !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">Dividend Yield</div>
+                    <div className="text-sm font-semibold">{formatNumber(keyMetrics.dividendYield)}%</div>
+                  </div>
+                )}
+                {keyMetrics['52WeekHigh'] && keyMetrics['52WeekHigh'] !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">52 Week High</div>
+                    <div className="text-sm font-semibold">${formatNumber(keyMetrics['52WeekHigh'])}</div>
+                  </div>
+                )}
+                {keyMetrics['52WeekLow'] && keyMetrics['52WeekLow'] !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">52 Week Low</div>
+                    <div className="text-sm font-semibold">${formatNumber(keyMetrics['52WeekLow'])}</div>
+                  </div>
+                )}
+                {keyMetrics.beta && keyMetrics.beta !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">Beta</div>
+                    <div className="text-sm font-semibold">{formatNumber(keyMetrics.beta)}</div>
+                  </div>
+                )}
+                {keyMetrics.wallStreetTargetPrice && keyMetrics.wallStreetTargetPrice !== 'N/A' && (
+                  <div>
+                    <div className="text-xs text-slate-400">Analyst Target</div>
+                    <div className="text-sm font-semibold">${formatNumber(keyMetrics.wallStreetTargetPrice)}</div>
+                  </div>
+                )}
               </div>
-            )}
-            {keyMetrics.peRatio && keyMetrics.peRatio !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">P/E Ratio</div>
-                <div className="text-lg font-semibold">{formatNumber(keyMetrics.peRatio)}</div>
-              </div>
-            )}
-            {keyMetrics.eps && keyMetrics.eps !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">EPS</div>
-                <div className="text-lg font-semibold">${formatNumber(keyMetrics.eps)}</div>
-              </div>
-            )}
-            {keyMetrics.dividendYield && keyMetrics.dividendYield !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">Dividend Yield</div>
-                <div className="text-lg font-semibold">{formatNumber(keyMetrics.dividendYield)}%</div>
-              </div>
-            )}
-            {keyMetrics['52WeekHigh'] && keyMetrics['52WeekHigh'] !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">52 Week High</div>
-                <div className="text-lg font-semibold">${formatNumber(keyMetrics['52WeekHigh'])}</div>
-              </div>
-            )}
-            {keyMetrics['52WeekLow'] && keyMetrics['52WeekLow'] !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">52 Week Low</div>
-                <div className="text-lg font-semibold">${formatNumber(keyMetrics['52WeekLow'])}</div>
-              </div>
-            )}
-            {keyMetrics.beta && keyMetrics.beta !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">Beta</div>
-                <div className="text-lg font-semibold">{formatNumber(keyMetrics.beta)}</div>
-              </div>
-            )}
-            {keyMetrics.wallStreetTargetPrice && keyMetrics.wallStreetTargetPrice !== 'N/A' && (
-              <div>
-                <div className="text-sm text-slate-400">Analyst Target</div>
-                <div className="text-lg font-semibold">${formatNumber(keyMetrics.wallStreetTargetPrice)}</div>
-              </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Recent News */}
       {recentNews.length > 0 && (

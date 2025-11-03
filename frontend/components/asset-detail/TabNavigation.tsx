@@ -19,7 +19,7 @@ import {
 
 export type AssetTab =
   | 'overview'
-  | 'charts'
+  | 'intraday'
   | 'fundamentals'
   | 'news'
   | 'ai-analysis'
@@ -48,7 +48,7 @@ export default function TabNavigation({ activeTab, setActiveTab, assetType }: Ta
   const getTabs = (): TabConfig[] => {
     const baseTabs: TabConfig[] = [
       { id: 'overview', label: 'Overview', icon: faChartPie, enabled: true },
-      { id: 'charts', label: 'Charts', icon: faChartLine, enabled: true },
+      { id: 'intraday', label: 'Intraday', icon: faChartLine, enabled: true },
       { id: 'news', label: 'News', icon: faNewspaper, enabled: true },
       { id: 'ai-analysis', label: 'AI Analysis', icon: faBrain, enabled: true },
       { id: 'signals', label: 'Signals', icon: faBullseye, enabled: true },

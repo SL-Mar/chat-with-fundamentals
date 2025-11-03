@@ -99,7 +99,7 @@ export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overv
       case 'overview':
         return <OverviewTab ticker={ticker} assetType={assetType} livePrice={livePrice} />;
 
-      case 'charts':
+      case 'intraday':
         return <ChartsTab ticker={ticker} assetType={assetType} />;
 
       case 'fundamentals':

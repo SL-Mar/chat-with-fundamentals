@@ -85,39 +85,18 @@ export default function ChartsTab({ ticker, assetType }: ChartsTabProps) {
       </div>
 
       {/* Chart Display */}
-      <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-        <div className="h-[600px]">
-          {chartType === 'intraday' ? (
-            <IntradayChart ticker={ticker} interval={interval} />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="text-2xl mb-2">📊</div>
-                <div className="text-slate-400">Live chart coming soon...</div>
-                <div className="text-sm text-slate-500 mt-2">
-                  Real-time WebSocket streaming in development
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Chart Tips */}
-      <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">💡</span>
-          <div>
-            <h4 className="font-semibold text-blue-300 mb-1">Chart Tips</h4>
-            <ul className="text-sm text-slate-400 space-y-1">
-              <li>• Toggle technical indicators (SMA, Bollinger Bands, RSI) using the chart controls</li>
-              <li>• Use Intraday for day trading and short-term patterns</li>
-              <li>• Combine multiple timeframes for better context</li>
-              <li>• Pan and zoom to analyze specific time periods</li>
-            </ul>
+      {chartType === 'intraday' ? (
+        <IntradayChart ticker={ticker} interval={interval} />
+      ) : (
+        <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+          <div className="text-6xl mb-4">📊</div>
+          <div className="text-xl text-slate-400 mb-2">Live chart coming soon</div>
+          <div className="text-sm text-slate-500">
+            Real-time WebSocket streaming in development
           </div>
         </div>
-      </div>
+      )}
+
     </div>
   );
 }
