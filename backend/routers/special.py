@@ -306,15 +306,18 @@ async def get_company_highlights(ticker: str = Query(..., description="Stock sym
     try:
         client = EODHDClient()
 
-        # Fetch specific fundamental metrics using filter
+        # Fetch specific fundamental metrics using filter (including General info)
         fundamentals = client.fundamental.get_fundamentals(
             ticker,
-            filter_param="Highlights::MarketCapitalization,Highlights::PERatio,Highlights::DividendYield,Highlights::EarningsShare"
+            filter_param="General::Name,General::Exchange,General::Sector,Highlights::MarketCapitalization,Highlights::PERatio,Highlights::DividendYield,Highlights::EarningsShare"
         )
 
         # Extract values and handle NA
         highlights = {
             "ticker": ticker,
+            "name": fundamentals.get("General::Name", ticker),
+            "exchange": fundamentals.get("General::Exchange", "N/A"),
+            "sector": fundamentals.get("General::Sector", "N/A"),
             "marketCap": fundamentals.get("Highlights::MarketCapitalization"),
             "peRatio": fundamentals.get("Highlights::PERatio"),
             "divYield": fundamentals.get("Highlights::DividendYield"),
