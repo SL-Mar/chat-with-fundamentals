@@ -92,41 +92,6 @@ export default function StocksHubPage() {
           </form>
         </div>
 
-        {/* Quick Access Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div
-            onClick={() => router.push('/stock-ai-analysis')}
-            className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform"
-          >
-            <div className="text-4xl mb-3">🤖</div>
-            <h3 className="text-xl font-bold mb-2">MarketSense AI</h3>
-            <p className="text-blue-100 text-sm">
-              Multi-agent AI analysis combining fundamentals, news, technicals, and macro
-            </p>
-          </div>
-
-          <div
-            onClick={() => router.push('/screener')}
-            className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform"
-          >
-            <div className="text-4xl mb-3">🔍</div>
-            <h3 className="text-xl font-bold mb-2">Stock Screener</h3>
-            <p className="text-purple-100 text-sm">
-              Filter and discover stocks based on technical indicators and fundamentals
-            </p>
-          </div>
-
-          <div
-            onClick={() => router.push('/calendar')}
-            className="bg-gradient-to-br from-green-600 to-green-800 rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform"
-          >
-            <div className="text-4xl mb-3">📅</div>
-            <h3 className="text-xl font-bold mb-2">Earnings Calendar</h3>
-            <p className="text-green-100 text-sm">
-              Track upcoming earnings reports, IPOs, and stock splits
-            </p>
-          </div>
-        </div>
 
         {/* Market Indices */}
         <div className="mb-12">
@@ -167,91 +132,6 @@ export default function StocksHubPage() {
           </div>
         </div>
 
-        {/* Feature Overview */}
-        <div className="mt-12 bg-slate-800 rounded-lg p-8 border border-slate-700">
-          <h2 className="text-2xl font-bold mb-6">What You Can Do</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">📊</div>
-                <h3 className="font-semibold text-lg">Comprehensive Charts</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                EOD, intraday, and live price charts with TradingView integration
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">📈</div>
-                <h3 className="font-semibold text-lg">Technical Analysis</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                RSI, MACD, moving averages, and 40+ technical indicators
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">💰</div>
-                <h3 className="font-semibold text-lg">Fundamentals</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Financial statements, ratios, analyst ratings, and ESG scores
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">📰</div>
-                <h3 className="font-semibold text-lg">News & Sentiment</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Real-time news aggregation with AI-powered sentiment analysis
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">🔬</div>
-                <h3 className="font-semibold text-lg">Deep Research</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                AI-powered research using Tavily for comprehensive market insights
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">🤖</div>
-                <h3 className="font-semibold text-lg">AI Analysis</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                MarketSense AI with 5-agent system providing BUY/HOLD/SELL signals
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">🔄</div>
-                <h3 className="font-semibold text-lg">Peer Comparison</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Compare stocks side-by-side across multiple metrics
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-2xl">⚡</div>
-                <h3 className="font-semibold text-lg">Live Data</h3>
-              </div>
-              <p className="text-slate-400 text-sm ml-11">
-                Real-time price updates and market data streaming
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

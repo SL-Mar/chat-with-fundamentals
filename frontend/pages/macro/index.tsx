@@ -98,13 +98,6 @@ export default function MacroHubPage() {
             </p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg p-6">
-            <div className="text-4xl mb-3">🌍</div>
-            <h3 className="text-xl font-bold mb-2">Global View</h3>
-            <p className="text-purple-100 text-sm">
-              Compare indicators across different countries
-            </p>
-          </div>
         </div>
 
         {/* Category Filter */}
@@ -152,21 +145,6 @@ export default function MacroHubPage() {
           </div>
         </div>
 
-        {/* Info Box */}
-        <div className="mt-12 bg-blue-900/20 border border-blue-700 rounded-lg p-6">
-          <div className="flex items-start gap-3">
-            <div className="text-2xl">ℹ️</div>
-            <div>
-              <h4 className="font-semibold mb-2">About Macroeconomic Indicators</h4>
-              <p className="text-sm text-slate-300">
-                Macroeconomic indicators provide insights into the overall health and direction of an economy.
-                Understanding these metrics helps investors make informed decisions about asset allocation,
-                sector rotation, and risk management. Our AI-powered analysis combines multiple indicators
-                to provide actionable insights for your investment strategy.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
