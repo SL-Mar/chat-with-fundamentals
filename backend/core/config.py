@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     eodhd_api_key: Optional[str] = None
     serper_api_key: Optional[str] = None
     mistral_api_key: Optional[str] = None
+    tavily_api_key: Optional[str] = None  # For deep research
 
     NOTION_API_KEY: str = ""
     NOTION_DATABASE_ID: str = ""
