@@ -49,25 +49,33 @@ export default function TabNavigation({ activeTab, setActiveTab, assetType }: Ta
       { id: 'overview', label: 'Overview', icon: faChartPie, enabled: true },
       { id: 'intraday', label: 'Intraday', icon: faChartLine, enabled: true },
       { id: 'live', label: 'Live', icon: faChartLine, enabled: true },
-      { id: 'news', label: 'News', icon: faNewspaper, enabled: true },
-      { id: 'ai-analysis', label: 'AI Analysis', icon: faBrain, enabled: true },
     ];
 
-    // Asset-specific tabs
+    // Asset-specific tabs (stocks and ETFs)
     if (assetType === 'stock' || assetType === 'etf') {
-      baseTabs.splice(2, 0, {
+      baseTabs.push({
         id: 'fundamentals',
         label: 'Fundamentals',
         icon: faDollarSign,
         enabled: true
       });
-      baseTabs.splice(5, 0, {
+    }
+
+    // Common tabs (all asset types)
+    baseTabs.push(
+      { id: 'news', label: 'News', icon: faNewspaper, enabled: true },
+      { id: 'ai-analysis', label: 'AI Analysis', icon: faBrain, enabled: true }
+    );
+
+    // Research tabs (stocks and ETFs only)
+    if (assetType === 'stock' || assetType === 'etf') {
+      baseTabs.push({
         id: 'research',
         label: 'Deep Research',
         icon: faMagnifyingGlassChart,
         enabled: true
       });
-      baseTabs.splice(6, 0, {
+      baseTabs.push({
         id: 'compare',
         label: 'Peer Compare',
         icon: faScaleBalanced,

@@ -13,6 +13,7 @@ import AIAnalysisTab from './tabs/AIAnalysisTab';
 import StockPeerComparisonTab from '../stocks/StockPeerComparisonTab';
 import StockDeepResearchTab from '../stocks/StockDeepResearchTab';
 import ReturnsTab from './tabs/ReturnsTab';
+import ModellingTab from './tabs/ModellingTab';
 
 interface AssetDetailPageProps {
   ticker: string;
@@ -132,17 +133,7 @@ export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overv
         return <ReturnsTab ticker={ticker} />;
 
       case 'modelling':
-        return (
-          <div className="p-6">
-            <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
-              <div className="text-6xl mb-4">🤖</div>
-              <div className="text-xl text-slate-400 mb-2">Modelling features coming soon</div>
-              <div className="text-sm text-slate-500">
-                Beta plot and forecasting ML models in development
-              </div>
-            </div>
-          </div>
-        );
+        return <ModellingTab ticker={ticker} />;
 
       default:
         return (
