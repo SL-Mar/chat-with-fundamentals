@@ -239,7 +239,8 @@ class TestSecurityFeatures:
                 ingestion.fetch_historical_data(
                     'AAPL.US', '2024-01-01', '2024-01-31'
                 )
-            except:
+            except Exception:
+                # Expected to fail in test environment, we just check logs
                 pass
 
         # Check logs don't contain API key

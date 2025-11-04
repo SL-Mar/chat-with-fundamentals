@@ -15,10 +15,16 @@ find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
 find . -type f -name "*.pyc" -delete 2>/dev/null
 
 # Start backend with updated code
+# SECURITY FIX: Load API key from .env file instead of hardcoding
 echo "3. Starting backend with new macro indicator implementation..."
-EODHD_API_KEY="68f135cae489e2.33089696" \
-  /home/slmar/projects/chat-with-fundamentals/backend/venv/bin/python main.py \
-  > /tmp/backend-CLEAN.log 2>&1 &
+if [ -f .env ]; then
+    source .env
+    /home/slmar/projects/chat-with-fundamentals/backend/venv/bin/python main.py \
+      > /tmp/backend-CLEAN.log 2>&1 &
+else
+    echo "ERROR: .env file not found. Please create it with required API keys."
+    exit 1
+fi
 
 BACKEND_PID=$!
 echo "   Backend PID: $BACKEND_PID"

@@ -88,8 +88,8 @@ class StockPriceDynamicsAgent(BaseAgent):
                 rsi_data = client.technical.get_technical_indicator(ticker, "rsi", period=14)
                 if rsi_data and isinstance(rsi_data, list) and len(rsi_data) > 0:
                     indicators["rsi"] = rsi_data[0].get("rsi")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch RSI for {ticker}: {e}")
 
             try:
                 # MACD
@@ -97,32 +97,32 @@ class StockPriceDynamicsAgent(BaseAgent):
                 if macd_data and isinstance(macd_data, list) and len(macd_data) > 0:
                     indicators["macd"] = macd_data[0].get("macd")
                     indicators["macd_signal"] = macd_data[0].get("signal")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch MACD for {ticker}: {e}")
 
             try:
                 # SMA 50
                 sma50_data = client.technical.get_technical_indicator(ticker, "sma", period=50)
                 if sma50_data and isinstance(sma50_data, list) and len(sma50_data) > 0:
                     indicators["sma_50"] = sma50_data[0].get("sma")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch SMA 50 for {ticker}: {e}")
 
             try:
                 # SMA 200
                 sma200_data = client.technical.get_technical_indicator(ticker, "sma", period=200)
                 if sma200_data and isinstance(sma200_data, list) and len(sma200_data) > 0:
                     indicators["sma_200"] = sma200_data[0].get("sma")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch SMA 200 for {ticker}: {e}")
 
             try:
                 # Current price from EOD data
                 eod_data = client.historical.get_eod(ticker, limit=1)
                 if eod_data and len(eod_data) > 0:
                     indicators["current_price"] = eod_data[0].get("close")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch current price for {ticker}: {e}")
 
             return {
                 "indicators": indicators,

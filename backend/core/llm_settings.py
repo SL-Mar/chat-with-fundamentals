@@ -26,6 +26,9 @@ DEFAULT_STORE = "gpt-4o-mini"  # Cheapest OpenAI model (90% cheaper than gpt-4o)
 # ---------------------------------------------------------------------------
 
 def _init_db() -> None:
+    import logging
+    logger = logging.getLogger(__name__)
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             """
@@ -42,7 +45,7 @@ def _init_db() -> None:
                 "INSERT INTO llm_settings (id, manager, store) VALUES (1, ?, ?)",
                 (DEFAULT_MANAGER, DEFAULT_STORE),
             )
-    print("✅ LLM settings DB ready (single‑flow mode)")
+    logger.info("LLM settings DB ready (single-flow mode)")
 
 _init_db()
 
@@ -72,8 +75,16 @@ def set_model_in_db(role: str, model_name: str) -> None:
         role: 'manager' | 'store'
         model_name: the OpenAI model name to persist
     """
-    if role not in {"manager", "store"}:
+    # SECURITY FIX: Use whitelist dictionary to prevent SQL injection
+    VALID_COLUMNS = {'manager': 'manager', 'store': 'store'}
+    column = VALID_COLUMNS.get(role)
+    if not column:
         raise ValueError("role must be 'manager' or 'store'")
+
+    import logging
+    logger = logging.getLogger(__name__)
+
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(f"UPDATE llm_settings SET {role} = ? WHERE id = 1", (model_name,))
-    print(f"Updated {role} model → {model_name}")
+        # Safe: column is from whitelist dictionary, not user input
+        conn.execute(f"UPDATE llm_settings SET {column} = ? WHERE id = 1", (model_name,))
+    logger.info(f"Updated {role} model to {model_name}")

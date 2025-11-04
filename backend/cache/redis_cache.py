@@ -79,7 +79,11 @@ class RedisCache:
         try:
             self.redis_client.ping()
             return True
-        except:
+        except (redis.ConnectionError, redis.TimeoutError) as e:
+            logger.warning(f"Redis unavailable: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected Redis error: {e}")
             return False
 
     def _serialize(self, value: Any) -> str:

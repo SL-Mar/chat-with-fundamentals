@@ -138,7 +138,8 @@ async def database_metrics() -> Dict[str, Any]:
                 text("SELECT pg_size_pretty(pg_database_size(current_database())) as size")
             ).fetchone()
             metrics["database_size"] = result[0] if result else "Unknown"
-        except:
+        except Exception as e:
+            logger.warning(f"Failed to get database size: {e}")
             metrics["database_size"] = "Unknown"
 
         # Get connection pool status
@@ -236,7 +237,8 @@ async def intraday_metrics() -> Dict[str, Any]:
                 text("SELECT pg_size_pretty(pg_database_size(current_database())) as size")
             ).fetchone()
             metrics["database_size"] = result[0] if result else "Unknown"
-        except:
+        except Exception as e:
+            logger.warning(f"Failed to get intraday database size: {e}")
             metrics["database_size"] = "Unknown"
 
     except Exception as e:

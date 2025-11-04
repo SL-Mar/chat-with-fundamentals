@@ -721,9 +721,10 @@ async def get_peer_comparison(
                         try:
                             correlation = np.corrcoef(main_r, peer_r)[0, 1]
                             metrics[t]["correlation"] = round(float(correlation), 3)
-                        except:
+                        except (ValueError, IndexError, FloatingPointError) as e:
+                            logger.warning(f"Correlation calculation failed for {t}: {e}")
                             metrics[t]["correlation"] = 0.0
-                        
+
                         try:
                             covariance = np.cov(peer_r, main_r)[0, 1]
                             variance = np.var(main_r)
@@ -732,7 +733,8 @@ async def get_peer_comparison(
                                 metrics[t]["beta"] = round(float(beta), 3)
                             else:
                                 metrics[t]["beta"] = 1.0
-                        except:
+                        except (ValueError, IndexError, FloatingPointError) as e:
+                            logger.warning(f"Beta calculation failed for {t}: {e}")
                             metrics[t]["beta"] = 1.0
         
         # Calculate sector averages

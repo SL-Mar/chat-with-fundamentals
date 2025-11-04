@@ -95,7 +95,8 @@ class MacroEnvironmentAgent(BaseAgent):
             try:
                 vix_data = client.historical.get_eod("VIX.INDX", from_date=to_date, to_date=to_date, order="d")
                 vix = vix_data[0].get("close") if vix_data and len(vix_data) > 0 else None
-            except:
+            except Exception as e:
+                logger.debug(f"Failed to fetch VIX data: {e}")
                 vix = None
 
             return {
