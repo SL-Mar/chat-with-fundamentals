@@ -53,6 +53,8 @@ from routers.database_stats import router as database_stats_router # NEW: Databa
 from routers.database_inventory import router as database_inventory_router # NEW: Database inventory (ticker lists)
 from routers.dataset_populate import router as dataset_populate_router # NEW: Dataset population (ETF, index, etc.)
 from routers.sec_filings   import router as sec_filings_router # NEW: SEC filings RAG system
+from routers.pair_trading  import router as pair_trading_router # NEW: Pair trading analysis
+from routers.quant_research import router as quant_research_router # NEW: Quant research RAG
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
@@ -215,6 +217,8 @@ app.include_router(database_stats_router, dependencies=[Depends(verify_api_key)]
 app.include_router(database_inventory_router, dependencies=[Depends(verify_api_key)]) # NEW: Database inventory (requires auth)
 app.include_router(dataset_populate_router, dependencies=[Depends(verify_api_key)]) # NEW: Dataset population (requires auth)
 app.include_router(sec_filings_router, dependencies=[Depends(verify_api_key)]) # NEW: SEC filings RAG system (requires auth)
+app.include_router(pair_trading_router, dependencies=[Depends(verify_api_key)]) # NEW: Pair trading analysis (requires auth)
+app.include_router(quant_research_router, dependencies=[Depends(verify_api_key)]) # NEW: Quant research RAG (requires auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream

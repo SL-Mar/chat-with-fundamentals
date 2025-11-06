@@ -7,7 +7,8 @@ import { useRouter } from 'next/router';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faChartLine, faGlobe, faBuildingColumns, faChartBar, faFileAlt,
-  faDashboard, faComments, faFilter, faCog, faSignOutAlt, faDatabase
+  faDashboard, faComments, faFilter, faCog, faSignOutAlt, faDatabase,
+  faExchangeAlt, faBook
 } from '@fortawesome/free-solid-svg-icons';
 
 const Header = () => {
@@ -105,6 +106,30 @@ const Header = () => {
           >
             <FontAwesomeIcon icon={faFileAlt} className="text-sm" />
             <span>SEC Filings</span>
+          </Link>
+
+          <Link
+            href="/pair-trading"
+            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
+              isActive('/pair-trading')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faExchangeAlt} className="text-sm" />
+            <span>Pairs</span>
+          </Link>
+
+          <Link
+            href="/quant-research"
+            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
+              isActive('/quant-research')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faBook} className="text-sm" />
+            <span>Research</span>
           </Link>
 
           {/* Divider */}
