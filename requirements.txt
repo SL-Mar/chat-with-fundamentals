@@ -7,11 +7,15 @@ pydantic-settings==2.4.0
 python-dotenv==1.0.1
 
 # AI/LLM dependencies
-langchain==0.2.11
-langchain-openai==0.1.19
-langchain-community==0.2.11
-crewai==0.51.0
+langchain==0.2.17
+langchain-core==0.2.43
+langchain-openai==0.1.25
+langchain-community==0.2.19
+langchain-text-splitters==0.2.4
+crewai==1.3.0
+gpt-researcher==0.10.11
 openai==1.37.0
+json-repair==0.25.2
 
 # RAG dependencies
 chromadb==0.5.5

@@ -13,9 +13,9 @@ import logging
 
 import chromadb
 from chromadb.config import Settings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 import PyPDF2
 
