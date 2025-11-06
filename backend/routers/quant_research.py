@@ -217,3 +217,24 @@ async def list_documents():
     return {
         "documents": quant_research_rag.list_documents()
     }
+
+
+@router.get("/pdf/{filename}")
+async def get_pdf(filename: str):
+    """Serve PDF file for viewing"""
+    from fastapi.responses import FileResponse
+
+    # Sanitize filename to prevent directory traversal
+    safe_filename = Path(filename).name
+    file_path = Path("./quant_research_data") / safe_filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{safe_filename}"'
+        }
+    )
