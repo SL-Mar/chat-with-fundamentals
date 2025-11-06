@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class GPTResearcherService:
     """Service for generating deep research reports using GPT-Researcher."""
 
-    def __init__(self, ticker: str, openai_key: str, tavily_key: str):
+    def __init__(self, ticker: str, openai_key: str, tavily_key: str, ws_manager: Optional[Any] = None):
         """
         Initialize GPT-Researcher service for a specific ticker.
 
@@ -25,16 +25,45 @@ class GPTResearcherService:
             ticker: Stock ticker (e.g., "AAPL.US")
             openai_key: OpenAI API key
             tavily_key: Tavily API key
+            ws_manager: WebSocket manager for real-time logging
         """
         self.ticker = ticker
         self.openai_key = openai_key
         self.tavily_key = tavily_key
+        self.ws_manager = ws_manager
 
         # Validate API keys
         if not self.openai_key:
             raise ValueError("OPENAI_API_KEY not configured")
         if not self.tavily_key:
             raise ValueError("TAVILY_API_KEY not configured")
+
+    async def _log(self, status: str, message: str):
+        """Send log message to WebSocket clients."""
+        if self.ws_manager:
+            from services.marketsense.types import AgentStatus, AgentLogMessage
+
+            # Map status strings to AgentStatus enum
+            status_map = {
+                'running': AgentStatus.RUNNING,
+                'success': AgentStatus.SUCCESS,
+                'error': AgentStatus.ERROR,
+                'info': AgentStatus.RUNNING  # Use RUNNING for informational messages
+            }
+
+            log_message = AgentLogMessage(
+                agent='gpt_researcher',
+                status=status_map.get(status, AgentStatus.RUNNING),  # Default to RUNNING for unknown statuses
+                message=message,
+                metadata={
+                    'ticker': self.ticker,
+                    'asset_type': 'research'
+                }
+            )
+            try:
+                await self.ws_manager.broadcast(log_message.model_dump(mode='json'))
+            except Exception as e:
+                logger.error(f"Failed to send WebSocket log: {e}")
 
     async def generate_research_report(
         self,
@@ -65,6 +94,7 @@ class GPTResearcherService:
                 - ticker: Stock ticker
         """
         logger.info(f"Generating {report_type} for {self.ticker}: {query}")
+        await self._log('running', f'Starting deep research: {query[:100]}...')
 
         try:
             # Set environment variables for gpt-researcher BEFORE initializing
@@ -78,6 +108,7 @@ class GPTResearcherService:
             os.environ["FAST_LLM_MODEL"] = "gpt-4o-mini"
 
             # Initialize researcher
+            await self._log('info', 'Initializing GPT-Researcher...')
             researcher = GPTResearcher(
                 query=query,
                 report_type=report_type,
@@ -87,13 +118,16 @@ class GPTResearcherService:
             )
 
             # Conduct research (this does recursive search + report generation)
+            await self._log('running', 'Searching web sources with Tavily...')
             await researcher.conduct_research()
 
             # Get research report
+            await self._log('running', 'Generating comprehensive research report with AI...')
             report_markdown = await researcher.write_report()
 
             # Extract sources
             sources = self._extract_sources(researcher)
+            await self._log('info', f'Analyzed {len(sources)} sources')
 
             result = {
                 "query": query,
@@ -104,10 +138,12 @@ class GPTResearcherService:
             }
 
             logger.info(f"Research complete for {self.ticker}: {len(report_markdown)} chars, {len(sources)} sources")
+            await self._log('success', f'Research complete: {len(report_markdown)} chars, {len(sources)} sources')
             return result
 
         except Exception as e:
             logger.error(f"Error generating research report for {self.ticker}: {e}", exc_info=True)
+            await self._log('error', f'Research failed: {str(e)}')
             raise
 
     def _extract_sources(self, researcher: GPTResearcher) -> list:

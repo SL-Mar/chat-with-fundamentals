@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import ETFHoldings from '../components/ETFHoldings';
 import IndexConstituents from '../components/IndexConstituents';
 import ETFComparison from '../components/ETFComparison';
+import { getDisplayTicker } from '../utils/tickerUtils';
 
 export default function ETFAnalyzerPage() {
   const searchParams = useSearchParams();
@@ -83,7 +84,7 @@ export default function ETFAnalyzerPage() {
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
-                {item.ticker.replace('.US', '')}
+                {getDisplayTicker(item.ticker)}
               </button>
             ))}
           </div>

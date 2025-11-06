@@ -19,7 +19,7 @@ import {
   faExclamationTriangle,
 } from '@fortawesome/free-solid-svg-icons';
 
-type TabType = 'holdings' | 'analysis';
+type TabType = 'holdings' | 'optimization' | 'rolling-sharpe' | 'monte-carlo' | 'var';
 
 interface Portfolio {
   id: number;
@@ -81,7 +81,7 @@ export default function PortfolioDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (portfolio && portfolio.stocks.length > 0 && activeTab === 'analysis') {
+    if (portfolio && portfolio.stocks.length > 0 && activeTab === 'optimization') {
       loadAllAnalyses();
     }
   }, [portfolio, activeTab]);
@@ -439,7 +439,10 @@ export default function PortfolioDetailPage() {
 
   const tabs = [
     { id: 'holdings' as TabType, label: 'Holdings', icon: faListUl },
-    { id: 'analysis' as TabType, label: 'Analysis & Risk', icon: faChartPie },
+    { id: 'optimization' as TabType, label: 'Optimization', icon: faChartPie },
+    { id: 'rolling-sharpe' as TabType, label: 'Rolling Sharpe', icon: faChartLine },
+    { id: 'monte-carlo' as TabType, label: 'Monte Carlo', icon: faChartLine },
+    { id: 'var' as TabType, label: 'VaR', icon: faShieldAlt },
   ];
 
   if (loading) {
@@ -619,11 +622,11 @@ export default function PortfolioDetailPage() {
             </div>
           )}
 
-          {activeTab === 'analysis' && (
+          {activeTab === 'optimization' && (
             <div className="space-y-6">
               {portfolio.stocks.length === 0 ? (
                 <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
-                  <p className="text-slate-400">Add stocks to view analysis</p>
+                  <p className="text-slate-400">Add stocks to view optimization</p>
                 </div>
               ) : (
                 <>
@@ -634,17 +637,6 @@ export default function PortfolioDetailPage() {
                     </div>
                   ) : (
                     <>
-                      {/* AI Rebalancing Recommendation */}
-                      <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-6">
-                        <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                          <FontAwesomeIcon icon={faRobot} className="text-blue-400" />
-                          Rebalancing Recommendation
-                        </h3>
-                        <p className="text-sm leading-relaxed text-slate-200">
-                          {generateRebalancingRecommendation()}
-                        </p>
-                      </div>
-
                       {/* Unified Comparison Chart */}
                       <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
                         <h3 className="text-xl font-bold mb-4">Unified Portfolio Comparison</h3>
@@ -729,6 +721,43 @@ export default function PortfolioDetailPage() {
                         </table>
                       </div>
 
+                      {/* Optimal Weights (MVO) */}
+                      {allAnalysisData['MVO']?.optimal_weights && (
+                        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                          <h3 className="text-xl font-bold mb-4">MVO Optimal Weights</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {Object.entries(allAnalysisData['MVO'].optimal_weights).map(([ticker, weight]: [string, any]) => (
+                              <div key={ticker} className="bg-slate-700 rounded p-3">
+                                <div className="text-sm text-slate-400">{ticker}</div>
+                                <div className="text-lg font-bold">{formatPercent(weight)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Rolling Sharpe Ratios Tab */}
+          {activeTab === 'rolling-sharpe' && (
+            <div className="space-y-6">
+              {portfolio.stocks.length === 0 ? (
+                <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+                  <p className="text-slate-400">Add stocks to view Rolling Sharpe analysis</p>
+                </div>
+              ) : (
+                <>
+                  {loadingAllAnalysis ? (
+                    <div className="text-center py-12">
+                      <FontAwesomeIcon icon={faSpinner} className="text-4xl animate-spin mb-4" />
+                      <p className="text-slate-400">Loading Rolling Sharpe data...</p>
+                    </div>
+                  ) : (
+                    <>
                       {/* Rolling Sharpe Ratios - Current Values */}
                       <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-x-auto">
                         <h3 className="text-xl font-bold p-6 pb-4">Rolling Sharpe Ratios (Current)</h3>
@@ -803,24 +832,22 @@ export default function PortfolioDetailPage() {
                           })()}
                         </div>
                       )}
-
-                      {/* Optimal Weights (MVO) */}
-                      {allAnalysisData['MVO']?.optimal_weights && (
-                        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                          <h3 className="text-xl font-bold mb-4">MVO Optimal Weights</h3>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {Object.entries(allAnalysisData['MVO'].optimal_weights).map(([ticker, weight]: [string, any]) => (
-                              <div key={ticker} className="bg-slate-700 rounded p-3">
-                                <div className="text-sm text-slate-400">{ticker}</div>
-                                <div className="text-lg font-bold">{formatPercent(weight)}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </>
                   )}
+                </>
+              )}
+            </div>
+          )}
 
+          {/* Monte Carlo Simulation Tab */}
+          {activeTab === 'monte-carlo' && (
+            <div className="space-y-6">
+              {portfolio.stocks.length === 0 ? (
+                <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+                  <p className="text-slate-400">Add stocks to run Monte Carlo simulation</p>
+                </div>
+              ) : (
+                <>
                   {/* Monte Carlo Simulation */}
                   <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
                     <div className="flex items-center justify-between mb-4">
@@ -912,7 +939,20 @@ export default function PortfolioDetailPage() {
                       </div>
                     )}
                   </div>
+                </>
+              )}
+            </div>
+          )}
 
+          {/* VaR Analysis Tab */}
+          {activeTab === 'var' && (
+            <div className="space-y-6">
+              {portfolio.stocks.length === 0 ? (
+                <div className="bg-slate-800 rounded-lg p-12 text-center border border-slate-700">
+                  <p className="text-slate-400">Add stocks to calculate Value at Risk</p>
+                </div>
+              ) : (
+                <>
                   {/* VaR Analysis */}
                   <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
                     <div className="flex items-center justify-between mb-4">

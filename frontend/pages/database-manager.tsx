@@ -14,7 +14,9 @@ import {
   faExclamationCircle,
   faServer,
   faChartBar,
-  faTable
+  faTable,
+  faCog,
+  faTachometerAlt
 } from '@fortawesome/free-solid-svg-icons';
 
 interface DatabaseStats {
@@ -690,7 +692,7 @@ export default function DatabaseManagerPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold">Portfolios</h3>
-                    <p className="text-xs text-slate-400">SQLite</p>
+                    <p className="text-xs text-slate-400">PostgreSQL</p>
                   </div>
                 </div>
                 <FontAwesomeIcon
@@ -734,6 +736,66 @@ export default function DatabaseManagerPage() {
                 >
                   <FontAwesomeIcon icon={faPlus} />
                   Manage Portfolios
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Settings / Configuration Card */}
+          <div className="bg-slate-800 rounded-lg border-2 border-slate-700 hover:border-gray-500 transition-all">
+            <div className="p-6">
+              {/* Icon & Title */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gray-900/30 rounded-lg flex items-center justify-center">
+                    <FontAwesomeIcon icon={faCog} className="text-2xl text-gray-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Settings</h3>
+                    <p className="text-xs text-slate-400">Configuration</p>
+                  </div>
+                </div>
+                <FontAwesomeIcon
+                  icon={faCheckCircle}
+                  className="text-xl text-green-400"
+                />
+              </div>
+
+              {/* Stats Summary */}
+              <div className="space-y-2 mb-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Cache Warming:</span>
+                  <span className="font-semibold text-green-400">Active</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Redis:</span>
+                  <span className="font-semibold text-green-400">Connected</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">API Keys:</span>
+                  <span className="font-semibold text-green-400">Configured</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Environment:</span>
+                  <span className="font-semibold">Development</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => alert('Settings panel coming soon')}
+                  className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-semibold transition-colors flex items-center justify-center gap-2"
+                >
+                  <FontAwesomeIcon icon={faCog} />
+                  Configure Settings
+                </button>
+                <button
+                  onClick={() => window.location.href = '/admin'}
+                  className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold transition-colors flex items-center justify-center gap-2"
+                >
+                  <FontAwesomeIcon icon={faTachometerAlt} />
+                  Admin Panel
                 </button>
               </div>
             </div>

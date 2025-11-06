@@ -1,253 +1,440 @@
-// components/MacroIndicators.tsx - Government bond yields (interest rate proxy)
+// components/MacroIndicators.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
-interface MacroIndicatorsProps {
-  country?: string;
-  years?: number;
+interface MacroDataPoint {
+  date: string;
+  close?: number;
+  value?: number;
 }
 
-export default function MacroIndicators({ country = 'USA', years = 10 }: MacroIndicatorsProps) {
-  const [selectedCountry, setSelectedCountry] = useState(country);
-  const [bondData, setBondData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+interface CountryData {
+  [country: string]: MacroDataPoint[];
+}
+
+const AVAILABLE_COUNTRIES = [
+  { code: 'USA', name: 'United States' },
+  { code: 'UK', name: 'United Kingdom' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'CN', name: 'China' },
+];
+
+const MONEY_MARKET_REGIONS = [
+  { code: 'USA', name: 'United States (USD LIBOR)' },
+  { code: 'UK', name: 'United Kingdom (GBP LIBOR)' },
+  { code: 'EUR', name: 'Eurozone (EURIBOR)' },
+  { code: 'JP', name: 'Japan (USD LIBOR)' },
+  { code: 'CN', name: 'China (USD LIBOR)' },
+];
+
+const COLORS = [
+  '#3b82f6', // blue
+  '#10b981', // green
+  '#f59e0b', // amber
+  '#8b5cf6', // purple
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#f97316', // orange
+  '#84cc16', // lime
+  '#6366f1', // indigo
+  '#14b8a6', // teal
+];
+
+export default function MacroIndicators() {
+  // Treasury Yield state
+  const [selectedTreasuryCountries, setSelectedTreasuryCountries] = useState<Set<string>>(new Set(['USA']));
+  const [treasuryData, setTreasuryData] = useState<CountryData>({});
+  const [loadingTreasury, setLoadingTreasury] = useState(false);
+
+  // Money Market state
+  const [selectedMoneyMarketCountries, setSelectedMoneyMarketCountries] = useState<Set<string>>(new Set(['EUR']));
+  const [moneyMarketData, setMoneyMarketData] = useState<CountryData>({});
+  const [loadingMoneyMarket, setLoadingMoneyMarket] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<{
-    current: number;
-    previous: number;
-    change: number;
-    changePercent: number;
-    max: number;
-    min: number;
-  } | null>(null);
+
+  // Auto-fetch on mount
+  useEffect(() => {
+    fetchTreasuryData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    fetchBondData();
-  }, [selectedCountry]);
+    fetchMoneyMarketData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const fetchBondData = async () => {
+  const fetchTreasuryData = async () => {
+    if (selectedTreasuryCountries.size === 0) return;
+
     try {
-      setLoading(true);
+      setLoadingTreasury(true);
       setError(null);
 
-      console.log('[MacroIndicators] Fetching government bond 10Y for', selectedCountry);
+      const allData: CountryData = {};
 
-      // Calculate date range
-      const yearsAgo = new Date();
-      yearsAgo.setFullYear(yearsAgo.getFullYear() - years);
-      const from_date = yearsAgo.toISOString().split('T')[0];
+      for (const country of Array.from(selectedTreasuryCountries)) {
+        try {
+          const yearsAgo = new Date();
+          yearsAgo.setFullYear(yearsAgo.getFullYear() - 10);
+          const from_date = yearsAgo.toISOString().split('T')[0];
 
-      const response = await api.fetchMacroIndicator(
-        selectedCountry,
-        'government_bond_10y',
-        from_date
-      );
-
-      console.log('[MacroIndicators] Received response:', response);
-
-      const dataArray = response?.data || [];
-
-      if (dataArray.length > 0) {
-        // Sort by date
-        const sortedData = dataArray.sort((a: any, b: any) => {
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        });
-
-        setBondData(sortedData);
-
-        // Calculate stats
-        const current = parseFloat(sortedData[sortedData.length - 1]?.close || 0);
-        const previous = sortedData.length > 1 ? parseFloat(sortedData[sortedData.length - 2]?.close || 0) : 0;
-        const change = current - previous;
-        const changePercent = previous !== 0 ? (change / previous) * 100 : 0;
-        const max = Math.max(...sortedData.map((d: any) => parseFloat(d.close || 0)));
-        const min = Math.min(...sortedData.map((d: any) => parseFloat(d.close || 0)));
-
-        setStats({
-          current,
-          previous,
-          change,
-          changePercent,
-          max,
-          min,
-        });
-
-        console.log('[MacroIndicators] Stats:', { current, previous, change, changePercent, max, min });
-      } else {
-        console.warn('[MacroIndicators] No data received for', selectedCountry);
-        setError('No data available for selected country');
+          const response = await api.fetchMacroIndicator(country, 'government_bond_10y', from_date);
+          const data = response?.data || [];
+          if (data.length > 0) {
+            allData[country] = data.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          }
+        } catch (err) {
+          console.error(`Failed to fetch treasury data for ${country}:`, err);
+        }
       }
+
+      setTreasuryData(allData);
     } catch (err: any) {
-      console.error('[MacroIndicators] Failed to fetch bond data:', err);
-      setError(err.message || 'Failed to load data');
+      console.error('Failed to fetch treasury data:', err);
+      setError(err.message || 'Failed to fetch treasury data');
     } finally {
-      setLoading(false);
+      setLoadingTreasury(false);
     }
   };
 
-  const formatPercent = (value: number): string => {
-    if (!value && value !== 0) return 'N/A';
-    return `${value.toFixed(2)}%`;
+  const fetchMoneyMarketData = async () => {
+    if (selectedMoneyMarketCountries.size === 0) return;
+
+    try {
+      setLoadingMoneyMarket(true);
+      setError(null);
+
+      const allData: CountryData = {};
+
+      // Map regions to their money market indicators
+      const indicatorMap: Record<string, { code: string, indicator: string }> = {
+        'USA': { code: 'USD', indicator: 'libor_usd_3m' },
+        'UK': { code: 'GBP', indicator: 'libor_gbp_3m' },
+        'EUR': { code: 'EUR', indicator: 'euribor_3m' },
+        'JP': { code: 'USD', indicator: 'libor_usd_3m' },
+        'CN': { code: 'USD', indicator: 'libor_usd_3m' },
+      };
+
+      for (const region of Array.from(selectedMoneyMarketCountries)) {
+        try {
+          const yearsAgo = new Date();
+          yearsAgo.setFullYear(yearsAgo.getFullYear() - 10);
+          const from_date = yearsAgo.toISOString().split('T')[0];
+
+          const config = indicatorMap[region] || { code: 'USD', indicator: 'libor_usd_3m' };
+
+          const response = await api.fetchMacroIndicator(config.code, config.indicator, from_date);
+          const data = response?.data || [];
+          if (data.length > 0) {
+            allData[region] = data.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          }
+        } catch (err) {
+          console.error(`Failed to fetch money market data for ${region}:`, err);
+        }
+      }
+
+      setMoneyMarketData(allData);
+    } catch (err: any) {
+      console.error('Failed to fetch money market data:', err);
+      setError(err.message || 'Failed to fetch money market data');
+    } finally {
+      setLoadingMoneyMarket(false);
+    }
   };
 
-  // Calculate chart dimensions
-  const maxValue = stats?.max || 0;
-  const minValue = stats?.min || 0;
-  const valueRange = maxValue - minValue;
-
-  const getY = (value: number): number => {
-    if (valueRange === 0) return 50;
-    return ((maxValue - value) / valueRange) * 100;
+  const toggleTreasuryCountry = (countryCode: string) => {
+    const newSelected = new Set(selectedTreasuryCountries);
+    if (newSelected.has(countryCode)) {
+      newSelected.delete(countryCode);
+    } else {
+      if (newSelected.size >= 10) {
+        setError('Maximum 10 countries can be selected');
+        return;
+      }
+      newSelected.add(countryCode);
+    }
+    setSelectedTreasuryCountries(newSelected);
+    setError(null);
   };
+
+  const toggleMoneyMarketCountry = (countryCode: string) => {
+    const newSelected = new Set(selectedMoneyMarketCountries);
+    if (newSelected.has(countryCode)) {
+      newSelected.delete(countryCode);
+    } else {
+      if (newSelected.size >= 10) {
+        setError('Maximum 10 countries can be selected');
+        return;
+      }
+      newSelected.add(countryCode);
+    }
+    setSelectedMoneyMarketCountries(newSelected);
+    setError(null);
+  };
+
+  // Transform treasury data for Recharts
+  const treasuryChartData = (() => {
+    const allDates = new Set<string>();
+    Object.values(treasuryData).forEach((data) => {
+      data.forEach((point) => allDates.add(point.date));
+    });
+
+    const sortedDates = Array.from(allDates).sort();
+    return sortedDates.map((date) => {
+      const dataPoint: any = { date };
+      Object.entries(treasuryData).forEach(([country, points]) => {
+        const point = points.find((p) => p.date === date);
+        if (point) {
+          dataPoint[country] = parseFloat(String(point.close || point.value || 0));
+        }
+      });
+      return dataPoint;
+    });
+  })();
+
+  // Transform money market data for Recharts
+  const moneyMarketChartData = (() => {
+    const allDates = new Set<string>();
+    Object.values(moneyMarketData).forEach((data) => {
+      data.forEach((point) => allDates.add(point.date));
+    });
+
+    const sortedDates = Array.from(allDates).sort();
+    return sortedDates.map((date) => {
+      const dataPoint: any = { date };
+      Object.entries(moneyMarketData).forEach(([country, points]) => {
+        const point = points.find((p) => p.date === date);
+        if (point) {
+          dataPoint[country] = parseFloat(String(point.close || point.value || 0));
+        }
+      });
+      return dataPoint;
+    });
+  })();
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Government Bond Yields (10Y)</h3>
-
-        {/* Country Selector */}
-        <select
-          value={selectedCountry}
-          onChange={(e) => setSelectedCountry(e.target.value)}
-          className="px-3 py-2 bg-slate-700 text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="USA">United States</option>
-          <option value="UK">United Kingdom</option>
-          <option value="DE">Germany</option>
-          <option value="FR">France</option>
-          <option value="IT">Italy</option>
-          <option value="JP">Japan</option>
-          <option value="CN">China</option>
-        </select>
-      </div>
-
-      {loading && (
-        <div className="animate-pulse">
-          <div className="h-48 bg-slate-700 rounded mb-4"></div>
-          <div className="grid grid-cols-3 gap-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-slate-700 rounded"></div>
-            ))}
-          </div>
-        </div>
-      )}
-
+    <div className="space-y-8 p-6">
+      {/* Error Display */}
       {error && (
-        <div className="text-center py-8 text-red-400 text-sm">
+        <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 text-red-300">
           {error}
         </div>
       )}
 
-      {!loading && !error && bondData.length > 0 && stats && (
-        <div>
-          {/* Current Rate Card */}
-          <div className="mb-4 p-4 bg-slate-700 rounded">
-            <div className="text-sm text-slate-400 mb-1">Current 10Y Yield</div>
-            <div className="text-3xl font-bold text-white">{formatPercent(stats.current)}</div>
-            <div className={`text-sm ${stats.change >= 0 ? 'text-red-400' : 'text-green-400'}`}>
-              {stats.change >= 0 ? '+' : ''}{formatPercent(Math.abs(stats.change))} ({stats.changePercent >= 0 ? '+' : ''}{stats.changePercent.toFixed(2)}% from prev)
-            </div>
-          </div>
+      {/* Treasury Yield (10Y) Section */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold">Treasury Yield (10Y Government Bonds)</h2>
 
-          {/* Chart */}
-          <div className="mb-4">
-            <div className="text-sm text-slate-400 mb-2">
-              {years} Year Historical Trend
-            </div>
+        {/* Country Selection */}
+        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold mb-4">Select Countries</h3>
 
-            <div className="relative h-48 bg-slate-900 rounded p-2">
-              {/* Y-axis */}
-              <div className="absolute left-0 top-0 bottom-0 w-16 flex flex-col justify-between text-xs text-slate-400 pr-1">
-                <span>{formatPercent(maxValue)}</span>
-                <span>{formatPercent((maxValue + minValue) / 2)}</span>
-                <span>{formatPercent(minValue)}</span>
-              </div>
-
-              {/* Chart area */}
-              <div className="ml-16 h-full relative">
-                {/* Grid lines */}
-                <div className="absolute inset-0 flex flex-col justify-between">
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <div key={i} className="border-b border-slate-700/30"></div>
-                  ))}
-                </div>
-
-                {/* Line chart */}
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="gradient-bonds" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Area fill */}
-                  <polyline
-                    fill="url(#gradient-bonds)"
-                    stroke="none"
-                    points={
-                      bondData
-                        .map((d: any, idx: number) => {
-                          const x = (idx / (bondData.length - 1)) * 100;
-                          const y = getY(parseFloat(d.close || 0));
-                          return `${x},${y}`;
-                        })
-                        .join(' ') + ` 100,100 0,100`
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+            {AVAILABLE_COUNTRIES.map((country) => {
+              const isSelected = selectedTreasuryCountries.has(country.code);
+              return (
+                <div
+                  key={country.code}
+                  onClick={() => toggleTreasuryCountry(country.code)}
+                  className={`
+                    p-3 rounded-lg border-2 cursor-pointer transition-all text-center
+                    ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-900/20'
+                        : 'border-slate-700 bg-slate-700/50 hover:border-slate-600'
                     }
-                  />
-
-                  {/* Line */}
-                  <polyline
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="2"
-                    points={bondData
-                      .map((d: any, idx: number) => {
-                        const x = (idx / (bondData.length - 1)) * 100;
-                        const y = getY(parseFloat(d.close || 0));
-                        return `${x},${y}`;
-                      })
-                      .join(' ')}
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Time axis */}
-            <div className="ml-16 flex justify-between mt-2 text-xs text-slate-400">
-              <span>{new Date(bondData[0]?.date).getFullYear()}</span>
-              <span>
-                {new Date(bondData[Math.floor(bondData.length / 2)]?.date).getFullYear()}
-              </span>
-              <span>{new Date(bondData[bondData.length - 1]?.date).getFullYear()}</span>
-            </div>
+                  `}
+                >
+                  <div className="font-semibold">{country.code}</div>
+                  <div className="text-xs text-slate-400 truncate">{country.name}</div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Stats Summary */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-slate-700 rounded px-3 py-2">
-              <div className="text-xs text-slate-400">Current</div>
-              <div className="text-sm font-semibold text-white">{formatPercent(stats.current)}</div>
-            </div>
-            <div className="bg-slate-700 rounded px-3 py-2">
-              <div className="text-xs text-slate-400">Peak ({years}Y)</div>
-              <div className="text-sm font-semibold text-red-400">{formatPercent(stats.max)}</div>
-            </div>
-            <div className="bg-slate-700 rounded px-3 py-2">
-              <div className="text-xs text-slate-400">Low ({years}Y)</div>
-              <div className="text-sm font-semibold text-green-400">{formatPercent(stats.min)}</div>
-            </div>
-          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={fetchTreasuryData}
+              disabled={selectedTreasuryCountries.size === 0 || loadingTreasury}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-semibold transition-colors"
+            >
+              {loadingTreasury ? 'Loading...' : `Update Chart (${selectedTreasuryCountries.size} selected)`}
+            </button>
 
-          {/* Educational Note */}
-          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded text-xs text-slate-300">
-            <strong className="text-blue-400">Note:</strong> 10-year government bond yields serve as a proxy for long-term interest rates.
-            Higher yields indicate expectations of higher growth/inflation or increased credit risk.
+            {selectedTreasuryCountries.size > 0 && (
+              <button
+                onClick={() => setSelectedTreasuryCountries(new Set())}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold transition-colors"
+              >
+                Clear Selection
+              </button>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Treasury Chart */}
+        {Object.keys(treasuryData).length > 0 && (
+          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <h3 className="text-xl font-bold mb-4">10-Year Treasury Yield (%)</h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={treasuryChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(date) => {
+                    const d = new Date(date);
+                    return `${d.getMonth() + 1}/${d.getFullYear()}`;
+                  }}
+                />
+                <YAxis
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 12 }}
+                  domain={['auto', 'auto']}
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                  }}
+                  labelStyle={{ color: '#cbd5e1' }}
+                  formatter={(value: any) => [`${value.toFixed(2)}%`, '']}
+                />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                {Object.keys(treasuryData).map((country, idx) => (
+                  <Line
+                    key={country}
+                    type="monotone"
+                    dataKey={country}
+                    stroke={COLORS[idx % COLORS.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    name={country}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Money Market Section */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold">Money Market Rates</h2>
+
+        {/* Region Selection */}
+        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold mb-4">Select Regions</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+            {MONEY_MARKET_REGIONS.map((region) => {
+              const isSelected = selectedMoneyMarketCountries.has(region.code);
+              return (
+                <div
+                  key={region.code}
+                  onClick={() => toggleMoneyMarketCountry(region.code)}
+                  className={`
+                    p-3 rounded-lg border-2 cursor-pointer transition-all
+                    ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-900/20'
+                        : 'border-slate-700 bg-slate-700/50 hover:border-slate-600'
+                    }
+                  `}
+                >
+                  <div className="font-semibold text-sm">{region.name}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={fetchMoneyMarketData}
+              disabled={selectedMoneyMarketCountries.size === 0 || loadingMoneyMarket}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-semibold transition-colors"
+            >
+              {loadingMoneyMarket ? 'Loading...' : `Update Chart (${selectedMoneyMarketCountries.size} selected)`}
+            </button>
+
+            {selectedMoneyMarketCountries.size > 0 && (
+              <button
+                onClick={() => setSelectedMoneyMarketCountries(new Set())}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold transition-colors"
+              >
+                Clear Selection
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Money Market Chart */}
+        {Object.keys(moneyMarketData).length > 0 && (
+          <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <h3 className="text-xl font-bold mb-4">Money Market Rates (%)</h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={moneyMarketChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(date) => {
+                    const d = new Date(date);
+                    return `${d.getMonth() + 1}/${d.getFullYear()}`;
+                  }}
+                />
+                <YAxis
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 12 }}
+                  domain={['auto', 'auto']}
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                  }}
+                  labelStyle={{ color: '#cbd5e1' }}
+                  formatter={(value: any) => [`${value.toFixed(2)}%`, '']}
+                />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                {Object.keys(moneyMarketData).map((country, idx) => (
+                  <Line
+                    key={country}
+                    type="monotone"
+                    dataKey={country}
+                    stroke={COLORS[idx % COLORS.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    name={country}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -53,44 +53,25 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
   };
 
   const handleRunAnalysis = async () => {
-    await runAnalysis(ticker, false); // Always false - deep research disabled
+    await runAnalysis(ticker, true); // Enable deep research by default
     fetchHistory(); // Refresh history after analysis
   };
 
   return (
-    <div className="space-y-6">
-      {/* Controls */}
-      <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-400">
-            AI-powered multi-agent analysis using real market data
-          </div>
+    <div className="space-y-6 h-full flex flex-col">
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-[calc(100vh-300px)]">
+        {/* Left Column - Agent Console with integrated Run button */}
+        <AgentConsole
+          autoScroll
+          maxLogs={200}
+          onRunAnalysis={handleRunAnalysis}
+          loading={loading}
+          error={error}
+        />
 
-          <button
-            onClick={handleRunAnalysis}
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-semibold transition-colors"
-          >
-            {loading ? 'Analyzing...' : 'Run AI Analysis'}
-          </button>
-        </div>
-
-        {error && (
-          <div className="mt-4 p-3 bg-red-900/50 border border-red-700 rounded text-red-300">
-            {error}
-          </div>
-        )}
-      </div>
-
-      {/* Results Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Agent Console */}
-        <div className="h-[600px]">
-          <AgentConsole autoScroll maxLogs={200} />
-        </div>
-
-        {/* Right: Results */}
-        <div className="space-y-6">
+        {/* Right Column - Results */}
+        <div className="flex flex-col gap-6 overflow-y-auto min-h-0">
           {result && (
             <>
               {/* Signal Card */}
@@ -123,18 +104,8 @@ export default function StockAIAnalysisTab({ ticker }: StockAIAnalysisTabProps) 
                 </div>
               </div>
 
-              {/* Deep Research */}
-              {result.deep_research_summary && (
-                <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                  <h3 className="text-lg font-bold mb-3">Deep Research Summary</h3>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-300">
-                    {result.deep_research_summary}
-                  </p>
-                </div>
-              )}
-
               {/* Agent Breakdown */}
-              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 flex-1">
                 <h3 className="text-lg font-bold mb-4">Agent Breakdown</h3>
                 <div className="space-y-4">
                   {result.agent_outputs.map((output, i) => (

@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { getDisplayTicker } from '@/utils/tickerUtils';
 
 interface AssetHeaderProps {
   ticker: string;
@@ -82,7 +83,7 @@ export default function AssetHeader({ ticker, assetType, livePrice, companyData 
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold text-white">
-                {ticker.replace('.US', '').replace('.FOREX', '')}
+                {getDisplayTicker(ticker)}
               </h1>
               <span className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded uppercase">
                 {assetType}

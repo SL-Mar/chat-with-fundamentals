@@ -49,12 +49,17 @@ from routers.admin         import router as admin_router       # NEW: Admin endp
 from routers.ai_analysis   import router as ai_analysis_router # NEW: MarketSense AI analysis
 from routers.portfolios    import router as portfolios_router  # NEW: Portfolio management
 from routers.intraday      import router as intraday_router    # NEW: Intraday multi-granularity data
+from routers.database_stats import router as database_stats_router # NEW: Database statistics & monitoring
+from routers.database_inventory import router as database_inventory_router # NEW: Database inventory (ticker lists)
+from routers.dataset_populate import router as dataset_populate_router # NEW: Dataset population (ETF, index, etc.)
+from routers.sec_filings   import router as sec_filings_router # NEW: SEC filings RAG system
 
 # ─── Logger / core helpers ────────────────────────────────────────────
 from core.logstream import log_ws_manager
 from core.logger_config import setup_logger, set_main_event_loop
 from core.stdout_stream import intercept_stdout
 from core.auth import verify_api_key  # API key authentication
+from core.agent_console_manager import agent_console_manager  # Agent console WebSocket manager
 
 # ──────────────────────────────────────────────────────────────────────
 # 1) Intercept stdout and configure logging
@@ -206,6 +211,10 @@ app.include_router(admin_router, dependencies=[Depends(verify_api_key)])       #
 app.include_router(ai_analysis_router) # NEW: MarketSense AI analysis (WebSocket auth handled internally)
 app.include_router(portfolios_router, dependencies=[Depends(verify_api_key)]) # NEW: Portfolio management (requires auth)
 app.include_router(intraday_router, dependencies=[Depends(verify_api_key)])   # NEW: Intraday multi-granularity data (requires auth)
+app.include_router(database_stats_router, dependencies=[Depends(verify_api_key)]) # NEW: Database statistics (requires auth)
+app.include_router(database_inventory_router, dependencies=[Depends(verify_api_key)]) # NEW: Database inventory (requires auth)
+app.include_router(dataset_populate_router, dependencies=[Depends(verify_api_key)]) # NEW: Dataset population (requires auth)
+app.include_router(sec_filings_router, dependencies=[Depends(verify_api_key)]) # NEW: SEC filings RAG system (requires auth)
 
 # ──────────────────────────────────────────────────────────────────────
 # 6) WebSocket log stream
@@ -230,6 +239,23 @@ async def log_stream(websocket: WebSocket):
             await websocket.send_text("Connection alive")
     except WebSocketDisconnect:
         log_ws_manager.disconnect(websocket)
+
+
+@app.websocket("/api/v2/ws/agent-console")
+async def agent_console_websocket(websocket: WebSocket):
+    """
+    WebSocket endpoint for Agent Console real-time logging.
+    Used by the frontend AgentConsole component to display live agent activity.
+    """
+    await agent_console_manager.connect(websocket)
+    try:
+        while True:
+            # Receive heartbeat pings from client
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        agent_console_manager.disconnect(websocket)
 
 # ──────────────────────────────────────────────────────────────────────
 # 7) Public endpoints (health check) and protected test endpoints

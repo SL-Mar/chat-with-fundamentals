@@ -528,11 +528,12 @@ async def deep_research(
                 detail="TAVILY_API_KEY not configured - deep research unavailable"
             )
 
-        # Initialize GPT-Researcher service
+        # Initialize GPT-Researcher service with WebSocket support
         service = GPTResearcherService(
             ticker=ticker or "General",
             openai_key=openai_key,
-            tavily_key=tavily_key
+            tavily_key=tavily_key,
+            ws_manager=agent_console_manager
         )
 
         # Generate research report

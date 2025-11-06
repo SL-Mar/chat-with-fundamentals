@@ -124,7 +124,11 @@ export default function AssetDetailPage({ ticker, assetType, defaultTab = 'overv
         return <AIAnalysisTab ticker={ticker} assetType={assetType} />;
 
       case 'research':
-        return <StockDeepResearchTab ticker={ticker} />;
+        return (
+          <div className="p-6 h-full">
+            <StockDeepResearchTab ticker={ticker} />
+          </div>
+        );
 
       case 'compare':
         return <StockPeerComparisonTab ticker={ticker} />;

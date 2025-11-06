@@ -76,14 +76,14 @@ class MarketSenseAI:
         start_time = datetime.now()
 
         try:
-            # Step 1: Deep research disabled (not needed - using existing data sources)
+            # Step 1: Deep research (optional - provides additional context)
             research_context = None
-            # if deep_research:
-            #     await self._log(ws_manager, "research", AgentStatus.RUNNING,
-            #                   f"Starting deep research for {self.asset_id}...")
-            #     research_context = await self._run_deep_research()
-            #     await self._log(ws_manager, "research", AgentStatus.SUCCESS,
-            #                   "Deep research complete")
+            if deep_research:
+                await self._log(ws_manager, "research", AgentStatus.RUNNING,
+                              f"Starting deep research for {self.asset_id}...")
+                research_context = await self._run_deep_research()
+                await self._log(ws_manager, "research", AgentStatus.SUCCESS,
+                              "Deep research complete")
 
             # Step 2: Run all analysis agents in parallel
             agent_results = await self._run_agents(research_context, ws_manager)
@@ -225,7 +225,8 @@ class MarketSenseAI:
         ws_manager: Optional[Any],
         agent: str,
         status: AgentStatus,
-        message: str
+        message: str,
+        extra_metadata: Optional[Dict[str, Any]] = None
     ):
         """
         Send log message to WebSocket clients.
@@ -235,13 +236,31 @@ class MarketSenseAI:
             agent: Agent name
             status: Agent status
             message: Log message
+            extra_metadata: Additional metadata to include
         """
         if ws_manager:
+            metadata = {
+                "asset_id": self.asset_id,
+                "asset_type": self.asset_type.value
+            }
+
+            # Add extra metadata if provided
+            if extra_metadata:
+                metadata.update(extra_metadata)
+
+            # Add LLM model information from settings
+            try:
+                from core.config import settings
+                metadata["model"] = settings.model_name
+                metadata["provider"] = "OpenAI"  # Currently only OpenAI is used
+            except Exception as e:
+                logger.error(f"Failed to add LLM model info to metadata: {e}")
+
             log_message = AgentLogMessage(
                 agent=agent,
                 status=status,
                 message=message,
-                metadata={"asset_id": self.asset_id, "asset_type": self.asset_type.value}
+                metadata=metadata
             )
             try:
                 # Use model_dump() with JSON mode to handle datetime serialization

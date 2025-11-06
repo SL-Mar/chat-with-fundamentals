@@ -103,8 +103,8 @@ export default function InsiderTransactions({ ticker, limit = 20 }: InsiderTrans
   };
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-slate-800 rounded-lg p-4 h-[1000px] flex flex-col">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h3 className="text-lg font-semibold">Insider Transactions</h3>
         <div className="text-sm">
           <span className="text-slate-400">Sentiment: </span>
@@ -112,9 +112,9 @@ export default function InsiderTransactions({ ticker, limit = 20 }: InsiderTrans
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-y-auto flex-1">
         <table className="w-full">
-          <thead>
+          <thead className="sticky top-0 bg-slate-800">
             <tr className="border-b border-slate-700">
               <th className="text-left py-2 px-2 text-xs text-slate-400">Date</th>
               <th className="text-left py-2 px-2 text-xs text-slate-400">Insider</th>
@@ -124,7 +124,7 @@ export default function InsiderTransactions({ ticker, limit = 20 }: InsiderTrans
             </tr>
           </thead>
           <tbody>
-            {transactions.slice(0, 10).map((tx, idx) => {
+            {transactions.map((tx, idx) => {
               // EODHD uses transactionCode: P=purchase, S=sale
               // Or transactionAcquiredDisposed: A=acquired, D=disposed
               const isBuy = tx.transactionType?.toLowerCase().includes('buy') ||
@@ -162,12 +162,6 @@ export default function InsiderTransactions({ ticker, limit = 20 }: InsiderTrans
           </tbody>
         </table>
       </div>
-
-      {transactions.length > 10 && (
-        <div className="text-xs text-slate-500 text-center mt-2">
-          Showing 10 of {transactions.length} transactions
-        </div>
-      )}
     </div>
   );
 }

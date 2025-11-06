@@ -16,11 +16,17 @@ interface AgentLog {
 interface AgentConsoleProps {
   autoScroll?: boolean;
   maxLogs?: number;
+  onRunAnalysis?: () => void;
+  loading?: boolean;
+  error?: string | null;
 }
 
 export const AgentConsole: React.FC<AgentConsoleProps> = ({
   autoScroll = true,
-  maxLogs = 200
+  maxLogs = 200,
+  onRunAnalysis,
+  loading = false,
+  error = null
 }) => {
   const [logs, setLogs] = useState<AgentLog[]>([]);
   const [connected, setConnected] = useState(false);
@@ -166,13 +172,38 @@ export const AgentConsole: React.FC<AgentConsoleProps> = ({
           <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
                title={connected ? 'Connected' : 'Disconnected'} />
         </div>
-        <button
-          onClick={clearLogs}
-          className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1 rounded hover:bg-gray-800"
-        >
-          Clear
-        </button>
+        <div className="flex items-center gap-2">
+          {onRunAnalysis && (
+            <button
+              onClick={onRunAnalysis}
+              disabled={loading}
+              className="text-blue-400 hover:text-blue-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors px-2 py-1 rounded hover:bg-gray-800"
+              title={loading ? 'Analyzing...' : 'Run AI Analysis'}
+            >
+              <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                {loading ? (
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                ) : (
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                )}
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={clearLogs}
+            className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1 rounded hover:bg-gray-800"
+          >
+            Clear
+          </button>
+        </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="px-4 py-2 bg-red-900/50 border-b border-red-700">
+          <p className="text-xs text-red-300">{error}</p>
+        </div>
+      )}
 
       {/* Logs */}
       <div className="flex-1 overflow-y-auto p-4 font-mono text-sm">
@@ -183,28 +214,61 @@ export const AgentConsole: React.FC<AgentConsoleProps> = ({
         ) : (
           <>
             {logs.map((log, i) => (
-              <div key={i} className="mb-2 flex gap-2">
-                {/* Timestamp */}
-                <span className="text-gray-600 text-xs whitespace-nowrap">
-                  {formatTimestamp(log.timestamp)}
-                </span>
-
-                {/* Status Icon */}
-                <span className={`${getStatusColor(log.status)} font-bold`}>
-                  {getStatusIcon(log.status)}
-                </span>
-
-                {/* Agent Name */}
-                {log.agent && (
-                  <span className="text-yellow-400 font-semibold">
-                    [{log.agent}]
+              <div key={i} className="mb-2">
+                <div className="flex gap-2">
+                  {/* Timestamp */}
+                  <span className="text-gray-600 text-xs whitespace-nowrap">
+                    {formatTimestamp(log.timestamp)}
                   </span>
-                )}
 
-                {/* Message */}
-                <span className={getStatusColor(log.status)}>
-                  {log.message}
-                </span>
+                  {/* Status Icon */}
+                  <span className={`${getStatusColor(log.status)} font-bold`}>
+                    {getStatusIcon(log.status)}
+                  </span>
+
+                  {/* Agent Name */}
+                  {log.agent && (
+                    <span className="text-yellow-400 font-semibold">
+                      [{log.agent}]
+                    </span>
+                  )}
+
+                  {/* Message */}
+                  <span className={getStatusColor(log.status)}>
+                    {log.message}
+                  </span>
+                </div>
+
+                {/* Metadata Details - Show only Model */}
+                {log.metadata && Object.keys(log.metadata).length > 0 && (
+                  <div className="ml-20 mt-1 text-xs text-gray-500 space-y-0.5">
+                    {log.metadata.model && (
+                      <div>
+                        <span className="text-purple-400">Model:</span> {log.metadata.model}
+                      </div>
+                    )}
+                    {log.metadata.tokens && (
+                      <div>
+                        <span className="text-purple-400">Tokens:</span> {log.metadata.tokens}
+                      </div>
+                    )}
+                    {log.metadata.duration_ms && (
+                      <div>
+                        <span className="text-purple-400">Duration:</span> {log.metadata.duration_ms}ms
+                      </div>
+                    )}
+                    {Object.entries(log.metadata).map(([key, value]) => {
+                      // Filter out redundant metadata: provider, asset_id, asset_type, score, weight
+                      const excludedKeys = ['model', 'provider', 'tokens', 'duration_ms', 'asset_id', 'asset_type', 'score', 'weight'];
+                      if (excludedKeys.includes(key)) return null;
+                      return (
+                        <div key={key}>
+                          <span className="text-purple-400">{key}:</span> {JSON.stringify(value)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
             <div ref={bottomRef} />

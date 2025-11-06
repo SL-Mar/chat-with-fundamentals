@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import TradingViewChart from '../TradingViewChart';
 import IntradayChart from '../IntradayChart';
+import { getBareTicker } from '../../utils/tickerUtils';
 
 interface StockOverviewTabProps {
   ticker: string;
@@ -156,7 +157,7 @@ export default function StockOverviewTab({ ticker }: StockOverviewTabProps) {
       {/* Chart */}
       <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
         {chartType === 'eod' ? (
-          <TradingViewChart ticker={ticker.replace('.US', '')} />
+          <TradingViewChart ticker={getBareTicker(ticker)} />
         ) : (
           <IntradayChart ticker={ticker} interval="5m" />
         )}

@@ -74,10 +74,10 @@ export default function AnalystRatings({ ticker }: AnalystRatingsProps) {
   const totalAnalysts = buyCount + holdCount + sellCount + strongBuyCount + strongSellCount;
 
   const targetPrice = ratings?.TargetPrice;
-  const targetHigh = undefined; // Not available in current API response
-  const targetAvg = targetPrice;
-  const targetLow = undefined; // Not available in current API response
-  const currentPrice = undefined; // Not available in current API response
+  const targetHigh: number | undefined = undefined; // Not available in current API response
+  const targetAvg: number | undefined = targetPrice;
+  const targetLow: number | undefined = undefined; // Not available in current API response
+  const currentPrice: number | undefined = undefined; // Not available in current API response
 
   // Calculate consensus
   const bullishCount = strongBuyCount + buyCount;

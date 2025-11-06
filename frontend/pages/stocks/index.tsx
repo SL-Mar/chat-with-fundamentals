@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
+import { getDisplayTicker } from '../../utils/tickerUtils';
 
 interface PopularStock {
   ticker: string;
@@ -103,7 +104,7 @@ export default function StocksHubPage() {
                 onClick={() => goToStock(index.ticker)}
                 className="bg-slate-800 rounded-lg p-4 cursor-pointer hover:bg-slate-750 transition-colors border border-slate-700 hover:border-blue-500"
               >
-                <div className="font-bold text-lg mb-1">{index.ticker.replace('.US', '')}</div>
+                <div className="font-bold text-lg mb-1">{getDisplayTicker(index.ticker)}</div>
                 <div className="text-sm text-slate-400">{index.name}</div>
               </div>
             ))}
@@ -122,7 +123,7 @@ export default function StocksHubPage() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <div className="font-bold text-xl mb-1">{stock.ticker.replace('.US', '')}</div>
+                    <div className="font-bold text-xl mb-1">{getDisplayTicker(stock.ticker)}</div>
                     <div className="text-sm text-slate-400">{stock.name}</div>
                   </div>
                   <div className="text-2xl">→</div>

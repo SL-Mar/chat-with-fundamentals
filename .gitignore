@@ -1,58 +1,40 @@
 # Python
-venv/
-.venv/
-env/
-.env/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite3
+chroma_db/
+sec_filings_data/
 
 # Logs
 *.log
-*.tmp
-*.temp
+chatwithfundamentals.log
 
-# Test files
-test.*
-
-# Environment files
-.env
-.env.*
-
-# Chroma database
-db/
-
-# Node.js artifacts (for frontend)
-node_modules/
-.next/
-out/
-dist/
-.cache/
-npm-debug.log
-yarn-error.log
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Node
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Next.js
 .next/
 out/
-.next-tasks/
-.next-tasks-cache/
 
-# Environment
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# System
+# OS
 .DS_Store
-*.swp
-
-
+Thumbs.db

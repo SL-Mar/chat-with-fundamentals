@@ -9,8 +9,17 @@ python-dotenv==1.0.1
 # AI/LLM dependencies
 langchain==0.2.11
 langchain-openai==0.1.19
+langchain-community==0.2.11
 crewai==0.51.0
 openai==1.37.0
+
+# RAG dependencies
+chromadb==0.5.5
+sentence-transformers==3.0.1
+sec-edgar-downloader==5.0.2
+beautifulsoup4==4.12.3
+lxml==5.3.0
+tiktoken==0.7.0
 
 # Data processing
 numpy==1.26.4

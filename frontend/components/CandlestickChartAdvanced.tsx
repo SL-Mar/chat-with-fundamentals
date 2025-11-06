@@ -297,12 +297,12 @@ export default function CandlestickChartAdvanced({
       chartApi.current.subscribeCrosshairMove(mainToRsi);
       rsiChartApi.current.subscribeCrosshairMove(rsiToMain);
 
-      // Set initial viewport to show last ~50 candles
-      if (parsedData.length > 50) {
+      // Set initial viewport to show last ~100 candles
+      if (parsedData.length > 100) {
         const priceTime = chartApi.current.timeScale();
         const rsiTime = rsiChartApi.current.timeScale();
         const lastIndex = parsedData.length - 1;
-        const firstVisibleIndex = Math.max(0, lastIndex - 50);
+        const firstVisibleIndex = Math.max(0, lastIndex - 100);
 
         const initialRange: LogicalRange = {
           from: firstVisibleIndex,
@@ -326,7 +326,7 @@ export default function CandlestickChartAdvanced({
   return (
     <div
       ref={wrapperRef}
-      className="rounded-xl border border-slate-700 bg-slate-900 p-4 w-full"
+      className="rounded-xl border border-slate-700 bg-slate-900 p-4 w-full h-[1000px] overflow-hidden"
     >
       <div className="flex justify-between items-center mb-3">
         <div className="text-lg font-semibold text-slate-200">{ticker}</div>

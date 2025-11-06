@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/router';
+import { getDisplayTicker } from '../../utils/tickerUtils';
 
 const POPULAR_ETFS = [
   { symbol: 'SPY.US', name: 'SPDR S&P 500 ETF Trust', category: 'Equity - Broad Market' },
@@ -120,7 +121,7 @@ export default function ETFsHubPage() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <div className="font-bold text-xl mb-1">{etf.symbol.replace('.US', '')}</div>
+                    <div className="font-bold text-xl mb-1">{getDisplayTicker(etf.symbol)}</div>
                     <div className="text-sm text-slate-400 line-clamp-2">{etf.name}</div>
                   </div>
                 </div>

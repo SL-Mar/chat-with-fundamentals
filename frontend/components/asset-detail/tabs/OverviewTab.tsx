@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import CandlestickChartAdvanced from '../../CandlestickChartAdvanced';
 import InsiderTransactions from '../../InsiderTransactions';
 import { api } from '../../../lib/api';
+import { getBareTicker } from '../../../utils/tickerUtils';
 
 interface OverviewTabProps {
   ticker: string;
@@ -96,12 +97,12 @@ export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTa
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* Left: Chart (50% width) */}
         {eodData.length > 0 && (
-          <div className="min-w-0">
+          <div className="min-w-0 h-[1000px]">
             <CandlestickChartAdvanced
               data={eodData}
               ticker={ticker}
               interval="1d"
-              height={600}
+              height={650}
             />
           </div>
         )}
@@ -109,7 +110,7 @@ export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTa
         {/* Right: Insider Transactions (50% width) */}
         {(assetType === 'stock' || assetType === 'etf') && (
           <div className="w-full">
-            <InsiderTransactions ticker={ticker.replace('.US', '')} limit={20} />
+            <InsiderTransactions ticker={getBareTicker(ticker)} limit={20} />
           </div>
         )}
       </div>
@@ -125,10 +126,15 @@ export default function OverviewTab({ ticker, assetType, livePrice }: OverviewTa
                   href={article.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 font-semibold"
+                  className="text-blue-400 hover:text-blue-300 font-semibold text-lg"
                 >
                   {article.title}
                 </a>
+                {article.content && (
+                  <p className="text-sm text-slate-300 mt-2 line-clamp-3">
+                    {article.content}
+                  </p>
+                )}
                 <p className="text-sm text-slate-400 mt-1">
                   {new Date(article.date).toLocaleDateString()} • {article.symbols?.join(', ')}
                 </p>

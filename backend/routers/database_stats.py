@@ -399,59 +399,61 @@ async def _old_get_intraday_db_stats() -> Dict[str, Any]:
 
 
 def get_portfolios_db_stats() -> Dict[str, Any]:
-    """Get statistics for portfolios SQLite database."""
+    """Get statistics for portfolios PostgreSQL database."""
     try:
-        db_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "portfolios.db"
-        )
-
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        # Use main database connection (portfolios are in PostgreSQL now)
+        config = get_config()
+        engine = config.get_engine()
 
         stats = {}
 
-        # Portfolios count
-        cursor.execute("SELECT COUNT(*) FROM portfolios")
-        stats["portfolios_count"] = cursor.fetchone()[0]
+        with engine.connect() as conn:
+            # Portfolios count
+            result = conn.execute(text("SELECT COUNT(*) FROM portfolios"))
+            stats["portfolios_count"] = result.scalar()
 
-        # Holdings count
-        cursor.execute("SELECT COUNT(*) FROM holdings")
-        stats["total_holdings"] = cursor.fetchone()[0]
+            # Holdings count (using portfolio_stocks table)
+            result = conn.execute(text("SELECT COUNT(*) FROM portfolio_stocks"))
+            stats["total_holdings"] = result.scalar()
 
-        # Unique symbols in portfolios
-        cursor.execute("SELECT COUNT(DISTINCT symbol) FROM holdings")
-        stats["unique_tickers"] = cursor.fetchone()[0]
+            # Unique symbols in portfolios
+            result = conn.execute(text("SELECT COUNT(DISTINCT ticker) FROM portfolio_stocks"))
+            stats["unique_tickers"] = result.scalar()
 
-        # Portfolio details
-        cursor.execute("""
-            SELECT
-                p.id,
-                p.name,
-                COUNT(h.id) as holdings_count,
-                SUM(h.quantity * h.avg_cost) as total_value
-            FROM portfolios p
-            LEFT JOIN holdings h ON p.id = h.portfolio_id
-            GROUP BY p.id, p.name
-            ORDER BY total_value DESC
-        """)
+            # Portfolio details
+            result = conn.execute(text("""
+                SELECT
+                    p.id,
+                    p.name,
+                    COUNT(ps.id) as holdings_count,
+                    SUM(ps.shares * ps.weight) as total_value
+                FROM portfolios p
+                LEFT JOIN portfolio_stocks ps ON p.id = ps.portfolio_id
+                GROUP BY p.id, p.name
+                ORDER BY total_value DESC NULLS LAST
+            """))
 
-        portfolio_details = []
-        for row in cursor.fetchall():
-            portfolio_details.append({
-                "id": row[0],
-                "name": row[1],
-                "holdings_count": row[2],
-                "total_value": float(row[3]) if row[3] else 0.0
-            })
+            portfolio_details = []
+            for row in result:
+                portfolio_details.append({
+                    "id": row[0],
+                    "name": row[1],
+                    "holdings_count": row[2],
+                    "total_value": float(row[3]) if row[3] else 0.0
+                })
 
-        stats["portfolio_details"] = portfolio_details
+            stats["portfolio_details"] = portfolio_details
 
-        # Database file size
-        file_size = os.path.getsize(db_path)
-        stats["database_size"] = f"{file_size / 1024:.2f} KB"
-
-        conn.close()
+            # Database size (estimated from pg_total_relation_size)
+            result = conn.execute(text("""
+                SELECT
+                    ROUND(
+                        (pg_total_relation_size('portfolios') +
+                         pg_total_relation_size('portfolio_stocks')) / 1024.0, 2
+                    ) as size_kb
+            """))
+            size_kb = result.scalar()
+            stats["database_size"] = f"{size_kb:.2f} KB"
 
         return stats
 

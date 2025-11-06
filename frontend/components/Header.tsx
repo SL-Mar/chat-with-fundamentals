@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faChartLine, faGlobe, faBuildingColumns, faChartBar,
+  faChartLine, faGlobe, faBuildingColumns, faChartBar, faFileAlt,
   faDashboard, faComments, faFilter, faCog, faSignOutAlt, faDatabase
 } from '@fortawesome/free-solid-svg-icons';
 
@@ -84,7 +84,7 @@ const Header = () => {
           </Link>
 
           <Link
-            href="/macro"
+            href="/macro-comparison"
             className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
               isActive('/macro')
                 ? 'text-[#58a6ff]'
@@ -93,6 +93,18 @@ const Header = () => {
           >
             <FontAwesomeIcon icon={faChartBar} className="text-sm" />
             <span>Macro</span>
+          </Link>
+
+          <Link
+            href="/sec-filings"
+            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
+              isActive('/sec-filings')
+                ? 'text-[#58a6ff]'
+                : 'text-[#8b949e] hover:text-[#c9d1d9]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faFileAlt} className="text-sm" />
+            <span>SEC Filings</span>
           </Link>
 
           {/* Divider */}
@@ -140,9 +152,9 @@ const Header = () => {
 
           {/* Database */}
           <Link
-            href="/database"
+            href="/database-manager"
             className={`flex items-center space-x-2 transition-colors text-sm ${
-              isActive('/database')
+              isActive('/database-manager')
                 ? 'text-[#58a6ff]'
                 : 'text-[#8b949e] hover:text-[#c9d1d9]'
             }`}

@@ -85,7 +85,7 @@ export default function IntradayChart({
       data={chartData}
       ticker={ticker}
       interval={interval}
-      height={500}
+      height={700}
       showIntervalSelector={true}
       onIntervalChange={onIntervalChange}
     />
