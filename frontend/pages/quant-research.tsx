@@ -1,7 +1,6 @@
 // pages/quant-research.tsx - Quant Research RAG System
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import Header from '../components/Header';
 import AgentConsole from '../components/AgentConsole';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faSearch, faBook, faFileAlt, faArrowRight } from '@fortawesome/free-solid-svg-icons';
@@ -170,12 +169,9 @@ export default function QuantResearchPage() {
         <title>Quant Research - Chat with Fundamentals</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Header />
-
-        <main className="container mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="mb-8">
+      <div className="container mx-auto px-4 py-8">
+        {/* Page Title */}
+        <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
               <FontAwesomeIcon icon={faBook} className="text-blue-600" />
               Quant Research Library
@@ -395,8 +391,7 @@ export default function QuantResearchPage() {
               <AgentConsole />
             </div>
           </div>
-        </main>
-      </div>
+        </div>
     </>
   );
 }

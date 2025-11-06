@@ -1,7 +1,6 @@
 // pages/pair-trading.tsx - Pair Trading Analysis Page
 import { useState } from 'react';
 import Head from 'next/head';
-import Header from '../components/Header';
 import { Line } from 'react-chartjs-2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChartLine, faExchangeAlt, faCalculator, faCheckCircle, faTimesCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
@@ -209,12 +208,9 @@ export default function PairTradingPage() {
         <title>Pair Trading Analysis - Chat with Fundamentals</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Header />
-
-        <main className="container mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="mb-8">
+      <div className="container mx-auto px-4 py-8">
+        {/* Page Title */}
+        <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
               <FontAwesomeIcon icon={faExchangeAlt} className="text-blue-600" />
               Pair Trading Analysis
@@ -515,8 +511,7 @@ export default function PairTradingPage() {
               )}
             </>
           )}
-        </main>
-      </div>
+        </div>
     </>
   );
 }
