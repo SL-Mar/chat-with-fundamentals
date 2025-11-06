@@ -112,7 +112,92 @@
 
 ---
 
+## 5. Refactor Quant Research Module
+**Priority: HIGH**
+
+### Current Issue
+- Quant Research RAG module needs architectural improvements
+- Current implementation has limitations for scaling
+
+### Required Work
+1. **Refactor architecture** for better modularity
+2. **Add local LLM support** (currently OpenAI-only)
+   - Support Ollama/LM Studio
+   - Allow model selection
+   - Fallback mechanisms
+3. **Improve document management**
+   - Better indexing strategy
+   - Enhanced search capabilities
+   - Document versioning
+
+### Future Enhancement
+- Current module serves research papers and quantitative analysis documents
+- Will be extended for alpha extraction capabilities
+
+---
+
+## 6. Integrate SmolaGents for Autonomous Alpha Extraction
+**Priority: CRITICAL - NEXT MAJOR FEATURE**
+
+### Overview
+Implement autonomous agent system using SmolaGents to extract alpha signals from database.
+
+### Objectives
+- **Autonomous database queries** - agents fetch data without manual intervention
+- **Pattern recognition** - identify trading signals and market inefficiencies
+- **Alpha generation** - discover actionable trading insights
+
+### Technical Requirements
+1. **SmolaGents Integration**
+   - Install and configure SmolaGents library
+   - Create agent workflows
+   - Define agent roles and capabilities
+
+2. **Database Access Layer**
+   - Grant agents read access to:
+     - Historical price data (EOD)
+     - Fundamentals database
+     - News sentiment
+     - Macro indicators
+   - Implement query optimization
+   - Add rate limiting for agent queries
+
+3. **Alpha Extraction Pipeline**
+   - Define alpha signal types
+   - Backtesting framework integration
+   - Signal validation and scoring
+   - Performance tracking
+
+4. **Agent Workflows**
+   - Data exploration agents
+   - Pattern detection agents
+   - Hypothesis testing agents
+   - Signal generation agents
+
+### Expected Outcomes
+- Automated discovery of trading signals
+- Continuous alpha generation
+- Reduced manual research workload
+- Systematic approach to strategy development
+
+### Dependencies
+- Refactored Quant Research module (Task #5)
+- Local LLM support for cost efficiency
+- Robust database access layer
+
+---
+
 ## Recent Fixes Completed (Current Session)
+
+✅ **Fixed Dependency Conflicts - Deep Research & AI Analysis Restored**
+- Fixed critical incompatibility between gpt-researcher and crewai
+- Downgraded gpt-researcher to 0.10.11 (compatible with langchain 0.2.x)
+- Upgraded crewai to 1.3.0 (supports Flow API)
+- Updated langchain ecosystem to compatible versions
+- Fixed langchain imports in RAG services
+- Both endpoints fully functional:
+  - `/api/v2/deep-research` (gpt-researcher)
+  - `/api/v2/stocks/{ticker}/ai-analysis` (crewai)
 
 ✅ **Fixed Population Bug**
 - Removed invalid `ceo`, `sector`, `industry` parameters from Company model creation
