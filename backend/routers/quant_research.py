@@ -49,9 +49,11 @@ async def upload_document(
     Categories: strategy, risk, portfolio, general
     Tags: comma-separated list
     """
+    logger.info(f"Upload request received: filename={file.filename}, title={title}")
     try:
-        # Validate file type
-        if not file.filename.endswith('.pdf'):
+        # Validate file type (case-insensitive)
+        if not file.filename or not file.filename.lower().endswith('.pdf'):
+            logger.error(f"File validation failed: filename={file.filename}")
             raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
         # Save uploaded file
