@@ -49,21 +49,27 @@ async def upload_document(
     Categories: strategy, risk, portfolio, general
     Tags: comma-separated list
     """
-    logger.info(f"Upload request received: filename={file.filename}, title={title}")
+    logger.info(f"Upload request received: filename={file.filename}, title={title}, content_type={file.content_type}")
     try:
-        # Validate file type (case-insensitive)
-        if not file.filename or not file.filename.lower().endswith('.pdf'):
-            logger.error(f"File validation failed: filename={file.filename}")
+        # Validate file type - check content type or filename
+        filename = file.filename or "document.pdf"
+        is_pdf = (
+            (file.content_type and file.content_type == "application/pdf") or
+            filename.lower().endswith('.pdf')
+        )
+
+        if not is_pdf:
+            logger.error(f"File validation failed: filename={filename}, content_type={file.content_type}")
             raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
         # Save uploaded file
-        file_path = Path("./quant_research_data") / file.filename
+        file_path = Path("./quant_research_data") / filename
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        logger.info(f"Uploaded file: {file.filename}")
+        logger.info(f"Uploaded file: {filename}")
 
         # Parse tags
         tag_list = [t.strip() for t in tags.split(",")] if tags else None
@@ -87,7 +93,7 @@ async def upload_document(
 
         return {
             "message": "Upload successful, indexing started",
-            "filename": file.filename,
+            "filename": filename,
             "title": title
         }
 
