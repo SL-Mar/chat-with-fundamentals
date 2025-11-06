@@ -15,13 +15,11 @@ interface Document {
 }
 
 interface SearchResult {
-  content: string;
-  metadata: {
-    title: string;
-    authors: string;
-    year: number;
-    category: string;
-  };
+  title: string;
+  authors: string;
+  year: number;
+  category: string;
+  excerpt: string;
 }
 
 export default function QuantResearchPage() {
@@ -370,10 +368,10 @@ export default function QuantResearchPage() {
                             {searchResults.map((result, idx) => (
                               <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
                                 <div className="font-semibold text-sm text-gray-900 dark:text-white">
-                                  {result.metadata.title}
+                                  {result.title}
                                 </div>
                                 <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                  {result.metadata.authors} ({result.metadata.year})
+                                  {result.authors} ({result.year})
                                 </div>
                               </div>
                             ))}
