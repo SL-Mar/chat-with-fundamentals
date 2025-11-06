@@ -9,6 +9,7 @@ from typing import List, Optional
 import logging
 from pathlib import Path
 import shutil
+from urllib.parse import unquote
 
 from services.quant_research_rag_service import quant_research_rag
 
@@ -52,11 +53,12 @@ async def upload_document(
     logger.info(f"Upload request received: filename={file.filename}, title={title}, content_type={file.content_type}")
     try:
         # Validate file type - check content type or filename
-        filename = file.filename or "document.pdf"
-        is_pdf = (
-            (file.content_type and file.content_type == "application/pdf") or
-            filename.lower().endswith('.pdf')
-        )
+        # Clean filename: decode URL encoding and strip whitespace
+        raw_filename = file.filename or "document.pdf"
+        filename = unquote(raw_filename).strip()
+
+        # Check for PDF: file extension only (browsers may send various content types)
+        is_pdf = filename.lower().endswith('.pdf')
 
         if not is_pdf:
             logger.error(f"File validation failed: filename={filename}, content_type={file.content_type}")
