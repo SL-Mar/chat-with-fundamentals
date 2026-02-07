@@ -2,62 +2,75 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List
-from core.llm_settings import get_model_from_db, set_model_in_db
+from typing import List, Dict, Optional
+from core.llm_settings import (
+    get_model_from_db, set_model_in_db,
+    get_provider_from_db, set_provider_in_db,
+    SUPPORTED_MODELS,
+)
 import logging
 
 router = APIRouter(prefix="/settings", tags=["LLMLoader"])
-logger = logging.getLogger("llmloader")  # create a child logger
+logger = logging.getLogger("llmloader")
+
 
 class LLMSetting(BaseModel):
     manager: str
     store: str
+    provider: str
+
 
 class UpdateLLMRequest(BaseModel):
-    field: str  # must be "manager" or "store"
+    field: str  # "manager", "store", or "provider"
     model_name: str
+
 
 @router.get("/llm", response_model=List[LLMSetting])
 def list_llm_settings():
-    import sqlite3
-    from core.llm_settings import DB_PATH
-
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT manager, store FROM llm_settings")
-            rows = cur.fetchall()
-            logger.info("🔍 Listed LLM settings successfully")
-            return [{"manager": row[0], "store": row[1]} for row in rows]
-    except Exception as e:
-        logger.exception("❌ Failed to list LLM settings")
+        row = get_model_from_db()
+        logger.info("Listed LLM settings successfully")
+        return [row]
+    except Exception:
+        logger.exception("Failed to list LLM settings")
         raise HTTPException(status_code=500, detail="Failed to fetch LLM settings")
+
 
 @router.post("/llm", response_model=LLMSetting)
 def update_llm_setting(request: UpdateLLMRequest):
     try:
-        if request.field not in ("manager", "store"):
-            raise ValueError("Invalid field. Must be 'manager' or 'store'.")
+        if request.field == "provider":
+            set_provider_in_db(request.model_name)
+        elif request.field in ("manager", "store"):
+            set_model_in_db(request.field, request.model_name)
+        else:
+            raise ValueError("field must be 'manager', 'store', or 'provider'")
 
-        set_model_in_db(request.field, request.model_name)
         setting = get_model_from_db()
-
-        logger.info(f"✅ Updated {request.field} to {request.model_name}")
-        return {
-            "manager": setting["manager"],
-            "store": setting["store"]
-        }
+        logger.info(f"Updated {request.field} to {request.model_name}")
+        return setting
     except Exception as e:
-        logger.exception(f"❌ Failed to update {request.field}")
+        logger.exception(f"Failed to update {request.field}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/llm/models", response_model=List[str])
+
+@router.get("/llm/models", response_model=Dict[str, List[str]])
 def list_supported_models():
-    logger.info("📋 Listed supported LLM models")
-    return ["gpt-4.1", "o1", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
+    """Return models grouped by provider."""
+    logger.info("Listed supported LLM models")
+    return SUPPORTED_MODELS
 
 
-
-@router.get("/llm/models", response_model=List[str])
-def list_supported_models():
-    return ["gpt-4.1", "o1", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
+@router.get("/llm/ollama-models", response_model=List[str])
+def list_ollama_models():
+    """Discover locally available Ollama models."""
+    try:
+        import httpx
+        from core.config import settings
+        resp = httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=5.0)
+        resp.raise_for_status()
+        models = [m["name"] for m in resp.json().get("models", [])]
+        return models
+    except Exception as e:
+        logger.warning(f"Could not reach Ollama: {e}")
+        return []

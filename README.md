@@ -8,6 +8,35 @@ AI-powered fundamental analysis platform for stocks and currencies. Combines aut
 
 ---
 
+## Screenshots
+
+### Stock Research
+Interactive charts (SMA, Bollinger Bands, RSI), insider transactions, news sentiment, and real-time pricing.
+
+![Stock Research](docs/screenshots/CWF_Stocks.png)
+
+### Portfolio Optimization
+Unified comparison of optimization methods (Equal Weight, MVO, Min Variance, Black-Litterman) with performance metrics.
+
+![Portfolio Optimization](docs/screenshots/CWF_folio.png)
+
+### Monte Carlo Simulation
+Portfolio-level Monte Carlo with configurable parameters, percentile bands, and path visualization.
+
+![Monte Carlo Simulation](docs/screenshots/CWF_MC.png)
+
+### Pair Trading Analysis
+Cointegration testing, z-score monitoring, spread charts, and backtested trade history.
+
+![Pair Trading](docs/screenshots/CWF_pair_trading.png)
+
+### Macro Indicators
+Cross-country comparison of treasury yields and money market rates.
+
+![Macro Indicators](docs/screenshots/CWF_Macros.png)
+
+---
+
 ## Core Features
 
 ### Agentic Trading Signals (MarketSense AI)
@@ -132,7 +161,7 @@ chat-with-fundamentals/
 | **Database** | TimescaleDB (PostgreSQL 15) - dual instances (EOD + intraday) |
 | **Cache** | Redis 7 |
 | **AI Agents** | CrewAI, LangChain |
-| **LLM** | OpenAI GPT-4o (configurable) |
+| **LLM** | Multi-provider: OpenAI, Anthropic Claude, Ollama (runtime switchable) |
 | **Deep Research** | Tavily API, GPT-Researcher |
 | **Market Data** | EODHD API (50+ endpoints) |
 | **Portfolio** | PyPortfolioOpt (MVO, Black-Litterman) |
@@ -170,12 +199,26 @@ cp backend/.env.example backend/.env
 
 Required keys:
 ```env
-OPENAI_API_KEY=your-openai-key
 EODHD_API_KEY=your-eodhd-key
+
+# LLM provider (choose one)
+OPENAI_API_KEY=your-openai-key        # For OpenAI provider
+ANTHROPIC_API_KEY=your-anthropic-key  # For Anthropic Claude provider
+OLLAMA_BASE_URL=http://localhost:11434 # For Ollama (local LLMs)
 
 # Optional
 TAVILY_API_KEY=your-tavily-key    # For deep research
-MODEL_NAME=gpt-4o                 # LLM model
+```
+
+Switch LLM provider at runtime:
+```bash
+# Switch to Anthropic Claude
+curl -X POST http://localhost:8000/settings/llm \
+  -H "Content-Type: application/json" \
+  -d '{"field": "provider", "model_name": "anthropic"}'
+
+# View all supported models
+curl http://localhost:8000/settings/llm/models
 ```
 
 ### 3. Launch the app

@@ -17,7 +17,6 @@ from pydantic import BaseModel, ValidationError
 
 from crewai.flow.flow import Flow, start, listen
 from crewai import Crew, Task, Agent
-from langchain_openai import ChatOpenAI
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 
 from models.analyze_models import (
@@ -291,10 +290,7 @@ Return only the executive summary text.
         crew = Crew(
             agents=[analysis_agent],
             tasks=[task],
-            manager_llm=ChatOpenAI(
-                model=settings.model_name,
-                api_key=settings.openai_api_key,
-            ),
+            manager_llm=get_llm("analyze", role="manager"),
             verbose=True,
         )
 

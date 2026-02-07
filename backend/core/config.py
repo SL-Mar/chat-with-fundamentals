@@ -4,13 +4,17 @@ from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    openai_api_key: Optional[str] = None  # Made optional for testing macro/ETF features
-    model_name: str = "gpt-4o-mini"  # Cheapest OpenAI model (90% cheaper than gpt-4o)
+    openai_api_key: Optional[str] = None
+    model_name: str = "gpt-4o-mini"
+
+    anthropic_api_key: Optional[str] = None
+    ollama_base_url: str = "http://localhost:11434"
+    llm_provider: str = "openai"  # startup default; runtime value comes from DB
 
     eodhd_api_key: Optional[str] = None
     serper_api_key: Optional[str] = None
     mistral_api_key: Optional[str] = None
-    tavily_api_key: Optional[str] = None  # For deep research
+    tavily_api_key: Optional[str] = None
 
     NOTION_API_KEY: str = ""
     NOTION_DATABASE_ID: str = ""
@@ -24,4 +28,3 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
-

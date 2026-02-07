@@ -250,9 +250,10 @@ class MarketSenseAI:
 
             # Add LLM model information from settings
             try:
-                from core.config import settings
-                metadata["model"] = settings.model_name
-                metadata["provider"] = "OpenAI"  # Currently only OpenAI is used
+                from core.llm_settings import get_model_from_db
+                db = get_model_from_db()
+                metadata["model"] = db.get("store", "unknown")
+                metadata["provider"] = db.get("provider", "unknown")
             except Exception as e:
                 logger.error(f"Failed to add LLM model info to metadata: {e}")
 

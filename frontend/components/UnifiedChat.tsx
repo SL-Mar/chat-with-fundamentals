@@ -37,13 +37,12 @@ export default function UnifiedChat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || loading) return
+  const submitQuery = async (query: string) => {
+    if (!query.trim() || loading) return
 
     const userMessage: Message = {
       role: 'user',
-      content: input,
+      content: query,
       timestamp: new Date()
     }
     setMessages(prev => [...prev, userMessage])
@@ -52,8 +51,7 @@ export default function UnifiedChat() {
 
     try {
       if (mode === 'deep') {
-        // Deep Analysis Mode - Full report
-        const result = await api.chatWithFundamentals(input)
+        const result = await api.chatWithFundamentals(query)
         const assistantMessage: Message = {
           role: 'assistant',
           content: result.Ex_summary || 'Analysis complete',
@@ -62,8 +60,7 @@ export default function UnifiedChat() {
         }
         setMessages(prev => [...prev, assistantMessage])
       } else {
-        // Quick Query Mode - Dynamic panels
-        const result = await api.chatWithPanels(input,
+        const result = await api.chatWithPanels(query,
           messages.map(m => ({ role: m.role, content: m.content }))
         )
         const assistantMessage: Message = {
@@ -84,6 +81,16 @@ export default function UnifiedChat() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await submitQuery(input)
+  }
+
+  const handleTileClick = (query: string) => {
+    setInput(query)
+    submitQuery(query)
   }
 
   return (
@@ -140,7 +147,7 @@ export default function UnifiedChat() {
             </p>
             <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto text-left">
               <button
-                onClick={() => setInput('Show me AAPL dividends')}
+                onClick={() => handleTileClick('Show me AAPL dividends')}
                 className="p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <p className="font-medium text-white flex items-center">
@@ -150,7 +157,7 @@ export default function UnifiedChat() {
                 <p className="text-sm text-gray-400">Show me AAPL dividends</p>
               </button>
               <button
-                onClick={() => setInput('Analyze MSFT fundamentals')}
+                onClick={() => handleTileClick('Analyze MSFT fundamentals')}
                 className="p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <p className="font-medium text-white flex items-center">
@@ -160,7 +167,7 @@ export default function UnifiedChat() {
                 <p className="text-sm text-gray-400">Analyze MSFT fundamentals</p>
               </button>
               <button
-                onClick={() => setInput('Show TSLA price chart')}
+                onClick={() => handleTileClick('Show TSLA price chart')}
                 className="p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <p className="font-medium text-white flex items-center">
@@ -170,7 +177,7 @@ export default function UnifiedChat() {
                 <p className="text-sm text-gray-400">Show TSLA price chart</p>
               </button>
               <button
-                onClick={() => setInput('What are the top ETF holdings for SPY?')}
+                onClick={() => handleTileClick('What are the top ETF holdings for SPY?')}
                 className="p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <p className="font-medium text-white flex items-center">

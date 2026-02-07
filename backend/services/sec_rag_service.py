@@ -92,9 +92,13 @@ class SECFilingsRAG:
             str(self.storage_path)
         )
 
-        # Initialize embeddings
+        # Initialize embeddings (OpenAI embeddings are cheap and universal;
+        # fall back gracefully if no key is available)
+        _emb_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        if not _emb_key:
+            logger.warning("No OpenAI API key for embeddings – SEC RAG search will not work until a key is set or an Ollama embeddings fallback is configured")
         self.embeddings = OpenAIEmbeddings(
-            openai_api_key=openai_api_key or os.getenv("OPENAI_API_KEY")
+            openai_api_key=_emb_key or "PLACEHOLDER"
         )
 
         # Initialize text splitter

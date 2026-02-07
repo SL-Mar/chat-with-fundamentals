@@ -24,7 +24,7 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-gray-900">
+    <div className="min-h-screen bg-gray-900">
       <div className="container mx-auto px-4 py-20">
         {/* Hero Section */}
         <div className="text-center mb-16">
@@ -36,7 +36,7 @@ export default function Home() {
           </p>
           <Link
             href="/unified-chat"
-            className="inline-block px-8 py-4 bg-indigo-600 text-white text-xl font-semibold rounded-lg hover:bg-indigo-500 transition-colors shadow-lg"
+            className="inline-block px-8 py-4 bg-gray-700 text-white text-xl font-semibold rounded-lg hover:bg-gray-600 transition-colors shadow-lg"
           >
             <FontAwesomeIcon icon={faRocket} className="mr-2" />
             Launch AI Chat Assistant
@@ -45,8 +45,8 @@ export default function Home() {
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20">
-          <Link href="/stock-ai-analysis" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
-            <div className="text-4xl mb-4 text-indigo-400">
+          <Link href="/stock-ai-analysis" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer block">
+            <div className="text-4xl mb-4 text-gray-400">
               <FontAwesomeIcon icon={faBrain} />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Trading Signals</h3>
@@ -55,8 +55,8 @@ export default function Home() {
             </p>
           </Link>
 
-          <Link href="/sec-filings" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
-            <div className="text-4xl mb-4 text-indigo-400">
+          <Link href="/sec-filings" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer block">
+            <div className="text-4xl mb-4 text-gray-400">
               <FontAwesomeIcon icon={faFileAlt} />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">SEC Filings</h3>
@@ -65,8 +65,8 @@ export default function Home() {
             </p>
           </Link>
 
-          <Link href="/stocks" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
-            <div className="text-4xl mb-4 text-indigo-400">
+          <Link href="/stocks" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer block">
+            <div className="text-4xl mb-4 text-gray-400">
               <FontAwesomeIcon icon={faChartLine} />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Stock Research</h3>
@@ -75,8 +75,8 @@ export default function Home() {
             </p>
           </Link>
 
-          <Link href="/portfolios" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
-            <div className="text-4xl mb-4 text-indigo-400">
+          <Link href="/portfolios" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer block">
+            <div className="text-4xl mb-4 text-gray-400">
               <FontAwesomeIcon icon={faBriefcase} />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Portfolios</h3>
@@ -85,8 +85,8 @@ export default function Home() {
             </p>
           </Link>
 
-          <Link href="/pair-trading" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
-            <div className="text-4xl mb-4 text-indigo-400">
+          <Link href="/pair-trading" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer block">
+            <div className="text-4xl mb-4 text-gray-400">
               <FontAwesomeIcon icon={faExchangeAlt} />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Pair Trading</h3>
@@ -95,8 +95,8 @@ export default function Home() {
             </p>
           </Link>
 
-          <Link href="/currencies" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
-            <div className="text-4xl mb-4 text-indigo-400">
+          <Link href="/currencies" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer block">
+            <div className="text-4xl mb-4 text-gray-400">
               <FontAwesomeIcon icon={faGlobe} />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Currencies</h3>
@@ -117,7 +117,7 @@ export default function Home() {
           <div className="flex justify-center gap-4 flex-wrap">
             <Link
               href="/unified-chat"
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
             >
               <FontAwesomeIcon icon={faComments} className="mr-2" />
               AI Chat

@@ -1,37 +1,66 @@
 # core/llm_provider.py
+"""Multi-provider LLM factory.
 
-import sqlite3
-from pathlib import Path
-from langchain_openai import ChatOpenAI
+Every consumer calls `get_llm(flow, role)` and gets back a LangChain
+BaseChatModel configured for the active provider stored in SQLite.
+"""
+
+import logging
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from core.config import settings
+from core.llm_settings import get_model_from_db, get_provider_from_db
 
-DB_PATH = Path("core/llm_config.db")  # Use updated name if needed
+logger = logging.getLogger(__name__)
 
-def get_llm(flow: str, role: str = "store") -> ChatOpenAI:
+
+def get_current_provider() -> str:
+    """Return the active provider name (openai / anthropic / ollama)."""
+    return get_provider_from_db()
+
+
+def _create_llm(provider: str, model: str, temperature: float = 0.3) -> BaseChatModel:
+    """Internal factory – returns the right LangChain chat model."""
+    if provider == "openai":
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=model,
+            api_key=settings.openai_api_key,
+            temperature=temperature,
+        )
+
+    if provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+        return ChatAnthropic(
+            model=model,
+            api_key=settings.anthropic_api_key,
+            temperature=temperature,
+        )
+
+    if provider == "ollama":
+        from langchain_ollama import ChatOllama
+        return ChatOllama(
+            model=model,
+            base_url=settings.ollama_base_url,
+            temperature=temperature,
+        )
+
+    raise ValueError(f"Unknown provider: {provider}")
+
+
+def get_llm(flow: str = "default", role: str = "store") -> BaseChatModel:
     """
     Retrieve the LLM for a given flow and role ('manager' or 'store').
 
-    Falls back to .env MODEL_NAME if not found in DB.
+    Falls back to .env MODEL_NAME / default provider if DB read fails.
     """
-    # SECURITY FIX: Use whitelist dictionary to prevent SQL injection
-    VALID_COLUMNS = {'manager': 'manager', 'store': 'store'}
-    column = VALID_COLUMNS.get(role)
-    if not column:
-        raise ValueError("role must be 'manager' or 'store'")
-
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            # Safe: column is from whitelist dictionary, not user input
-            cursor.execute(f"SELECT {column} FROM llm_settings WHERE flow = ?", (flow,))
-            row = cursor.fetchone()
-            model_name = row[0] if row and row[0] else settings.model_name
+        db = get_model_from_db()
+        provider = db.get("provider", "openai")
+        model_name = db.get(role, settings.model_name)
     except Exception:
+        provider = settings.llm_provider
         model_name = settings.model_name
 
-    return ChatOpenAI(
-        model=model_name,
-        api_key=settings.openai_api_key,
-        temperature=0.3
-    )
+    logger.debug(f"get_llm({flow}, {role}) → {provider}:{model_name}")
+    return _create_llm(provider, model_name)

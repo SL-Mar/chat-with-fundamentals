@@ -1,5 +1,6 @@
 # tools/panel_tools.py
 # LLM function calling tools for dynamic panel rendering
+# Supports both OpenAI native format and LangChain bind_tools format
 
 PANEL_TOOLS = [
     {
@@ -559,9 +560,26 @@ PANEL_TOOLS = [
 ]
 
 
-def extract_panel_commands(tool_calls):
+def convert_openai_tools_to_langchain(tools: list) -> list:
+    """Convert OpenAI-format tools to the dict format LangChain's bind_tools() accepts.
+
+    LangChain's bind_tools() accepts dicts with a specific schema.
+    The OpenAI format wraps everything under {"type": "function", "function": {...}},
+    while LangChain wants {"type": "function", "function": {...}} — they happen to
+    be compatible, so we can pass PANEL_TOOLS directly to bind_tools() for providers
+    that support it (OpenAI, Anthropic). For Ollama models that don't support tools,
+    the caller should use fallback pattern matching.
     """
-    Extract panel rendering commands from LLM tool calls
+    return tools
+
+
+def extract_panel_commands(tool_calls) -> list:
+    """
+    Extract panel rendering commands from LLM tool calls.
+
+    Supports both:
+    - OpenAI SDK format: tool_call.function.name / tool_call.function.arguments (str)
+    - LangChain AIMessage format: tool_call["name"] / tool_call["args"] (dict)
 
     Returns: List of panel commands with type and props
     """
@@ -571,8 +589,17 @@ def extract_panel_commands(tool_calls):
     panels = []
     for tool_call in tool_calls:
         import json
-        function_name = tool_call.function.name
-        arguments = json.loads(tool_call.function.arguments)
+
+        # LangChain AIMessage.tool_calls format (list of dicts)
+        if isinstance(tool_call, dict):
+            function_name = tool_call.get("name", "")
+            arguments = tool_call.get("args", {})
+            if isinstance(arguments, str):
+                arguments = json.loads(arguments)
+        else:
+            # OpenAI SDK format (objects with .function.name / .function.arguments)
+            function_name = tool_call.function.name
+            arguments = json.loads(tool_call.function.arguments)
 
         panels.append({
             "type": function_name,

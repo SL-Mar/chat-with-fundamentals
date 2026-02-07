@@ -98,8 +98,7 @@ async def lifespan(app: FastAPI):
         logger.error("❌ Get your free API key at: https://eodhd.com/register")
 
     if not settings.openai_api_key:
-        logger.warning("⚠️  OPENAI_API_KEY not set - chat/AI features will be unavailable")
-        logger.warning("⚠️  Some endpoints may return errors without OpenAI API key")
+        logger.warning("⚠️  OPENAI_API_KEY not set - switch to Anthropic or Ollama provider via /settings/llm")
 
     app_api_key = os.getenv("APP_API_KEY")
     if not app_api_key:

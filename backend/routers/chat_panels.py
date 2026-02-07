@@ -6,46 +6,13 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import logging
 from tools.panel_tools import PANEL_TOOLS, extract_panel_commands
-from core.config import settings
+from core.llm_provider import get_llm, get_current_provider
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 router = APIRouter(prefix="/chat", tags=["Chat with Panels"])
 logger = logging.getLogger("chat_panels")
 
-
-class ChatMessage(BaseModel):
-    message: str
-    history: Optional[List[Dict[str, str]]] = []
-
-
-class ChatResponse(BaseModel):
-    message: str
-    panels: List[Dict[str, Any]]
-
-
-@router.post("/panels", response_model=ChatResponse)
-async def chat_with_panels(request: ChatMessage):
-    """
-    Chat with LLM that can dynamically render panels
-
-    User: "Show me dividends for AAPL"
-    LLM: Returns text response + panel command to render DividendHistory component
-    """
-    try:
-        # Check if OpenAI API key is available
-        if not settings.openai_api_key:
-            # Fallback: Simple pattern matching without LLM
-            logger.warning("[CHAT_PANELS] OpenAI API key not set, using fallback pattern matching")
-            return fallback_pattern_matching(request.message)
-
-        # Use OpenAI with function calling
-        from openai import OpenAI
-        client = OpenAI(api_key=settings.openai_api_key)
-
-        # Build message history
-        messages = [
-            {
-                "role": "system",
-                "content": """You are an expert financial analysis assistant with access to a comprehensive
+SYSTEM_PROMPT = """You are an expert financial analysis assistant with access to a comprehensive
 database containing 30+ years of historical market data, fundamentals, news, corporate actions,
 and macroeconomic indicators.
 
@@ -86,31 +53,56 @@ You can call MULTIPLE functions in a single response to provide comprehensive an
 - Historical data goes back 30+ years
 - Combine panels when users need comprehensive analysis
 - Ticker format: Always add .US suffix (e.g., AAPL.US, MSFT.US) unless specified otherwise"""
-            }
-        ]
 
-        # Add history
+
+class ChatMessage(BaseModel):
+    message: str
+    history: Optional[List[Dict[str, str]]] = []
+
+
+class ChatResponse(BaseModel):
+    message: str
+    panels: List[Dict[str, Any]]
+
+
+@router.post("/panels", response_model=ChatResponse)
+async def chat_with_panels(request: ChatMessage):
+    """
+    Chat with LLM that can dynamically render panels.
+    Uses LangChain bind_tools() for provider-agnostic tool calling.
+    """
+    try:
+        provider = get_current_provider()
+
+        # Ollama models often lack tool-calling support – use fallback
+        if provider == "ollama":
+            logger.info("[CHAT_PANELS] Ollama provider detected, using fallback pattern matching")
+            return fallback_pattern_matching(request.message)
+
+        llm = get_llm("chat_panels", role="store")
+
+        # Bind tools to the LLM (works for OpenAI + Anthropic via LangChain)
+        llm_with_tools = llm.bind_tools(PANEL_TOOLS)
+
+        # Build messages
+        messages = [SystemMessage(content=SYSTEM_PROMPT)]
         for msg in request.history:
-            messages.append(msg)
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages.append(AIMessage(content=content))
 
-        # Add current message
-        messages.append({"role": "user", "content": request.message})
+        messages.append(HumanMessage(content=request.message))
 
-        # Call OpenAI with tools
-        response = client.chat.completions.create(
-            model=settings.model_name,
-            messages=messages,
-            tools=PANEL_TOOLS,
-            tool_choice="auto"
-        )
+        # Invoke LLM
+        response: AIMessage = llm_with_tools.invoke(messages)
 
-        assistant_message = response.choices[0].message
+        # Extract panels from tool_calls (LangChain format: list of dicts)
+        panels = extract_panel_commands(response.tool_calls)
 
-        # Extract panels from tool calls
-        panels = extract_panel_commands(assistant_message.tool_calls)
-
-        # Get text response
-        text_response = assistant_message.content or "Here's the requested data:"
+        text_response = response.content or "Here's the requested data:"
 
         logger.info(f"[CHAT_PANELS] Generated {len(panels)} panel(s) for: {request.message}")
 
@@ -121,7 +113,6 @@ You can call MULTIPLE functions in a single response to provide comprehensive an
 
     except Exception as e:
         logger.error(f"[CHAT_PANELS] Error: {e}")
-        # Fallback to pattern matching if LLM fails
         return fallback_pattern_matching(request.message)
 
 
@@ -133,10 +124,21 @@ def fallback_pattern_matching(message: str) -> ChatResponse:
     panels = []
     response_text = ""
 
-    # Extract ticker
+    # Extract ticker (skip common English words)
     import re
-    ticker_match = re.search(r'\b([A-Z]{1,5})\b', message.upper())
-    ticker = ticker_match.group(1) if ticker_match else None
+    SKIP_WORDS = {
+        'SHOW', 'ME', 'THE', 'FOR', 'AND', 'GET', 'WHAT', 'ARE', 'TOP',
+        'HOW', 'DOES', 'WITH', 'FROM', 'ABOUT', 'THIS', 'THAT', 'GIVE',
+        'FIND', 'LIST', 'ALL', 'ANY', 'CAN', 'HAS', 'HAVE', 'BEEN',
+        'WILL', 'WOULD', 'COULD', 'SHOULD', 'TELL', 'LOOK', 'WANT',
+        'NEED', 'LIKE', 'MUCH', 'MANY', 'SOME', 'MOST', 'LAST', 'NEXT',
+        'YEAR', 'YEARS', 'DAY', 'DAYS', 'WEEK', 'MONTH', 'BUY', 'SELL',
+    }
+    ticker = None
+    for m in re.finditer(r'\b([A-Z]{1,5})\b', message.upper()):
+        if m.group(1) not in SKIP_WORDS:
+            ticker = m.group(1)
+            break
 
     if not ticker:
         return ChatResponse(
@@ -300,8 +302,7 @@ def fallback_pattern_matching(message: str) -> ChatResponse:
         response_text = "Here's the upcoming economic events calendar:"
 
     elif any(word in message_lower for word in ['index constituent', 'index holding', 'sp500 stocks', 's&p']):
-        # Try to extract index symbol
-        index = 'GSPC'  # Default to S&P 500
+        index = 'GSPC'
         if 'dow' in message_lower:
             index = 'DJI'
         elif 'nasdaq' in message_lower:
