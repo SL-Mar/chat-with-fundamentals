@@ -8,7 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faChartLine, faGlobe, faBuildingColumns, faChartBar, faFileAlt,
   faDashboard, faComments, faFilter, faCog, faSignOutAlt, faDatabase,
-  faExchangeAlt, faBook
+  faExchangeAlt
 } from '@fortawesome/free-solid-svg-icons';
 
 const Header = () => {
@@ -118,18 +118,6 @@ const Header = () => {
           >
             <FontAwesomeIcon icon={faExchangeAlt} className="text-sm" />
             <span>Pairs</span>
-          </Link>
-
-          <Link
-            href="/quant-research"
-            className={`flex items-center space-x-2 transition-colors text-sm font-medium ${
-              isActive('/quant-research')
-                ? 'text-[#58a6ff]'
-                : 'text-[#8b949e] hover:text-[#c9d1d9]'
-            }`}
-          >
-            <FontAwesomeIcon icon={faBook} className="text-sm" />
-            <span>Research</span>
           </Link>
 
           {/* Divider */}
