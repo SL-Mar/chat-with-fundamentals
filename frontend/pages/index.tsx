@@ -18,7 +18,8 @@ import Link from 'next/link'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faRocket, faComments, faChartLine, faChartArea,
-  faCalendarDays, faBullseye, faEye, faFilter, faCog
+  faCalendarDays, faBullseye, faEye, faFilter, faCog,
+  faBrain, faFileAlt, faExchangeAlt, faBriefcase, faGlobe
 } from '@fortawesome/free-solid-svg-icons'
 
 export default function Home() {
@@ -44,71 +45,65 @@ export default function Home() {
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20">
-          {/* Feature 1 */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+          <Link href="/stock-ai-analysis" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
             <div className="text-4xl mb-4 text-indigo-400">
-              <FontAwesomeIcon icon={faComments} />
+              <FontAwesomeIcon icon={faBrain} />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">AI Chat Assistant</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Trading Signals</h3>
             <p className="text-gray-400">
-              Dual-mode chat: Quick queries from database or comprehensive AI analysis with full reports
+              MarketSense AI: multi-agent BUY/HOLD/SELL recommendations from fundamentals, news, price dynamics and macro
             </p>
-          </div>
+          </Link>
 
-          {/* Feature 2 */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+          <Link href="/sec-filings" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
+            <div className="text-4xl mb-4 text-indigo-400">
+              <FontAwesomeIcon icon={faFileAlt} />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">SEC Filings</h3>
+            <p className="text-gray-400">
+              Search and analyze 10-K/10-Q filings with RAG-powered Q&A and interactive PDF viewer
+            </p>
+          </Link>
+
+          <Link href="/stocks" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
             <div className="text-4xl mb-4 text-indigo-400">
               <FontAwesomeIcon icon={faChartLine} />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Real-Time Data</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Stock Research</h3>
             <p className="text-gray-400">
-              Access live prices, OHLCV data, fundamentals, news, and market intelligence
+              Fundamentals, technicals, news sentiment, Monte Carlo simulation and risk metrics
             </p>
-          </div>
+          </Link>
 
-          {/* Feature 3 */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+          <Link href="/portfolios" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
             <div className="text-4xl mb-4 text-indigo-400">
-              <FontAwesomeIcon icon={faChartArea} />
+              <FontAwesomeIcon icon={faBriefcase} />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Technical Analysis</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Portfolios</h3>
             <p className="text-gray-400">
-              Advanced indicators, screening tools, and customizable charts for technical traders
+              Share-based tracking with MVO, Black-Litterman, Monte Carlo VaR and rebalancing recommendations
             </p>
-          </div>
+          </Link>
 
-          {/* Feature 4 */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+          <Link href="/pair-trading" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
             <div className="text-4xl mb-4 text-indigo-400">
-              <FontAwesomeIcon icon={faCalendarDays} />
+              <FontAwesomeIcon icon={faExchangeAlt} />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Events Calendar</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Pair Trading</h3>
             <p className="text-gray-400">
-              Track earnings, IPOs, splits, and dividends across all major exchanges
+              Cointegration analysis, z-score monitoring, hedge ratios and trading signal generation
             </p>
-          </div>
+          </Link>
 
-          {/* Feature 5 */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+          <Link href="/currencies" className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors cursor-pointer block">
             <div className="text-4xl mb-4 text-indigo-400">
-              <FontAwesomeIcon icon={faBullseye} />
+              <FontAwesomeIcon icon={faGlobe} />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Corporate Actions</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Currencies</h3>
             <p className="text-gray-400">
-              Monitor dividends, splits, and insider transactions with detailed analysis
+              Forex pair analysis with historical data, technicals and macro indicator comparison
             </p>
-          </div>
-
-          {/* Feature 6 */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
-            <div className="text-4xl mb-4 text-indigo-400">
-              <FontAwesomeIcon icon={faEye} />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">System Monitoring</h3>
-            <p className="text-gray-400">
-              Real-time dashboards for database, cache, and API usage metrics
-            </p>
-          </div>
+          </Link>
         </div>
 
         {/* CTA Section */}
