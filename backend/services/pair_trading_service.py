@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import logging
 from statsmodels.tsa.stattools import coint, adfuller
 from statsmodels.regression.linear_model import OLS
+from statsmodels.tools.tools import add_constant
 import requests
 
 from core.config import settings
@@ -111,9 +112,9 @@ class PairTradingService:
         # Engle-Granger cointegration test
         score, p_value, _ = coint(stock1, stock2)
 
-        # Calculate hedge ratio using OLS regression
-        model = OLS(stock1, stock2).fit()
-        hedge_ratio = model.params[0]
+        # Calculate hedge ratio using OLS regression (with intercept)
+        model = OLS(stock1, add_constant(stock2)).fit()
+        hedge_ratio = model.params[1]
 
         # Calculate spread
         spread = stock1 - hedge_ratio * stock2
@@ -161,9 +162,9 @@ class PairTradingService:
         spread_lag = spread[:-1]
         spread_diff = spread[1:] - spread[:-1]
 
-        # Fit AR(1) model
-        model = OLS(spread_diff, spread_lag).fit()
-        theta = model.params[0]
+        # Fit AR(1) model (with intercept)
+        model = OLS(spread_diff, add_constant(spread_lag)).fit()
+        theta = model.params[1]
 
         if theta >= 0:
             return None  # Not mean-reverting
@@ -238,13 +239,13 @@ class PairTradingService:
                 exit_price1 = stock1[i]
                 exit_price2 = stock2[i]
 
-                # Calculate P&L
+                # Calculate P&L in price space, normalized by entry notional
+                entry_notional = entry_price1 + hedge_ratio * entry_price2
+                spread_pnl = (exit_price1 - entry_price1) - hedge_ratio * (exit_price2 - entry_price2)
                 if position == 1:
-                    pnl = ((exit_price1 - entry_price1) / entry_price1 -
-                           hedge_ratio * (exit_price2 - entry_price2) / entry_price2)
+                    pnl = spread_pnl / entry_notional
                 else:
-                    pnl = -((exit_price1 - entry_price1) / entry_price1 -
-                            hedge_ratio * (exit_price2 - entry_price2) / entry_price2)
+                    pnl = -spread_pnl / entry_notional
 
                 trades.append({
                     'entry_date': df.index[entry_idx].isoformat(),

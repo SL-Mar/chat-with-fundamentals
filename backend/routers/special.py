@@ -727,7 +727,7 @@ async def get_peer_comparison(
 
                         try:
                             covariance = np.cov(peer_r, main_r)[0, 1]
-                            variance = np.var(main_r)
+                            variance = np.var(main_r, ddof=1)
                             if variance > 0:
                                 beta = covariance / variance
                                 metrics[t]["beta"] = round(float(beta), 3)

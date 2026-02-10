@@ -1017,10 +1017,9 @@ def analyze_optimized_portfolio(
 
     elif method == "black_litterman":
         # Black-Litterman Model
-        market_returns = prices_df.pct_change().mean() * 252
-        market_caps = np.exp(market_returns)
-        market_caps = pd.Series(market_caps, index=prices_df.columns)
-        market_caps = market_caps / market_caps.sum()
+        # Use equal weights as market weight proxy (no market cap data available)
+        n = len(prices_df.columns)
+        market_caps = pd.Series([1.0 / n] * n, index=prices_df.columns)
 
         delta = 2.5  # Risk aversion coefficient
         pi = delta * S.dot(market_caps)  # Market-implied equilibrium returns
@@ -1152,8 +1151,13 @@ def monte_carlo_simulation(
             detail=f"Stocks with zero variance: {', '.join(flat_stocks)}. Remove before simulation."
         )
 
-    # Equal weight (can be customized later)
-    weights = np.array([1.0 / len(prices_df.columns)] * len(prices_df.columns))
+    # Build weights from portfolio stocks, ordered by ticker to match prices_df.columns
+    stock_weights = {s.ticker: s.weight for s in portfolio.stocks}
+    if all(stock_weights.get(t) is not None for t in prices_df.columns):
+        weights = np.array([stock_weights[t] for t in prices_df.columns])
+        weights = weights / weights.sum()  # Normalize
+    else:
+        weights = np.array([1.0 / len(prices_df.columns)] * len(prices_df.columns))
 
     # Calculate portfolio statistics
     mean_returns = returns.mean().values
@@ -1280,8 +1284,13 @@ def calculate_var(
             detail=f"Stocks with zero variance: {', '.join(flat_stocks)}. Remove before VaR calculation."
         )
 
-    # Equal weight portfolio
-    weights = np.array([1.0 / len(prices_df.columns)] * len(prices_df.columns))
+    # Build weights from portfolio stocks, ordered by ticker to match prices_df.columns
+    stock_weights = {s.ticker: s.weight for s in portfolio.stocks}
+    if all(stock_weights.get(t) is not None for t in prices_df.columns):
+        weights = np.array([stock_weights[t] for t in prices_df.columns])
+        weights = weights / weights.sum()  # Normalize
+    else:
+        weights = np.array([1.0 / len(prices_df.columns)] * len(prices_df.columns))
     portfolio_returns = (returns * weights).sum(axis=1)
 
     # 1. Historical VaR

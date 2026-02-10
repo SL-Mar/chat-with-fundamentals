@@ -132,16 +132,16 @@ class PortfolioOptimizationAgent(BaseAgent):
         sharpe_improvement = mvo_sharpe - ew_sharpe if mvo_sharpe and ew_sharpe else 0
         return_improvement = mvo_return - ew_return if mvo_return and ew_return else 0
 
-        # Determine optimization potential
+        # Determine optimization potential (monotonically: more improvement needed = lower score)
         if sharpe_improvement > 0.5:
             optimization_potential = "high"
-            potential_score = 10 - min(sharpe_improvement * 2, 8)  # More improvement = lower current score
+            potential_score = 3
         elif sharpe_improvement > 0.2:
             optimization_potential = "moderate"
-            potential_score = 6
+            potential_score = 5
         elif sharpe_improvement > 0:
             optimization_potential = "low"
-            potential_score = 8
+            potential_score = 7
         else:
             optimization_potential = "minimal"
             potential_score = 9  # Already well optimized
