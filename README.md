@@ -1,289 +1,125 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-# Chat with Fundamentals
+# Chat with Fundamentals v2
 
-AI-powered fundamental analysis platform for stocks and currencies. Combines autonomous CrewAI agents with TimescaleDB time-series storage, portfolio optimization, pair trading analysis, SEC filings research, and deep web research.
+> **This version is under active development.** The previous version (v1) is preserved on the [`legacy/v1`](../../tree/legacy/v1) branch.
 
-> **Development status**: Active research project. Not a SaaS product. Local-first, BYOK (bring your own keys).
-
----
-
-## Screenshots
-
-### Stock Research
-Interactive charts (SMA, Bollinger Bands, RSI), insider transactions, news sentiment, and real-time pricing.
-
-![Stock Research](docs/screenshots/CWF_Stocks.png)
-
-### Portfolio Optimization
-Unified comparison of optimization methods (Equal Weight, MVO, Min Variance, Black-Litterman) with performance metrics.
-
-![Portfolio Optimization](docs/screenshots/CWF_folio.png)
-
-### Monte Carlo Simulation
-Portfolio-level Monte Carlo with configurable parameters, percentile bands, and path visualization.
-
-![Monte Carlo Simulation](docs/screenshots/CWF_MC.png)
-
-### Pair Trading Analysis
-Cointegration testing, z-score monitoring, spread charts, and backtested trade history.
-
-![Pair Trading](docs/screenshots/CWF_pair_trading.png)
-
-### Macro Indicators
-Cross-country comparison of treasury yields and money market rates.
-
-![Macro Indicators](docs/screenshots/CWF_Macros.png)
-
----
-
-## Core Features
-
-### Agentic Trading Signals (MarketSense AI)
-
-Multi-agent stock analysis powered by CrewAI. Five specialized agents generate BUY/HOLD/SELL recommendations:
-
-- **Fundamentals Agent** (30% weight) - Financial statements, ratios, valuation
-- **News Agent** (25%) - Recent news sentiment and impact analysis
-- **Price Dynamics Agent** (25%) - Technical patterns, momentum, volume
-- **Macro Agent** (20%) - Economic indicators, sector trends
-- **Signal Orchestrator** - Aggregates agent outputs into actionable signals
-
-### SEC Filings Analysis
-
-RAG-based SEC filings research system:
-
-- 10-K and 10-Q filing retrieval and parsing
-- PDF extraction and vector embedding
-- Semantic search across filing content
-- Interactive PDF viewer with page references
-
-### Deep Research
-
-Autonomous research using Tavily API and GPT-Researcher:
-
-- Multi-source web research on any financial topic
-- Structured research reports with citations
-- Integration with stock analysis workflows
-
-### Portfolio Management
-
-Share-based portfolio tracking with 5 optimization strategies:
-
-- **Actual Portfolio** - Track real holdings
-- **Equal Weight** - Baseline comparison
-- **Mean-Variance Optimization (MVO)** - Maximize Sharpe ratio
-- **Minimum Variance** - Minimize volatility
-- **Black-Litterman** - Bayesian approach with investor views
-
-Risk metrics: Monte Carlo simulation (1000+ paths), VaR/CVaR, rolling Sharpe ratios, max drawdown.
-
-### Pair Trading
-
-Cointegration-based pair trading analysis:
-
-- Engle-Granger cointegration testing
-- Z-score monitoring and signal generation
-- Hedge ratio and half-life estimation
-- Spread visualization
-
-### Stock & Currency Research
-
-- Single-ticker and comparative multi-ticker analysis
-- 50+ EODHD API endpoints (historical, fundamentals, technical, news, macro)
-- Multi-granularity intraday data (1m, 5m, 15m, 1h) via dedicated TimescaleDB instance
-- Technical indicators and stock screener
-- Macro indicators with country comparison
-- Currency pair analysis
-
-### Database Management
-
-- ETF constituent and index member population
-- OHLCV data ingestion with freshness tracking
-- Database statistics and monitoring dashboard
-- Ticker inventory management
+Universe-based factor analysis platform. Create scoped datasets ("universes") from ETF holdings or sector screens, ingest OHLCV + fundamentals via EODHD, and analyze data through a chat-driven code agent that writes and executes Python in a sandboxed environment.
 
 ---
 
 ## Architecture
 
 ```
-chat-with-fundamentals/
-├── backend/
-│   ├── main.py                  # FastAPI entry point
-│   ├── routers/                 # 22 API routers
-│   │   ├── ai_analysis.py      # MarketSense AI trading signals
-│   │   ├── sec_filings.py      # SEC filings RAG
-│   │   ├── pair_trading.py     # Pair trading analysis
-│   │   ├── portfolios.py       # Portfolio CRUD & optimization
-│   │   ├── historical.py       # EOD data
-│   │   ├── intraday.py         # Multi-granularity intraday
-│   │   ├── news.py             # News & sentiment
-│   │   ├── technical.py        # Technical indicators & screener
-│   │   ├── macro.py            # Macroeconomic data
-│   │   ├── database_stats.py   # Database monitoring
-│   │   └── ...                 # Calendar, corporate, special, admin
-│   ├── services/               # Business logic layer
-│   │   ├── marketsense/        # CrewAI agent framework
-│   │   ├── gpt_researcher_service.py
-│   │   ├── sec_rag_service.py
-│   │   └── pair_trading_service.py
-│   ├── database/               # SQLAlchemy models & schemas
-│   ├── tools/                  # EODHD API client (50+ endpoints)
-│   ├── agents/                 # CrewAI agent definitions
-│   └── core/                   # Config, auth, logging
-│
-├── frontend/
-│   ├── pages/                   # 40+ Next.js pages
-│   │   ├── stock-ai-analysis   # MarketSense AI signals UI
-│   │   ├── sec-filings         # SEC filings viewer
-│   │   ├── pair-trading        # Pair trading dashboard
-│   │   ├── portfolios/         # Portfolio management
-│   │   ├── stocks/             # Stock research
-│   │   ├── currencies/         # Currency analysis
-│   │   ├── database-manager    # Database admin UI
-│   │   └── ...
-│   ├── components/              # React components
-│   └── lib/                     # API client, stores
-│
-├── docker-compose.db.yml        # TimescaleDB + Redis stack
-└── launch.sh                    # Start backend + frontend
+Frontend (Next.js 14 + Tailwind)         Port 3006
+  Pages: Home | Create Universe | Workspace | Settings
+  Charts: lightweight-charts v5 (candlestick, line)
+                     │
+                     │ REST + WebSocket
+                     ▼
+Backend (FastAPI)                         Port 8001
+  4 routers: universes | chat | settings | health
+  LLM: qwen2.5-coder:14b (Ollama) + Claude (Anthropic fallback)
+  Sandbox: Docker container for code execution
+                     │
+                     ▼
+Data Layer
+  TimescaleDB 15 (port 5435) — one DB per universe + registry
+  Redis 7 (port 6381) — caching
 ```
 
----
+## Key Features
+
+- **Universe creation** from ETF holdings (SPY, QQQ, XLK, ...) or EODHD sector screens
+- **Multi-granularity OHLCV** ingestion (daily, 1h, 5m) with TimescaleDB hypertables
+- **Fundamentals ingestion** — 50+ fields per ticker (valuation, profitability, balance sheet, cash flow)
+- **Code agent chat** — ask questions in natural language, LLM generates Python, executes in Docker sandbox
+- **Three agent types**: fundamentals query, factor library (Piotroski F-Score, momentum, value), ML training
+- **Output formatting** — LLM-formatted markdown tables with color-coded cells, raw output toggle
+- **Collapsible syntax-highlighted code blocks** in chat
+- **Zustand state management** — 4 stores (universe, chat, workspace, settings)
+
+## Universe Sources
+
+| Source | Method | Example |
+|--------|--------|---------|
+| ETF Holdings | EODHD `ETF_Data::Holdings` | SPY → 50 tickers (NVDA, AAPL, MSFT, ...) |
+| Sector Screen | EODHD Screener API | Healthcare → up to 1000 tickers |
+
+## Quick Start
+
+```bash
+# 1. Infrastructure
+docker compose up -d   # TimescaleDB + Redis
+
+# 2. Backend
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # Set EODHD_API_KEY, ANTHROPIC_API_KEY
+uvicorn main:app --port 8001 --reload
+
+# 3. Sandbox image (for code execution)
+cd backend/sandbox && docker build -t cwf-sandbox .
+
+# 4. Frontend
+cd frontend
+npm install
+npx next dev -p 3006
+```
+
+Or use the launch script:
+```bash
+./launch.sh start   # starts everything
+./launch.sh status  # check health
+./launch.sh stop    # tear down
+```
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | FastAPI, Python 3.12 |
-| **Frontend** | Next.js 15, React 18, TypeScript, Tailwind CSS |
-| **Database** | TimescaleDB (PostgreSQL 15) - dual instances (EOD + intraday) |
-| **Cache** | Redis 7 |
-| **AI Agents** | CrewAI, LangChain |
-| **LLM** | Multi-provider: OpenAI, Anthropic Claude, Ollama (runtime switchable) |
-| **Deep Research** | Tavily API, GPT-Researcher |
-| **Market Data** | EODHD API (50+ endpoints) |
-| **Portfolio** | PyPortfolioOpt (MVO, Black-Litterman) |
-| **Charts** | Recharts, Chart.js, Lightweight Charts (TradingView) |
+| Frontend | Next.js 14, Tailwind CSS, Zustand, lightweight-charts v5, prism-react-renderer |
+| Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 |
+| Database | TimescaleDB 15 (PostgreSQL), Redis 7 |
+| LLM | Ollama (qwen2.5-coder:14b) + Anthropic Claude (fallback) |
+| Sandbox | Docker (Python 3.12 + pandas/numpy/scikit-learn/matplotlib) |
+| Data | EODHD API (screener, OHLCV, fundamentals, ETF holdings) |
 
----
+## Project Structure
 
-## Quick Start
+```
+backend/
+  main.py                    # FastAPI app (4 routers)
+  agents/                    # LLM pipeline, prompts, validation, retry
+  database/                  # Universe registry + per-universe DB manager
+  ingestion/                 # EODHD data populator (sector + ETF)
+  routers/                   # universes, chat, settings, health
+  sandbox/                   # Docker-based code execution
+  services/                  # Universe + chat agent services
 
-### Prerequisites
-
-- Python 3.10+
-- Node.js 18+
-- Docker & Docker Compose
-
-### 1. Start database services
-
-```bash
-docker compose -f docker-compose.db.yml up -d
+frontend/
+  pages/                     # index, universe/new, universe/[id], settings
+  components/                # charts, workspace tabs, universe cards
+  stores/                    # Zustand (universe, chat, workspace, settings)
+  types/                     # TypeScript interfaces
 ```
 
-This starts:
-- **TimescaleDB** (port 5432) - EOD and fundamental data
-- **TimescaleDB** (port 5433) - Intraday data
-- **Redis** (port 6379) - Caching
-- **pgAdmin** (port 5050) - Database management UI
-- **Redis Commander** (port 8081) - Cache visualization
+## API Endpoints
 
-### 2. Configure environment
-
-```bash
-cp backend/.env.example backend/.env
-# Edit backend/.env with your API keys
-```
-
-Required keys:
-```env
-EODHD_API_KEY=your-eodhd-key
-
-# LLM provider (choose one)
-OPENAI_API_KEY=your-openai-key        # For OpenAI provider
-ANTHROPIC_API_KEY=your-anthropic-key  # For Anthropic Claude provider
-OLLAMA_BASE_URL=http://localhost:11434 # For Ollama (local LLMs)
-
-# Optional
-TAVILY_API_KEY=your-tavily-key    # For deep research
-```
-
-Switch LLM provider at runtime:
-```bash
-# Switch to Anthropic Claude
-curl -X POST http://localhost:8000/settings/llm \
-  -H "Content-Type: application/json" \
-  -d '{"field": "provider", "model_name": "anthropic"}'
-
-# View all supported models
-curl http://localhost:8000/settings/llm/models
-```
-
-### 3. Launch the app
-
-```bash
-bash launch.sh
-```
-
-Or manually:
-```bash
-# Backend
-cd backend && source venv/bin/activate && python main.py
-
-# Frontend (separate terminal)
-cd frontend && PORT=3004 npm run dev
-```
-
-### Access Points
-
-| Service | URL |
-|---------|-----|
-| **Frontend** | http://localhost:3004 |
-| **Backend API** | http://localhost:8000 |
-| **API Docs** | http://localhost:8000/docs |
-| **pgAdmin** | http://localhost:5050 |
-| **Redis Commander** | http://localhost:8081 |
-
----
-
-## API Overview
-
-| Category | Endpoints | Description |
-|----------|-----------|-------------|
-| `/analyzer` | Stock analysis chat | AI-powered fundamental analysis |
-| `/ai-analysis` | MarketSense signals | Multi-agent trading recommendations |
-| `/sec-filings` | SEC RAG | Filing search, upload, Q&A |
-| `/pair-trading` | Pair analysis | Cointegration, z-scores, signals |
-| `/api/portfolios` | Portfolio CRUD | Create, analyze, optimize portfolios |
-| `/equity` | Quantitative | Monte Carlo, VaR, returns, beta |
-| `/historical` | Price data | EOD and intraday OHLCV |
-| `/technical` | Indicators | 30+ technical indicators, screener |
-| `/news` | News & sentiment | Financial news, social mentions |
-| `/macro` | Macro data | Economic indicators, calendar |
-| `/corporate` | Corporate actions | Dividends, splits, insider trades |
-| `/special` | Special data | ETF holdings, ESG, analyst ratings |
-| `/admin` | Database management | Population, ingestion, stats |
-
-Full interactive documentation at `/docs` (Swagger UI).
-
----
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/universes` | Create universe (ETF or sector) |
+| GET | `/api/universes` | List all universes |
+| GET | `/api/universes/{id}` | Universe detail + tickers |
+| DELETE | `/api/universes/{id}` | Delete universe + drop DB |
+| POST | `/api/universes/{id}/refresh` | Re-ingest data |
+| GET | `/api/universes/{id}/progress` | Ingestion progress |
+| GET | `/api/universes/{id}/data/ohlcv` | Query OHLCV |
+| GET | `/api/universes/{id}/data/fundamentals` | Query fundamentals |
+| POST | `/api/universes/{id}/chat` | Code agent chat |
+| GET | `/api/health` | System health |
 
 ## License
 
-Apache License 2.0 - see [LICENSE](LICENSE.md).
-
-This project is for research and personal development. Commercial use of market data must comply with EODHD and OpenAI licensing terms.
-
----
-
-## Disclaimer
-
-This application is provided for informational and educational purposes only. Nothing in this repository constitutes financial advice. Users are solely responsible for their own investment decisions. Past performance is not indicative of future results.
-
----
-
-## Author
-
-**S.M. Laignel** - [GitHub](https://github.com/SL-Mar) | [Substack](https://quantcoderfs.substack.com)
+Apache 2.0 — see [LICENSE](LICENSE).

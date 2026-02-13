@@ -1,30 +1,29 @@
-# File: core/config.py
-
+from pathlib import Path
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-class Settings(BaseSettings):
-    openai_api_key: Optional[str] = None
-    model_name: str = "gpt-4o-mini"
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
+
+class Settings(BaseSettings):
+    eodhd_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434"
-    llm_provider: str = "openai"  # startup default; runtime value comes from DB
 
-    eodhd_api_key: Optional[str] = None
-    serper_api_key: Optional[str] = None
-    mistral_api_key: Optional[str] = None
-    tavily_api_key: Optional[str] = None
+    llm_provider: str = "ollama"
+    llm_model: str = "qwen2.5-coder:14b"
 
-    NOTION_API_KEY: str = ""
-    NOTION_DATABASE_ID: str = ""
+    database_url: str = "postgresql://postgres:postgres@localhost:5435/universe_registry"
+    redis_url: str = "redis://localhost:6381"
 
-    local_mode: bool = True
+    backend_port: int = 8001
+    frontend_port: int = 3006
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",
-        case_sensitive=False
+        case_sensitive=False,
     )
+
 
 settings = Settings()

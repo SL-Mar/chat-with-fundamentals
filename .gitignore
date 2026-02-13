@@ -17,23 +17,11 @@ build/
 # Database
 *.db
 *.sqlite3
-chroma_db/
-sec_filings_data/
 
 # Logs
 *.log
 *.log.*
-chatwithfundamentals.log
 logs/
-
-# Data
-quant_research_data/
-
-# Git artifacts
-FETCH_HEAD
-
-# Tools
-bfg.jar
 
 # IDE
 .vscode/
