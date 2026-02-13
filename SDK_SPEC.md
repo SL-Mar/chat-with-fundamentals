@@ -1,7 +1,9 @@
 # Chat-with-Fundamentals SDK Specification
 
-> End-to-end spec for turning the current "chat + data" platform into a
-> survivorship-bias-free, self-improving quantitative research & trading SDK.
+> End-to-end spec for a **continuously running, autonomous** quantitative
+> research & trading SDK. The system operates unattended 24/7: discovering
+> papers, generating strategies, backtesting, self-improving, trading live,
+> and maintaining its own data — all without human intervention.
 
 ---
 
@@ -16,6 +18,1670 @@
 | **Memory** | A persistent key-value + vector store that agents read/write between sessions |
 | **Runner** | A live execution engine that connects a Strategy to TWS (Interactive Brokers) |
 | **Loop** | The self-improvement cycle: backtest → evaluate → learn → mutate → repeat |
+| **Daemon** | The top-level always-on process that orchestrates all autonomous operations |
+| **Scheduler** | Cron-like subsystem that triggers jobs on time/event schedules |
+| **Heartbeat** | Periodic health signal; missed heartbeats trigger self-healing |
+| **Event Bus** | Async pub/sub channel (Redis Streams) connecting all subsystems |
+| **Circuit Breaker** | Pattern that stops retrying a failing subsystem until it recovers |
+| **Runbook** | Persisted plan of action the daemon follows when anomalies occur |
+
+---
+
+## 0.1 Design Principles for Autonomous Operation
+
+1. **No human in the loop.** Every subsystem must start, run, recover, and
+   stop without manual intervention. Humans can observe and override, never required.
+2. **Crash-only design.** Every process can be killed at any time. State is
+   always in Postgres or Redis, never only in memory. On restart, each process
+   resumes from persisted state.
+3. **Idempotent operations.** Every scheduled job can be re-run safely.
+   Duplicate ingestion, duplicate backtests, duplicate orders are all no-ops.
+4. **Observable by default.** Every action emits a structured event to the
+   event bus. Dashboards and alerts consume these events — not logs.
+5. **Graceful degradation.** If EODHD is down: use cached data. If the LLM is
+   down: skip mutations but keep trading the current best strategy. If TWS
+   disconnects: queue orders and reconnect with exponential backoff.
+6. **Circuit breakers everywhere.** After N consecutive failures, stop
+   hammering a dependency and wait for it to recover.
+
+---
+
+## A. Autonomous Daemon & Orchestrator
+
+### A.1 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          cwf-daemon                                 │
+│                    (single long-running process)                    │
+│                                                                     │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────┐   │
+│  │ Scheduler │  │  Health    │  │  Event    │  │  Process      │   │
+│  │ (APScheduler)│  Monitor  │  │  Bus      │  │  Supervisor   │   │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └───────┬───────┘   │
+│        │              │              │                │             │
+│        ▼              ▼              ▼                ▼             │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                     Managed Processes                        │   │
+│  │                                                              │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐  │   │
+│  │  │ Universe │ │ Research │ │ Backtest  │ │ Improvement  │  │   │
+│  │  │ Keeper   │ │ Scanner  │ │ Farm      │ │ Loop         │  │   │
+│  │  └──────────┘ └──────────┘ └──────────┘ └───────────────┘  │   │
+│  │                                                              │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐                    │   │
+│  │  │ TWS Live │ │ Risk     │ │ Reporter │                    │   │
+│  │  │ Runner   │ │ Monitor  │ │          │                    │   │
+│  │  └──────────┘ └──────────┘ └──────────┘                    │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│                    ┌──────────────────┐                             │
+│                    │  FastAPI (HTTP)   │  ← optional human UI       │
+│                    └──────────────────┘                             │
+└─────────────────────────────────────────────────────────────────────┘
+         │                    │                    │
+    ┌────▼────┐         ┌────▼────┐         ┌────▼────┐
+    │Postgres │         │  Redis  │         │  TWS    │
+    │(state)  │         │(events) │         │(broker) │
+    └─────────┘         └─────────┘         └─────────┘
+```
+
+### A.2 Location
+
+```
+backend/daemon/
+├── __init__.py
+├── main.py              # Entry point: start the daemon
+├── scheduler.py         # Job scheduling (APScheduler)
+├── supervisor.py        # Process lifecycle management
+├── health.py            # Health checks + self-healing
+├── event_bus.py         # Redis Streams pub/sub
+├── circuit_breaker.py   # Circuit breaker pattern
+├── state_machine.py     # Persisted state transitions
+└── config.py            # Daemon-specific configuration
+```
+
+### A.3 Daemon Entry Point
+
+```python
+# backend/daemon/main.py
+
+import asyncio
+import logging
+import signal
+from datetime import datetime
+
+from daemon.scheduler import Scheduler
+from daemon.supervisor import ProcessSupervisor
+from daemon.health import HealthMonitor
+from daemon.event_bus import EventBus
+from daemon.state_machine import DaemonState, DaemonStateMachine
+from memory.store import memory
+
+logger = logging.getLogger(__name__)
+
+
+class CWFDaemon:
+    """
+    Top-level autonomous daemon. Runs forever.
+
+    Lifecycle:
+      STARTING → RUNNING → DRAINING → STOPPED
+                    ↑          │
+                    └── RECOVERING ←─ (on failure)
+    """
+
+    def __init__(self):
+        self.event_bus = EventBus()
+        self.health = HealthMonitor(self.event_bus)
+        self.scheduler = Scheduler(self.event_bus)
+        self.supervisor = ProcessSupervisor(self.event_bus)
+        self.state = DaemonStateMachine()
+        self._shutdown_event = asyncio.Event()
+
+    async def start(self) -> None:
+        """Boot the daemon. Blocks until shutdown signal."""
+        await self.state.transition(DaemonState.STARTING)
+        logger.info("CWF Daemon starting...")
+
+        # 1. Connect infrastructure
+        await self.event_bus.connect()
+        await self.health.start()
+
+        # 2. Recover any in-flight work from before crash/restart
+        await self._recover_state()
+
+        # 3. Register scheduled jobs
+        self._register_jobs()
+
+        # 4. Start the scheduler
+        await self.scheduler.start()
+
+        # 5. Start supervised processes
+        await self.supervisor.start_all()
+
+        await self.state.transition(DaemonState.RUNNING)
+        await self.event_bus.publish("daemon", {
+            "event": "daemon_started",
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+
+        logger.info("CWF Daemon running. Awaiting shutdown signal...")
+        await self._shutdown_event.wait()
+
+        # Graceful shutdown
+        await self.state.transition(DaemonState.DRAINING)
+        await self.supervisor.drain_all(timeout=60)
+        await self.scheduler.stop()
+        await self.health.stop()
+        await self.event_bus.publish("daemon", {
+            "event": "daemon_stopped",
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+        await self.event_bus.disconnect()
+        await self.state.transition(DaemonState.STOPPED)
+
+    async def _recover_state(self) -> None:
+        """
+        On startup, check for work that was in-flight when we last crashed.
+        Resume or clean up as appropriate.
+        """
+        # Check for universe ingestions that were mid-flight
+        await self.supervisor.recover("universe_keeper")
+        # Check for backtests that were running
+        await self.supervisor.recover("backtest_farm")
+        # Check for improvement loops that were mid-iteration
+        await self.supervisor.recover("improvement_loop")
+        # Check if TWS runner was active
+        await self.supervisor.recover("tws_runner")
+
+    def _register_jobs(self) -> None:
+        """Register all recurring autonomous jobs."""
+
+        # ── Universe maintenance ──
+        self.scheduler.add_job(
+            name="universe_refresh",
+            func="daemon.jobs.universe_refresh",
+            trigger="cron",
+            hour=2, minute=0,          # 2:00 AM daily
+            description="Re-ingest OHLCV for all active universes, pick up new delistings",
+        )
+        self.scheduler.add_job(
+            name="universe_extend",
+            func="daemon.jobs.universe_extend",
+            trigger="cron",
+            day_of_week="sun", hour=3,  # Sunday 3:00 AM
+            description="Extend universe end_date to today, ingest new tickers from ETF rebalance",
+        )
+
+        # ── Research ──
+        self.scheduler.add_job(
+            name="arxiv_scan",
+            func="daemon.jobs.arxiv_scan",
+            trigger="cron",
+            hour=6, minute=0,          # 6:00 AM daily
+            description="Scan ArXiv for new q-fin papers, extract methodologies, store in memory",
+        )
+        self.scheduler.add_job(
+            name="paper_to_strategy",
+            func="daemon.jobs.paper_to_strategy",
+            trigger="cron",
+            hour=7, minute=0,          # 7:00 AM daily
+            description="Generate strategies from high-implementability papers, auto-backtest",
+        )
+
+        # ── Self-improvement ──
+        self.scheduler.add_job(
+            name="improvement_cycle",
+            func="daemon.jobs.improvement_cycle",
+            trigger="cron",
+            day_of_week="mon,wed,fri", hour=20,  # MWF 8 PM
+            description="Run N mutation iterations on each active strategy",
+        )
+
+        # ── Live trading ──
+        self.scheduler.add_job(
+            name="pre_market_check",
+            func="daemon.jobs.pre_market_check",
+            trigger="cron",
+            day_of_week="mon-fri", hour=9, minute=0,  # 9:00 AM ET
+            description="Verify TWS connection, positions match expected, no anomalies",
+        )
+        self.scheduler.add_job(
+            name="live_rebalance",
+            func="daemon.jobs.live_rebalance",
+            trigger="cron",
+            day_of_week="mon-fri", hour=9, minute=35,  # 9:35 AM ET
+            description="Execute rebalance on all live strategies",
+        )
+        self.scheduler.add_job(
+            name="post_market_reconcile",
+            func="daemon.jobs.post_market_reconcile",
+            trigger="cron",
+            day_of_week="mon-fri", hour=16, minute=15,  # 4:15 PM ET
+            description="Reconcile fills, compute daily P&L, store in memory",
+        )
+
+        # ── Reporting ──
+        self.scheduler.add_job(
+            name="daily_report",
+            func="daemon.jobs.daily_report",
+            trigger="cron",
+            day_of_week="mon-fri", hour=17,  # 5:00 PM ET
+            description="Generate daily performance report, send to Telegram",
+        )
+        self.scheduler.add_job(
+            name="weekly_report",
+            func="daemon.jobs.weekly_report",
+            trigger="cron",
+            day_of_week="sat", hour=10,  # Saturday 10:00 AM
+            description="Weekly strategy leaderboard + improvement summary",
+        )
+
+        # ── Health ──
+        self.scheduler.add_job(
+            name="heartbeat",
+            func="daemon.jobs.heartbeat",
+            trigger="interval",
+            seconds=30,
+            description="Emit heartbeat, check all subsystems, trigger self-healing",
+        )
+        self.scheduler.add_job(
+            name="memory_gc",
+            func="daemon.jobs.memory_gc",
+            trigger="cron",
+            day_of_week="sun", hour=4,  # Sunday 4:00 AM
+            description="Expire old memory entries, compact event bus streams",
+        )
+
+    def handle_shutdown(self) -> None:
+        """Signal handler for SIGTERM/SIGINT."""
+        logger.info("Shutdown signal received")
+        self._shutdown_event.set()
+
+
+def main():
+    daemon = CWFDaemon()
+    loop = asyncio.new_event_loop()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, daemon.handle_shutdown)
+
+    loop.run_until_complete(daemon.start())
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### A.4 Scheduler
+
+```python
+# backend/daemon/scheduler.py
+
+import logging
+from typing import Callable, Optional
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
+
+from daemon.event_bus import EventBus
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class JobConfig:
+    name: str
+    func: str                      # dotted import path
+    trigger: str                   # "cron" | "interval"
+    description: str = ""
+    enabled: bool = True
+    max_retries: int = 3
+    retry_delay_seconds: int = 60
+    # Cron fields (optional)
+    hour: Optional[int] = None
+    minute: Optional[int] = None
+    day_of_week: Optional[str] = None
+    # Interval fields (optional)
+    seconds: Optional[int] = None
+
+
+class Scheduler:
+    """
+    APScheduler wrapper with:
+    - Persistent job state (survives restarts via DB job store)
+    - Automatic retry on failure
+    - Event emission for every job start/complete/fail
+    - Runtime enable/disable of individual jobs
+    """
+
+    def __init__(self, event_bus: EventBus):
+        self.event_bus = event_bus
+        self._scheduler = AsyncIOScheduler(
+            job_defaults={"coalesce": True, "max_instances": 1},
+        )
+        self._jobs: dict[str, JobConfig] = {}
+        self._retry_counts: dict[str, int] = {}
+
+        self._scheduler.add_listener(self._on_job_executed, EVENT_JOB_EXECUTED)
+        self._scheduler.add_listener(self._on_job_error, EVENT_JOB_ERROR)
+
+    def add_job(self, **kwargs) -> None:
+        config = JobConfig(**kwargs)
+        self._jobs[config.name] = config
+
+        if config.trigger == "cron":
+            trigger = CronTrigger(
+                hour=config.hour,
+                minute=config.minute,
+                day_of_week=config.day_of_week,
+            )
+        else:
+            trigger = IntervalTrigger(seconds=config.seconds)
+
+        self._scheduler.add_job(
+            self._run_job,
+            trigger=trigger,
+            id=config.name,
+            name=config.name,
+            args=[config.name],
+            replace_existing=True,
+        )
+
+    async def _run_job(self, job_name: str) -> None:
+        """Execute a job by its name, with event emission."""
+        config = self._jobs[job_name]
+        if not config.enabled:
+            return
+
+        await self.event_bus.publish("scheduler", {
+            "event": "job_started",
+            "job": job_name,
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+
+        # Dynamic import and call
+        module_path, func_name = config.func.rsplit(".", 1)
+        import importlib
+        module = importlib.import_module(module_path)
+        func = getattr(module, func_name)
+        await func()
+
+    async def _on_job_executed(self, event) -> None:
+        self._retry_counts.pop(event.job_id, None)
+        await self.event_bus.publish("scheduler", {
+            "event": "job_completed",
+            "job": event.job_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+
+    async def _on_job_error(self, event) -> None:
+        job_name = event.job_id
+        config = self._jobs.get(job_name)
+        count = self._retry_counts.get(job_name, 0) + 1
+        self._retry_counts[job_name] = count
+
+        await self.event_bus.publish("scheduler", {
+            "event": "job_failed",
+            "job": job_name,
+            "error": str(event.exception)[:500],
+            "retry_count": count,
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+
+        if config and count >= config.max_retries:
+            logger.error(f"Job {job_name} failed {count} times, disabling.")
+            config.enabled = False
+            await self.event_bus.publish("scheduler", {
+                "event": "job_disabled",
+                "job": job_name,
+                "reason": f"exceeded max_retries ({config.max_retries})",
+            })
+
+    async def start(self) -> None:
+        self._scheduler.start()
+        logger.info(f"Scheduler started with {len(self._jobs)} jobs")
+
+    async def stop(self) -> None:
+        self._scheduler.shutdown(wait=True)
+
+    def enable_job(self, name: str) -> None:
+        if name in self._jobs:
+            self._jobs[name].enabled = True
+            self._retry_counts.pop(name, None)
+
+    def disable_job(self, name: str) -> None:
+        if name in self._jobs:
+            self._jobs[name].enabled = False
+```
+
+### A.5 Event Bus (Redis Streams)
+
+```python
+# backend/daemon/event_bus.py
+
+import json
+import logging
+from datetime import datetime
+from typing import AsyncIterator, Optional
+import redis.asyncio as aioredis
+
+from core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class EventBus:
+    """
+    Redis Streams-based event bus for decoupled communication.
+
+    Every subsystem publishes events. Any subsystem can subscribe.
+    Events are persisted in Redis and survive process restarts.
+    Consumer groups ensure each subscriber processes each event exactly once.
+
+    Streams:
+      - daemon:     lifecycle events (started, stopped, heartbeat)
+      - scheduler:  job started/completed/failed/disabled
+      - universe:   ingestion progress, refresh, errors
+      - research:   papers found, methodologies extracted, strategies generated
+      - backtest:   started, completed, metrics
+      - improve:    iteration started, mutation result, accepted/rejected
+      - live:       connected, rebalance, order filled, P&L, disconnected
+      - risk:       drawdown alert, position limit, circuit breaker triggered
+      - health:     heartbeat, subsystem status, self-healing actions
+    """
+
+    def __init__(self, redis_url: str = None):
+        self._url = redis_url or settings.redis_url
+        self._redis: Optional[aioredis.Redis] = None
+
+    async def connect(self) -> None:
+        self._redis = aioredis.from_url(self._url, decode_responses=True)
+        await self._redis.ping()
+        logger.info("Event bus connected")
+
+    async def disconnect(self) -> None:
+        if self._redis:
+            await self._redis.aclose()
+
+    async def publish(self, stream: str, data: dict) -> str:
+        """Publish an event to a stream. Returns the event ID."""
+        data["_published_at"] = datetime.utcnow().isoformat()
+        event_id = await self._redis.xadd(
+            f"cwf:{stream}",
+            {k: json.dumps(v) if not isinstance(v, str) else v for k, v in data.items()},
+            maxlen=10_000,  # cap each stream at 10k events
+        )
+        return event_id
+
+    async def subscribe(
+        self,
+        stream: str,
+        group: str,
+        consumer: str,
+        block_ms: int = 5000,
+    ) -> AsyncIterator[dict]:
+        """
+        Subscribe to a stream using consumer groups.
+        Yields events one at a time. Blocks up to block_ms between events.
+        Automatically acknowledges after yield.
+        """
+        stream_key = f"cwf:{stream}"
+
+        # Create consumer group if it doesn't exist
+        try:
+            await self._redis.xgroup_create(stream_key, group, id="0", mkstream=True)
+        except aioredis.ResponseError as e:
+            if "BUSYGROUP" not in str(e):
+                raise
+
+        while True:
+            results = await self._redis.xreadgroup(
+                group, consumer, {stream_key: ">"}, count=1, block=block_ms,
+            )
+            if not results:
+                continue
+            for _, messages in results:
+                for msg_id, fields in messages:
+                    parsed = {}
+                    for k, v in fields.items():
+                        try:
+                            parsed[k] = json.loads(v)
+                        except (json.JSONDecodeError, TypeError):
+                            parsed[k] = v
+                    yield parsed
+                    await self._redis.xack(stream_key, group, msg_id)
+
+    async def get_recent(self, stream: str, count: int = 50) -> list[dict]:
+        """Get the most recent N events from a stream (no consumer group)."""
+        stream_key = f"cwf:{stream}"
+        results = await self._redis.xrevrange(stream_key, count=count)
+        events = []
+        for msg_id, fields in results:
+            parsed = {"_id": msg_id}
+            for k, v in fields.items():
+                try:
+                    parsed[k] = json.loads(v)
+                except (json.JSONDecodeError, TypeError):
+                    parsed[k] = v
+            events.append(parsed)
+        return events
+
+    async def trim(self, stream: str, max_len: int = 5000) -> None:
+        """Trim a stream to max_len entries."""
+        await self._redis.xtrim(f"cwf:{stream}", maxlen=max_len)
+```
+
+### A.6 State Machine (Persisted in Postgres)
+
+```python
+# backend/daemon/state_machine.py
+
+import enum
+import logging
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import text
+from database.universe_db_manager import db_manager
+
+logger = logging.getLogger(__name__)
+
+
+class DaemonState(str, enum.Enum):
+    STARTING = "starting"
+    RUNNING = "running"
+    RECOVERING = "recovering"
+    DRAINING = "draining"
+    STOPPED = "stopped"
+
+
+class ProcessState(str, enum.Enum):
+    """State for each managed subprocess."""
+    IDLE = "idle"
+    STARTING = "starting"
+    RUNNING = "running"
+    FAILED = "failed"
+    RECOVERING = "recovering"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    CIRCUIT_OPEN = "circuit_open"   # circuit breaker tripped
+
+
+# Valid transitions
+DAEMON_TRANSITIONS = {
+    DaemonState.STARTING: {DaemonState.RUNNING, DaemonState.RECOVERING},
+    DaemonState.RUNNING: {DaemonState.DRAINING, DaemonState.RECOVERING},
+    DaemonState.RECOVERING: {DaemonState.RUNNING, DaemonState.DRAINING},
+    DaemonState.DRAINING: {DaemonState.STOPPED},
+    DaemonState.STOPPED: {DaemonState.STARTING},
+}
+
+PROCESS_TRANSITIONS = {
+    ProcessState.IDLE: {ProcessState.STARTING},
+    ProcessState.STARTING: {ProcessState.RUNNING, ProcessState.FAILED},
+    ProcessState.RUNNING: {ProcessState.STOPPING, ProcessState.FAILED},
+    ProcessState.FAILED: {ProcessState.RECOVERING, ProcessState.STOPPED, ProcessState.CIRCUIT_OPEN},
+    ProcessState.RECOVERING: {ProcessState.RUNNING, ProcessState.FAILED},
+    ProcessState.STOPPING: {ProcessState.STOPPED},
+    ProcessState.STOPPED: {ProcessState.STARTING, ProcessState.IDLE},
+    ProcessState.CIRCUIT_OPEN: {ProcessState.RECOVERING, ProcessState.STOPPED},
+}
+
+
+class DaemonStateMachine:
+    """Persists daemon state in Postgres so it survives crashes."""
+
+    async def get(self) -> DaemonState:
+        async with db_manager.get_registry_session() as session:
+            result = await session.execute(
+                text("SELECT value FROM app_settings WHERE key = 'daemon_state'")
+            )
+            row = result.fetchone()
+            if not row:
+                return DaemonState.STOPPED
+            return DaemonState(row.value.get("state", "stopped"))
+
+    async def transition(self, new_state: DaemonState) -> None:
+        current = await self.get()
+        if new_state not in DAEMON_TRANSITIONS.get(current, set()):
+            # Allow STARTING from any state on fresh boot
+            if new_state != DaemonState.STARTING:
+                raise ValueError(f"Invalid transition: {current} → {new_state}")
+
+        await self._persist("daemon_state", {
+            "state": new_state.value,
+            "changed_at": datetime.utcnow().isoformat(),
+            "previous": current.value,
+        })
+        logger.info(f"Daemon state: {current} → {new_state}")
+
+    async def _persist(self, key: str, value: dict) -> None:
+        import json
+        async with db_manager.get_registry_session() as session:
+            await session.execute(
+                text("""
+                    INSERT INTO app_settings (key, value, updated_at)
+                    VALUES (:key, :val, NOW())
+                    ON CONFLICT (key) DO UPDATE SET value = :val, updated_at = NOW()
+                """),
+                {"key": key, "val": json.dumps(value)},
+            )
+```
+
+### A.7 Process Supervisor
+
+```python
+# backend/daemon/supervisor.py
+
+import asyncio
+import logging
+from datetime import datetime
+from typing import Optional
+
+from daemon.event_bus import EventBus
+from daemon.circuit_breaker import CircuitBreaker
+from daemon.state_machine import ProcessState
+
+logger = logging.getLogger(__name__)
+
+
+class ManagedProcess:
+    """A single managed subprocess with lifecycle tracking."""
+
+    def __init__(self, name: str, start_fn, event_bus: EventBus):
+        self.name = name
+        self.start_fn = start_fn
+        self.event_bus = event_bus
+        self.state = ProcessState.IDLE
+        self.task: Optional[asyncio.Task] = None
+        self.circuit_breaker = CircuitBreaker(
+            name=name,
+            failure_threshold=5,
+            recovery_timeout=300,  # 5 minutes
+        )
+        self.consecutive_failures = 0
+        self.last_started: Optional[datetime] = None
+        self.last_failed: Optional[datetime] = None
+
+    async def start(self) -> None:
+        if self.circuit_breaker.is_open:
+            self.state = ProcessState.CIRCUIT_OPEN
+            return
+        self.state = ProcessState.STARTING
+        self.last_started = datetime.utcnow()
+        self.task = asyncio.create_task(self._run_with_supervision())
+
+    async def _run_with_supervision(self) -> None:
+        """Run the process. On crash, attempt auto-restart."""
+        try:
+            self.state = ProcessState.RUNNING
+            self.consecutive_failures = 0
+            await self.event_bus.publish("health", {
+                "event": "process_started",
+                "process": self.name,
+            })
+            await self.start_fn()
+        except asyncio.CancelledError:
+            self.state = ProcessState.STOPPED
+        except Exception as e:
+            self.state = ProcessState.FAILED
+            self.last_failed = datetime.utcnow()
+            self.consecutive_failures += 1
+            self.circuit_breaker.record_failure()
+
+            await self.event_bus.publish("health", {
+                "event": "process_failed",
+                "process": self.name,
+                "error": str(e)[:500],
+                "consecutive_failures": self.consecutive_failures,
+            })
+            logger.error(f"Process {self.name} failed: {e}")
+
+            # Auto-restart with backoff
+            if not self.circuit_breaker.is_open:
+                delay = min(2 ** self.consecutive_failures, 300)  # max 5 min
+                logger.info(f"Restarting {self.name} in {delay}s...")
+                await asyncio.sleep(delay)
+                self.state = ProcessState.RECOVERING
+                await self.start()
+            else:
+                self.state = ProcessState.CIRCUIT_OPEN
+                await self.event_bus.publish("risk", {
+                    "event": "circuit_breaker_open",
+                    "process": self.name,
+                    "failures": self.consecutive_failures,
+                })
+
+    async def stop(self, timeout: float = 30) -> None:
+        self.state = ProcessState.STOPPING
+        if self.task and not self.task.done():
+            self.task.cancel()
+            try:
+                await asyncio.wait_for(self.task, timeout=timeout)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+        self.state = ProcessState.STOPPED
+
+
+class ProcessSupervisor:
+    """Manages all long-running processes."""
+
+    def __init__(self, event_bus: EventBus):
+        self.event_bus = event_bus
+        self._processes: dict[str, ManagedProcess] = {}
+
+    def register(self, name: str, start_fn) -> None:
+        self._processes[name] = ManagedProcess(name, start_fn, self.event_bus)
+
+    async def start_all(self) -> None:
+        for proc in self._processes.values():
+            await proc.start()
+
+    async def drain_all(self, timeout: float = 60) -> None:
+        tasks = [proc.stop(timeout) for proc in self._processes.values()]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def recover(self, name: str) -> None:
+        """Check if a process needs recovery after daemon restart."""
+        proc = self._processes.get(name)
+        if proc and proc.state == ProcessState.FAILED:
+            proc.circuit_breaker.record_success()  # give it another chance
+            await proc.start()
+
+    def get_status(self) -> dict[str, dict]:
+        return {
+            name: {
+                "state": proc.state.value,
+                "consecutive_failures": proc.consecutive_failures,
+                "circuit_breaker_open": proc.circuit_breaker.is_open,
+                "last_started": proc.last_started.isoformat() if proc.last_started else None,
+                "last_failed": proc.last_failed.isoformat() if proc.last_failed else None,
+            }
+            for name, proc in self._processes.items()
+        }
+```
+
+### A.8 Circuit Breaker
+
+```python
+# backend/daemon/circuit_breaker.py
+
+import time
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class CircuitBreaker:
+    """
+    Prevents hammering a failing dependency.
+
+    States:
+      CLOSED  → normal operation, requests pass through
+      OPEN    → dependency is down, requests are blocked
+      HALF_OPEN → testing if dependency recovered (one request allowed)
+
+    After `failure_threshold` consecutive failures, circuit opens.
+    After `recovery_timeout` seconds, circuit moves to half-open.
+    One success in half-open closes the circuit. One failure re-opens it.
+    """
+
+    def __init__(self, name: str, failure_threshold: int = 5, recovery_timeout: int = 300):
+        self.name = name
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self._failures = 0
+        self._last_failure_time = 0.0
+        self._state = "closed"
+
+    @property
+    def is_open(self) -> bool:
+        if self._state == "open":
+            # Check if recovery timeout has elapsed
+            if time.time() - self._last_failure_time > self.recovery_timeout:
+                self._state = "half_open"
+                logger.info(f"Circuit {self.name}: open → half_open")
+                return False
+            return True
+        return False
+
+    def record_failure(self) -> None:
+        self._failures += 1
+        self._last_failure_time = time.time()
+        if self._failures >= self.failure_threshold:
+            self._state = "open"
+            logger.warning(
+                f"Circuit {self.name}: OPEN after {self._failures} failures"
+            )
+
+    def record_success(self) -> None:
+        self._failures = 0
+        if self._state == "half_open":
+            self._state = "closed"
+            logger.info(f"Circuit {self.name}: half_open → closed")
+```
+
+### A.9 Health Monitor
+
+```python
+# backend/daemon/health.py
+
+import asyncio
+import logging
+from datetime import datetime, timedelta
+
+from daemon.event_bus import EventBus
+
+logger = logging.getLogger(__name__)
+
+
+class HealthMonitor:
+    """
+    Continuously monitors all subsystems and triggers self-healing.
+
+    Checks:
+    - Postgres connectivity
+    - Redis connectivity
+    - TWS connection status
+    - EODHD API reachability
+    - LLM provider reachability
+    - Scheduler job lag (jobs not running on time)
+    - Memory pressure (Postgres DB size, Redis memory)
+    - Strategy drift (live P&L vs backtest expectations)
+    """
+
+    def __init__(self, event_bus: EventBus):
+        self.event_bus = event_bus
+        self._running = False
+        self._task: asyncio.Task | None = None
+        self._last_heartbeats: dict[str, datetime] = {}
+
+    async def start(self) -> None:
+        self._running = True
+        self._task = asyncio.create_task(self._loop())
+
+    async def stop(self) -> None:
+        self._running = False
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+
+    async def _loop(self) -> None:
+        while self._running:
+            try:
+                status = await self._check_all()
+                await self.event_bus.publish("health", {
+                    "event": "health_check",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "status": status,
+                })
+
+                # Trigger self-healing for any failing checks
+                for name, check in status.items():
+                    if not check["healthy"]:
+                        await self._self_heal(name, check)
+
+            except Exception as e:
+                logger.error(f"Health check error: {e}")
+
+            await asyncio.sleep(30)
+
+    async def _check_all(self) -> dict:
+        checks = {}
+        checks["postgres"] = await self._check_postgres()
+        checks["redis"] = await self._check_redis()
+        checks["eodhd"] = await self._check_eodhd()
+        checks["llm"] = await self._check_llm()
+        return checks
+
+    async def _check_postgres(self) -> dict:
+        try:
+            from database.universe_db_manager import db_manager
+            from sqlalchemy import text
+            async with db_manager.get_registry_session() as session:
+                await session.execute(text("SELECT 1"))
+            return {"healthy": True}
+        except Exception as e:
+            return {"healthy": False, "error": str(e)[:200]}
+
+    async def _check_redis(self) -> dict:
+        try:
+            import redis.asyncio as aioredis
+            from core.config import settings
+            r = aioredis.from_url(settings.redis_url)
+            await r.ping()
+            await r.aclose()
+            return {"healthy": True}
+        except Exception as e:
+            return {"healthy": False, "error": str(e)[:200]}
+
+    async def _check_eodhd(self) -> dict:
+        try:
+            import urllib.request
+            from core.config import settings
+            url = f"https://eodhd.com/api/eod/AAPL.US?api_token={settings.eodhd_api_key}&fmt=json&from=2025-01-01&to=2025-01-02"
+            with urllib.request.urlopen(url, timeout=10):
+                pass
+            return {"healthy": True}
+        except Exception as e:
+            return {"healthy": False, "error": str(e)[:200]}
+
+    async def _check_llm(self) -> dict:
+        try:
+            from agents.llm.router import llm_router
+            result = await llm_router.chat(
+                system_prompt="Reply with OK",
+                user_message="health check",
+                temperature=0.0,
+                max_tokens=10,
+            )
+            if result.error:
+                return {"healthy": False, "error": result.error}
+            return {"healthy": True}
+        except Exception as e:
+            return {"healthy": False, "error": str(e)[:200]}
+
+    async def _self_heal(self, name: str, check: dict) -> None:
+        """Attempt automatic recovery for a failing subsystem."""
+        logger.warning(f"Self-healing: {name} is unhealthy: {check.get('error')}")
+        await self.event_bus.publish("health", {
+            "event": "self_healing",
+            "subsystem": name,
+            "error": check.get("error", ""),
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+        # Specific recovery actions are handled by the supervisor
+        # based on the circuit breaker state of each process.
+```
+
+---
+
+## B. Autonomous Job Definitions
+
+### B.1 Location
+
+```
+backend/daemon/jobs/
+├── __init__.py
+├── universe_refresh.py
+├── universe_extend.py
+├── arxiv_scan.py
+├── paper_to_strategy.py
+├── improvement_cycle.py
+├── pre_market_check.py
+├── live_rebalance.py
+├── post_market_reconcile.py
+├── daily_report.py
+├── weekly_report.py
+├── heartbeat.py
+├── memory_gc.py
+```
+
+### B.2 Key Job Implementations
+
+```python
+# backend/daemon/jobs/arxiv_scan.py
+
+async def arxiv_scan() -> None:
+    """
+    Autonomous daily ArXiv scan.
+
+    1. Search for new q-fin papers (last 24h).
+    2. For each paper, extract methodology via LLM.
+    3. Filter by implementability_score >= 3.
+    4. Store in agent memory (category='paper').
+    5. Emit event for paper_to_strategy job to pick up.
+    """
+    from research.arxiv_pipeline import search
+    from research.paper_parser import extract_methodology
+    from memory.store import memory
+    from daemon.event_bus import EventBus
+
+    bus = EventBus()
+    await bus.connect()
+
+    papers = search(
+        query="stock returns OR factor model OR portfolio OR alpha",
+        max_results=50,
+        sort_by="submittedDate",
+    )
+
+    new_count = 0
+    for paper in papers:
+        # Skip if already processed
+        existing = await memory.get("paper", f"arxiv_{paper.arxiv_id}")
+        if existing:
+            continue
+
+        methodology = await extract_methodology(paper)
+        score = methodology.get("implementability_score", 0)
+
+        await memory.put("paper", f"arxiv_{paper.arxiv_id}", {
+            "title": paper.title,
+            "authors": paper.authors,
+            "abstract": paper.abstract[:500],
+            "methodology": methodology,
+            "implementability_score": score,
+            "status": "pending_generation" if score >= 3 else "low_implementability",
+            "discovered_at": paper.published.isoformat(),
+        })
+
+        if score >= 3:
+            new_count += 1
+            await bus.publish("research", {
+                "event": "paper_discovered",
+                "arxiv_id": paper.arxiv_id,
+                "title": paper.title,
+                "implementability_score": score,
+            })
+
+    await bus.publish("research", {
+        "event": "arxiv_scan_complete",
+        "papers_scanned": len(papers),
+        "new_implementable": new_count,
+    })
+    await bus.disconnect()
+```
+
+```python
+# backend/daemon/jobs/paper_to_strategy.py
+
+async def paper_to_strategy() -> None:
+    """
+    Autonomous strategy generation from discovered papers.
+
+    1. Load papers with status='pending_generation' from memory.
+    2. For each, generate a Strategy subclass via LLM.
+    3. Validate the generated code (compiles, inherits Strategy).
+    4. Auto-backtest on the default universe.
+    5. Store results. If Sharpe > 0.3, mark as 'candidate'.
+    """
+    from memory.store import memory
+    from research.strategy_generator import generate_strategy
+    from backtest.engine import BacktestEngine, BacktestConfig
+    from strategies.base import Strategy
+    from daemon.event_bus import EventBus
+    from datetime import date, timedelta
+
+    bus = EventBus()
+    await bus.connect()
+
+    papers = await memory.list_by_category("paper", limit=100)
+    pending = [p for p in papers if p.value.get("status") == "pending_generation"]
+
+    for entry in pending[:5]:  # Process max 5 per run to limit LLM cost
+        paper_data = entry.value
+        arxiv_id = entry.key
+
+        try:
+            code = await generate_strategy(
+                paper_data["methodology"],
+                paper_data["title"],
+            )
+
+            # Validate: must compile and contain a Strategy subclass
+            namespace = {}
+            exec(code, namespace)
+            strategy_cls = None
+            for obj in namespace.values():
+                if isinstance(obj, type) and issubclass(obj, Strategy) and obj is not Strategy:
+                    strategy_cls = obj
+                    break
+
+            if not strategy_cls:
+                paper_data["status"] = "generation_failed"
+                paper_data["error"] = "No Strategy subclass found in generated code"
+                await memory.put("paper", arxiv_id, paper_data)
+                continue
+
+            # Auto-backtest
+            strategy = strategy_cls()
+            config = BacktestConfig(
+                universe_db_name="default_universe",  # configurable
+                start_date=date.today() - timedelta(days=365 * 3),
+                end_date=date.today() - timedelta(days=1),
+            )
+            engine = BacktestEngine(config)
+            result = await engine.run(strategy)
+
+            sharpe = result.metrics.get("sharpe_ratio", 0)
+            paper_data["status"] = "candidate" if sharpe > 0.3 else "backtested_weak"
+            paper_data["generated_code"] = code
+            paper_data["backtest_metrics"] = result.metrics
+            await memory.put("paper", arxiv_id, paper_data)
+
+            await bus.publish("research", {
+                "event": "strategy_generated",
+                "arxiv_id": arxiv_id,
+                "strategy_name": strategy.name,
+                "sharpe": sharpe,
+                "status": paper_data["status"],
+            })
+
+        except Exception as e:
+            paper_data["status"] = "generation_failed"
+            paper_data["error"] = str(e)[:500]
+            await memory.put("paper", arxiv_id, paper_data)
+
+    await bus.disconnect()
+```
+
+```python
+# backend/daemon/jobs/improvement_cycle.py
+
+async def improvement_cycle() -> None:
+    """
+    Autonomous self-improvement.
+
+    1. Load all strategies with status='candidate' or 'live'.
+    2. For each, run N improvement iterations.
+    3. If improved version beats current, promote it.
+    4. If a candidate exceeds the promotion threshold, flag for live deployment.
+    """
+    from memory.store import memory
+    from loop.improver import StrategyImprover
+    from strategies.base import Strategy
+    from daemon.event_bus import EventBus
+    from datetime import date, timedelta
+
+    bus = EventBus()
+    await bus.connect()
+
+    # Load candidate strategies from memory
+    papers = await memory.list_by_category("paper", limit=100)
+    candidates = [p for p in papers if p.value.get("status") in ("candidate", "live")]
+
+    for entry in candidates[:3]:  # Max 3 per cycle
+        paper_data = entry.value
+        code = paper_data.get("generated_code")
+        if not code:
+            continue
+
+        try:
+            namespace = {}
+            exec(code, namespace)
+            strategy = None
+            for obj in namespace.values():
+                if isinstance(obj, type) and issubclass(obj, Strategy) and obj is not Strategy:
+                    strategy = obj()
+                    break
+            if not strategy:
+                continue
+
+            improver = StrategyImprover(
+                strategy=strategy,
+                universe_db_name="default_universe",
+                start_date=date.today() - timedelta(days=365 * 3),
+                end_date=date.today() - timedelta(days=1),
+                max_iterations=5,
+                min_sharpe=1.0,
+                min_cagr=0.10,
+                max_drawdown=-0.20,
+            )
+            result = await improver.run()
+
+            final_sharpe = result["final_metrics"].get("sharpe_ratio", 0)
+
+            # Update memory with improved version
+            paper_data["backtest_metrics"] = result["final_metrics"]
+            paper_data["improvement_history"] = result["history"]
+
+            # Promotion threshold
+            if final_sharpe >= 1.0 and paper_data["status"] != "live":
+                paper_data["status"] = "promote_to_live"
+                await bus.publish("improve", {
+                    "event": "strategy_promoted",
+                    "strategy_name": strategy.name,
+                    "sharpe": final_sharpe,
+                })
+
+            await memory.put("paper", entry.key, paper_data)
+
+            await bus.publish("improve", {
+                "event": "improvement_complete",
+                "strategy_name": strategy.name,
+                "iterations": result["iterations_run"],
+                "final_sharpe": final_sharpe,
+            })
+
+        except Exception as e:
+            await bus.publish("improve", {
+                "event": "improvement_failed",
+                "arxiv_id": entry.key,
+                "error": str(e)[:500],
+            })
+
+    await bus.disconnect()
+```
+
+```python
+# backend/daemon/jobs/live_rebalance.py
+
+async def live_rebalance() -> None:
+    """
+    Autonomous live trading rebalance.
+
+    1. Load all strategies with status='live'.
+    2. For each, build PortfolioState from TWS + universe DB.
+    3. Call strategy.rebalance(state).
+    4. Submit orders to TWS.
+    5. Wait for fills.
+    6. Log everything to event bus.
+    """
+    from memory.store import memory
+    from strategies.base import Strategy
+    from live.tws_runner import TWSRunner
+    from daemon.event_bus import EventBus
+
+    bus = EventBus()
+    await bus.connect()
+
+    papers = await memory.list_by_category("paper", limit=100)
+    live_strategies = [p for p in papers if p.value.get("status") == "live"]
+
+    for entry in live_strategies:
+        code = entry.value.get("generated_code")
+        if not code:
+            continue
+
+        try:
+            namespace = {}
+            exec(code, namespace)
+            strategy = None
+            for obj in namespace.values():
+                if isinstance(obj, type) and issubclass(obj, Strategy) and obj is not Strategy:
+                    strategy = obj()
+                    break
+            if not strategy:
+                continue
+
+            runner = TWSRunner(
+                strategy=strategy,
+                universe_db_name="default_universe",
+            )
+
+            await runner._rebalance()
+
+            await bus.publish("live", {
+                "event": "rebalance_complete",
+                "strategy_name": strategy.name,
+            })
+
+        except Exception as e:
+            await bus.publish("live", {
+                "event": "rebalance_failed",
+                "strategy_name": entry.value.get("title", "unknown"),
+                "error": str(e)[:500],
+            })
+
+    await bus.disconnect()
+```
+
+```python
+# backend/daemon/jobs/post_market_reconcile.py
+
+async def post_market_reconcile() -> None:
+    """
+    Autonomous end-of-day reconciliation.
+
+    1. Pull actual positions + P&L from TWS.
+    2. Compare with expected positions from last rebalance.
+    3. Detect drift > threshold.
+    4. Compute daily return for each live strategy.
+    5. Check for strategy degradation (rolling 20-day Sharpe < 0).
+    6. Store daily P&L in memory.
+    7. If degradation detected, emit risk alert.
+    """
+    from daemon.event_bus import EventBus
+    from memory.store import memory
+    from datetime import date
+
+    bus = EventBus()
+    await bus.connect()
+
+    # ... (TWS position pull + reconciliation logic)
+
+    await bus.publish("live", {
+        "event": "reconciliation_complete",
+        "date": date.today().isoformat(),
+    })
+    await bus.disconnect()
+```
+
+```python
+# backend/daemon/jobs/daily_report.py
+
+async def daily_report() -> None:
+    """
+    Generate and send daily performance report.
+
+    Contents:
+    - Portfolio equity curve (today vs. yesterday)
+    - Strategy-level P&L attribution
+    - Improvement loop progress
+    - New papers discovered
+    - System health summary
+    - Alerts/anomalies
+    """
+    from daemon.event_bus import EventBus
+    from memory.store import memory
+    from datetime import date
+    import urllib.request
+    import urllib.parse
+
+    bus = EventBus()
+    await bus.connect()
+
+    # Build report from memory + event bus
+    daily_results = await memory.list_by_category("strategy_result", limit=20)
+    health_events = await bus.get_recent("health", count=100)
+    research_events = await bus.get_recent("research", count=50)
+
+    report_lines = [
+        f"=== CWF Daily Report: {date.today()} ===",
+        "",
+    ]
+
+    # Strategy performance
+    for entry in daily_results[:5]:
+        m = entry.value
+        report_lines.append(
+            f"  {entry.key}: Sharpe={m.get('sharpe_ratio','?')} "
+            f"CAGR={m.get('cagr','?')} MaxDD={m.get('max_drawdown','?')}"
+        )
+
+    # New papers
+    new_papers = [e for e in research_events if e.get("event") == "paper_discovered"]
+    report_lines.append(f"\nNew implementable papers: {len(new_papers)}")
+
+    # Health
+    unhealthy = [e for e in health_events if e.get("event") == "self_healing"]
+    report_lines.append(f"Self-healing events: {len(unhealthy)}")
+
+    report = "\n".join(report_lines)
+
+    # Send to Telegram
+    try:
+        encoded = urllib.parse.quote(report)
+        url = f"http://localhost:5678/webhook/send-telegram?message={encoded}"
+        urllib.request.urlopen(url, timeout=5)
+    except Exception:
+        pass
+
+    await bus.publish("daemon", {
+        "event": "daily_report_sent",
+        "date": date.today().isoformat(),
+    })
+    await bus.disconnect()
+```
+
+```python
+# backend/daemon/jobs/heartbeat.py
+
+async def heartbeat() -> None:
+    """
+    Emit heartbeat every 30s. Stored in Redis for monitoring.
+    External watchdog (systemd, Docker healthcheck) can poll this.
+    """
+    import redis.asyncio as aioredis
+    from core.config import settings
+    from datetime import datetime
+
+    r = aioredis.from_url(settings.redis_url)
+    await r.set("cwf:heartbeat", datetime.utcnow().isoformat(), ex=120)
+    await r.aclose()
+```
+
+```python
+# backend/daemon/jobs/memory_gc.py
+
+async def memory_gc() -> None:
+    """
+    Garbage-collect expired memory entries and trim event bus streams.
+    """
+    from database.universe_db_manager import db_manager
+    from sqlalchemy import text
+    from daemon.event_bus import EventBus
+
+    # Delete expired memory entries
+    async with db_manager.get_registry_session() as session:
+        await session.execute(text(
+            "DELETE FROM agent_memory WHERE expires_at IS NOT NULL AND expires_at < NOW()"
+        ))
+
+    # Trim event bus streams
+    bus = EventBus()
+    await bus.connect()
+    for stream in ["daemon", "scheduler", "universe", "research",
+                    "backtest", "improve", "live", "risk", "health"]:
+        await bus.trim(stream, max_len=5000)
+    await bus.disconnect()
+```
+
+---
+
+## C. Autonomous Daily Schedule
+
+```
+Time (ET)   Job                     What it does
+─────────   ─────────────────────   ──────────────────────────────────────────
+  02:00     universe_refresh        Re-ingest OHLCV for all universes (nightly)
+  03:00*    universe_extend         Extend universe, ingest new tickers (Sundays)
+  04:00*    memory_gc               Expire old memory, trim event streams (Sundays)
+  06:00     arxiv_scan              Scan ArXiv for new papers
+  07:00     paper_to_strategy       Generate strategies from papers, auto-backtest
+  09:00     pre_market_check        Verify TWS, positions, no anomalies
+  09:35     live_rebalance          Execute rebalance on all live strategies
+  16:15     post_market_reconcile   Reconcile fills, compute daily P&L
+  17:00     daily_report            Send performance report to Telegram
+  10:00*    weekly_report           Strategy leaderboard (Saturdays)
+  20:00†    improvement_cycle       Self-improvement loop (Mon/Wed/Fri)
+  every 30s heartbeat               Health signal
+
+  * = weekly only    † = Mon/Wed/Fri only
+```
+
+---
+
+## D. Risk Monitor (Autonomous Safety Layer)
+
+### D.1 Location
+
+```
+backend/daemon/risk_monitor.py
+```
+
+### D.2 Interface
+
+```python
+# backend/daemon/risk_monitor.py
+
+import logging
+from dataclasses import dataclass
+from datetime import date, timedelta
+from typing import Optional
+
+from daemon.event_bus import EventBus
+from memory.store import memory
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RiskLimits:
+    max_portfolio_drawdown: float = -0.15    # -15% from peak
+    max_strategy_drawdown: float = -0.20     # -20% per strategy
+    max_daily_loss: float = -0.03            # -3% in one day
+    max_position_pct: float = 0.10           # 10% max single position
+    max_sector_pct: float = 0.30             # 30% max single sector
+    max_correlation_to_spy: float = 0.95     # avoid closet indexing
+    min_rolling_sharpe_20d: float = -0.5     # deactivate if Sharpe < -0.5
+    max_consecutive_loss_days: int = 10
+
+
+class RiskMonitor:
+    """
+    Always-on risk monitor. Runs as a subscriber to the event bus.
+    Can autonomously:
+    - Flatten all positions (emergency stop)
+    - Deactivate a strategy (move from 'live' to 'suspended')
+    - Send Telegram alerts
+    - Block rebalance if limits breached
+    """
+
+    def __init__(self, limits: RiskLimits = None):
+        self.limits = limits or RiskLimits()
+        self.event_bus = EventBus()
+
+    async def run(self) -> None:
+        """Subscribe to live events and check risk limits."""
+        await self.event_bus.connect()
+
+        async for event in self.event_bus.subscribe(
+            stream="live",
+            group="risk_monitor",
+            consumer="risk_1",
+        ):
+            if event.get("event") == "rebalance_complete":
+                await self._check_post_rebalance(event)
+            elif event.get("event") == "reconciliation_complete":
+                await self._check_post_reconcile(event)
+
+    async def check_pre_rebalance(self, strategy_name: str) -> tuple[bool, str]:
+        """
+        Called before rebalance. Returns (allowed, reason).
+        If not allowed, the rebalance is skipped.
+        """
+        entry = await memory.get("strategy_result", f"{strategy_name}_daily")
+        if not entry:
+            return True, ""
+
+        metrics = entry.value
+        rolling_sharpe = metrics.get("rolling_sharpe_20d", 0)
+        if rolling_sharpe < self.limits.min_rolling_sharpe_20d:
+            reason = (
+                f"Rolling 20d Sharpe={rolling_sharpe:.2f} < "
+                f"limit={self.limits.min_rolling_sharpe_20d}"
+            )
+            await self._alert(f"BLOCKED rebalance for {strategy_name}: {reason}")
+            return False, reason
+
+        daily_pnl = metrics.get("daily_pnl_pct", 0)
+        if daily_pnl < self.limits.max_daily_loss:
+            reason = f"Daily loss={daily_pnl:.2%} exceeds limit={self.limits.max_daily_loss:.2%}"
+            await self._alert(f"BLOCKED rebalance for {strategy_name}: {reason}")
+            return False, reason
+
+        return True, ""
+
+    async def _check_post_rebalance(self, event: dict) -> None:
+        """Check position concentration limits after rebalance."""
+        # Implementation: pull positions from TWS, check max_position_pct, max_sector_pct
+        pass
+
+    async def _check_post_reconcile(self, event: dict) -> None:
+        """Check drawdown and streak limits after daily reconciliation."""
+        # If drawdown exceeds limit, flatten all positions
+        pass
+
+    async def emergency_flatten(self, reason: str) -> None:
+        """EMERGENCY: close all positions immediately."""
+        logger.critical(f"EMERGENCY FLATTEN: {reason}")
+        await self.event_bus.publish("risk", {
+            "event": "emergency_flatten",
+            "reason": reason,
+        })
+        await self._alert(f"EMERGENCY FLATTEN: {reason}")
+        # The TWSRunner listens for this event and closes all positions
+
+    async def _alert(self, message: str) -> None:
+        """Send alert via Telegram + event bus."""
+        import urllib.request, urllib.parse
+        await self.event_bus.publish("risk", {
+            "event": "alert",
+            "message": message,
+        })
+        try:
+            encoded = urllib.parse.quote(f"[RISK] {message}")
+            url = f"http://localhost:5678/webhook/send-telegram?message={encoded}"
+            urllib.request.urlopen(url, timeout=5)
+        except Exception:
+            pass
+```
+
+---
+
+## E. Docker Compose for Autonomous Mode
+
+```yaml
+# docker-compose.autonomous.yml — extends docker-compose.yml
+
+services:
+  postgres:
+    extends:
+      file: docker-compose.yml
+      service: postgres
+
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+
+  daemon:
+    build: ./backend
+    container_name: cwf-daemon
+    command: python -m daemon.main
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - EODHD_API_KEY=${EODHD_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=postgresql://postgres:postgres@cwf-db:5432/universe_registry
+      - REDIS_URL=redis://cwf-redis:6379
+    healthcheck:
+      test: ["CMD", "python", "-c",
+        "import redis; r=redis.Redis.from_url('redis://cwf-redis:6379'); import sys; v=r.get('cwf:heartbeat'); sys.exit(0 if v else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: '2.0'
+
+  api:
+    build: ./backend
+    container_name: cwf-api
+    command: uvicorn main:app --host 0.0.0.0 --port 8001
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@cwf-db:5432/universe_registry
+      - REDIS_URL=redis://cwf-redis:6379
+
+volumes:
+  cwf_postgres_data:
+  cwf_redis_data:
+```
 
 ---
 
@@ -934,7 +2600,13 @@ backend/live/models.py
 ibapi>=9.81.1  # Official Interactive Brokers TWS API
 ```
 
-### 6.3 Interface
+### 6.3 Interface (Daemon-Aware)
+
+The TWSRunner operates as a **managed process** under the daemon supervisor.
+It does not poll for rebalance times itself — the **scheduler** triggers
+`live_rebalance` at the right time. The runner's job is to maintain a
+persistent TWS connection, auto-reconnect on drops, listen to event bus
+signals (including emergency flatten), and execute orders with risk gating.
 
 ```python
 # backend/live/tws_runner.py
@@ -950,6 +2622,8 @@ from ibapi.contract import Contract
 from ibapi.order import Order as IBOrder
 
 from strategies.base import Strategy, PortfolioState
+from daemon.event_bus import EventBus
+from daemon.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
@@ -965,9 +2639,11 @@ class IBWrapper(EWrapper):
         self.cash: float = 0.0
         self._order_id: int = 0
         self._pending_orders: dict[int, asyncio.Future] = {}
+        self.connected = False
 
     def nextValidId(self, orderId: int):
         self._order_id = orderId
+        self.connected = True
 
     def position(self, account, contract, pos, avgCost):
         if pos != 0:
@@ -976,7 +2652,6 @@ class IBWrapper(EWrapper):
             del self.positions[contract.symbol]
 
     def tickPrice(self, reqId, tickType, price, attrib):
-        # tickType 4 = last price
         if tickType == 4 and price > 0:
             self.prices[self._ticker_for_req(reqId)] = price
 
@@ -986,97 +2661,183 @@ class IBWrapper(EWrapper):
             if fut and not fut.done():
                 fut.set_result(status)
 
+    def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=""):
+        logger.error(f"TWS error {errorCode}: {errorString}")
+        if errorCode in (1100, 1101, 1102, 2110):  # connection-related
+            self.connected = False
+
 
 class IBClient(EClient):
-    """Sends requests to TWS."""
-
     def __init__(self, wrapper: IBWrapper):
         super().__init__(wrapper)
 
 
 class TWSRunner:
     """
-    Connects a Strategy to Interactive Brokers TWS for live/paper trading.
+    Daemon-managed TWS connection.
 
-    Usage:
-        runner = TWSRunner(
-            strategy=my_strategy,
-            host="127.0.0.1",
-            port=7497,          # 7497=paper, 7496=live
-            client_id=1,
-        )
-        await runner.start()
+    Lifecycle:
+    - Daemon supervisor starts this as a managed process.
+    - Maintains persistent TWS connection with auto-reconnect.
+    - Listens to event bus for:
+        - "risk:emergency_flatten" → close all positions immediately
+        - rebalance is triggered by the scheduler, not by polling
+    - All state persisted: if daemon restarts, TWSRunner reconnects
+      and resumes from last known positions.
     """
 
     def __init__(
         self,
-        strategy: Strategy,
         host: str = "127.0.0.1",
         port: int = 7497,
         client_id: int = 1,
         universe_db_name: str = None,
-        rebalance_time: dt_time = dt_time(9, 35),  # 9:35 AM ET
     ):
-        self.strategy = strategy
         self.host = host
         self.port = port
         self.client_id = client_id
         self.universe_db_name = universe_db_name
-        self.rebalance_time = rebalance_time
 
         self.wrapper = IBWrapper()
         self.client = IBClient(self.wrapper)
+        self.event_bus = EventBus()
+        self.circuit_breaker = CircuitBreaker(
+            name="tws", failure_threshold=5, recovery_timeout=120,
+        )
         self._running = False
 
     async def start(self) -> None:
-        """Connect to TWS and start the rebalance loop."""
-        self.client.connect(self.host, self.port, self.client_id)
-
-        # Run the IB message loop in a background thread
-        import threading
-        thread = threading.Thread(target=self.client.run, daemon=True)
-        thread.start()
-
-        # Wait for connection
-        await asyncio.sleep(2)
-        self.client.reqPositions()
+        """
+        Main entry point (called by daemon supervisor).
+        Connects to TWS, then runs two concurrent loops:
+        1. Connection watchdog (reconnect on drop)
+        2. Event bus listener (emergency flatten, etc.)
+        """
+        await self.event_bus.connect()
+        await self._connect_tws()
         self._running = True
 
-        logger.info(
-            f"TWSRunner started: strategy={self.strategy.name}, "
-            f"port={self.port}, rebalance_time={self.rebalance_time}"
+        await self.event_bus.publish("live", {
+            "event": "tws_runner_started",
+            "host": self.host,
+            "port": self.port,
+        })
+
+        # Run both loops concurrently
+        await asyncio.gather(
+            self._connection_watchdog(),
+            self._event_listener(),
         )
 
-        # Main loop
-        while self._running:
-            now = datetime.now()
-            if self._is_rebalance_time(now):
-                await self._rebalance()
-                # Sleep until next day
-                await asyncio.sleep(60 * 60)
-            else:
-                await asyncio.sleep(30)
-
     async def stop(self) -> None:
-        """Disconnect from TWS."""
         self._running = False
         self.client.disconnect()
-        logger.info("TWSRunner stopped")
+        await self.event_bus.disconnect()
 
-    async def _rebalance(self) -> None:
-        """Execute a single rebalance cycle."""
-        logger.info("Starting rebalance...")
+    async def _connect_tws(self) -> None:
+        """Connect to TWS with exponential backoff."""
+        import threading
+        attempt = 0
+        while self._running:
+            if self.circuit_breaker.is_open:
+                await self.event_bus.publish("live", {
+                    "event": "tws_circuit_open",
+                    "reason": "too many connection failures",
+                })
+                await asyncio.sleep(60)
+                continue
+
+            try:
+                self.client.connect(self.host, self.port, self.client_id)
+                thread = threading.Thread(target=self.client.run, daemon=True)
+                thread.start()
+                await asyncio.sleep(3)
+
+                if self.wrapper.connected:
+                    self.client.reqPositions()
+                    self.circuit_breaker.record_success()
+                    await self.event_bus.publish("live", {
+                        "event": "tws_connected",
+                        "attempt": attempt,
+                    })
+                    return
+                else:
+                    raise ConnectionError("TWS did not respond with nextValidId")
+
+            except Exception as e:
+                attempt += 1
+                self.circuit_breaker.record_failure()
+                delay = min(2 ** attempt, 300)
+                logger.warning(f"TWS connect failed (attempt {attempt}): {e}. Retry in {delay}s")
+                await self.event_bus.publish("live", {
+                    "event": "tws_connect_failed",
+                    "error": str(e)[:200],
+                    "retry_in": delay,
+                })
+                await asyncio.sleep(delay)
+
+    async def _connection_watchdog(self) -> None:
+        """Monitor TWS connection, auto-reconnect on drop."""
+        while self._running:
+            if not self.wrapper.connected:
+                logger.warning("TWS connection lost, reconnecting...")
+                await self.event_bus.publish("live", {
+                    "event": "tws_disconnected",
+                })
+                await self._connect_tws()
+            await asyncio.sleep(10)
+
+    async def _event_listener(self) -> None:
+        """Listen to event bus for commands."""
+        async for event in self.event_bus.subscribe(
+            stream="risk",
+            group="tws_runner",
+            consumer="tws_1",
+        ):
+            if event.get("event") == "emergency_flatten":
+                await self._emergency_flatten(event.get("reason", "unknown"))
+
+    async def rebalance(self, strategy: Strategy) -> list[dict]:
+        """
+        Called by the scheduler (not internally polled).
+        Returns list of fill records for logging.
+        """
+        from daemon.risk_monitor import RiskMonitor
+
+        # Pre-rebalance risk check
+        risk = RiskMonitor()
+        allowed, reason = await risk.check_pre_rebalance(strategy.name)
+        if not allowed:
+            await self.event_bus.publish("live", {
+                "event": "rebalance_blocked",
+                "strategy": strategy.name,
+                "reason": reason,
+            })
+            return []
 
         state = await self._build_state()
-        orders = self.strategy.rebalance(state)
+        orders = strategy.rebalance(state)
 
-        logger.info(f"Strategy emitted {len(orders)} orders")
-
+        fills = []
         for order in orders:
-            await self._submit_order(order)
+            status = await self._submit_order(order)
+            fills.append({
+                "ticker": order.ticker,
+                "side": order.side,
+                "quantity": order.quantity,
+                "status": status,
+            })
+            await self.event_bus.publish("live", {
+                "event": "order_filled" if status == "Filled" else "order_status",
+                "ticker": order.ticker,
+                "side": order.side,
+                "quantity": order.quantity,
+                "status": status,
+            })
+
+        return fills
 
     async def _submit_order(self, order) -> str:
-        """Submit an order to TWS and wait for fill."""
         contract = Contract()
         contract.symbol = order.ticker
         contract.secType = "STK"
@@ -1099,19 +2860,36 @@ class TWSRunner:
 
         try:
             status = await asyncio.wait_for(fut, timeout=30)
-            logger.info(f"Order {order.ticker} {order.side} {order.quantity}: {status}")
             return status
         except asyncio.TimeoutError:
-            logger.warning(f"Order timeout: {order.ticker}")
             return "Timeout"
 
+    async def _emergency_flatten(self, reason: str) -> None:
+        """Close ALL positions immediately."""
+        logger.critical(f"EMERGENCY FLATTEN: {reason}")
+        for ticker, qty in list(self.wrapper.positions.items()):
+            if qty > 0:
+                from strategies.base import Order
+                await self._submit_order(Order(
+                    ticker=ticker, side="sell", quantity=abs(qty),
+                    reason=f"EMERGENCY: {reason}",
+                ))
+            elif qty < 0:
+                from strategies.base import Order
+                await self._submit_order(Order(
+                    ticker=ticker, side="buy", quantity=abs(qty),
+                    reason=f"EMERGENCY: {reason}",
+                ))
+        await self.event_bus.publish("live", {
+            "event": "emergency_flatten_complete",
+            "reason": reason,
+        })
+
     async def _build_state(self) -> PortfolioState:
-        """Build PortfolioState from live TWS data + universe DB."""
         import pandas as pd
         from database.universe_db_manager import db_manager
         from sqlalchemy import text
 
-        # Get fundamentals from universe DB if configured
         fundamentals = {}
         bar_data = pd.DataFrame()
         if self.universe_db_name:
@@ -1122,10 +2900,8 @@ class TWSRunner:
                 ))
                 for row in result.fetchall():
                     fundamentals[row.ticker] = dict(row._mapping)
-
                 ohlcv_result = await session.execute(text(
-                    "SELECT * FROM ohlcv WHERE granularity = 'd' "
-                    "ORDER BY ticker, timestamp"
+                    "SELECT * FROM ohlcv WHERE granularity = 'd' ORDER BY ticker, timestamp"
                 ))
                 bar_data = pd.DataFrame(
                     ohlcv_result.fetchall(), columns=ohlcv_result.keys()
@@ -1139,15 +2915,6 @@ class TWSRunner:
             prices=dict(self.wrapper.prices),
             fundamentals=fundamentals,
             bar_data=bar_data,
-        )
-
-    def _is_rebalance_time(self, now: datetime) -> bool:
-        """Check if current time matches the rebalance schedule."""
-        if now.weekday() >= 5:  # Skip weekends
-            return False
-        return (
-            now.hour == self.rebalance_time.hour
-            and now.minute == self.rebalance_time.minute
         )
 ```
 
@@ -1435,11 +3202,36 @@ backend/
 │   ├── metrics.py    # compute_metrics()
 │   └── models.py     # BacktestConfig, BacktestResult, TradeRecord
 ├── core/             # (existing) config
+├── daemon/           # NEW — autonomous orchestration
+│   ├── __init__.py
+│   ├── main.py       # CWFDaemon entry point
+│   ├── scheduler.py  # APScheduler wrapper
+│   ├── supervisor.py # Process lifecycle management
+│   ├── health.py     # Health checks + self-healing
+│   ├── event_bus.py  # Redis Streams pub/sub
+│   ├── circuit_breaker.py
+│   ├── state_machine.py
+│   ├── risk_monitor.py
+│   ├── config.py     # Daemon-specific config
+│   └── jobs/         # Scheduled autonomous jobs
+│       ├── __init__.py
+│       ├── universe_refresh.py
+│       ├── universe_extend.py
+│       ├── arxiv_scan.py
+│       ├── paper_to_strategy.py
+│       ├── improvement_cycle.py
+│       ├── pre_market_check.py
+│       ├── live_rebalance.py
+│       ├── post_market_reconcile.py
+│       ├── daily_report.py
+│       ├── weekly_report.py
+│       ├── heartbeat.py
+│       └── memory_gc.py
 ├── database/         # (existing) models + DB manager
 ├── ingestion/        # (existing) universe_populator — modified for delisted tickers
 ├── live/             # NEW
 │   ├── __init__.py
-│   ├── tws_runner.py # TWSRunner
+│   ├── tws_runner.py # TWSRunner (daemon-aware)
 │   ├── ib_wrapper.py # IBWrapper, IBClient
 │   └── models.py
 ├── loop/             # NEW
@@ -1464,8 +3256,8 @@ backend/
 │   └── examples/
 │       └── value_momentum.py
 ├── tools/            # (existing) EODHD client
-├── main.py
-└── requirements.txt  # add: ibapi>=9.81.1, pgvector
+├── main.py           # FastAPI app (HTTP API — optional human UI)
+└── requirements.txt
 ```
 
 ---
@@ -1536,6 +3328,8 @@ GET    /api/loop/{id}/result
 # requirements.txt additions
 ibapi>=9.81.1
 pgvector>=0.3.0
+apscheduler>=3.10.0
+redis>=5.0.0         # async redis client (redis.asyncio)
 ```
 
 The pgvector extension must be enabled in the registry database:
@@ -1554,10 +3348,36 @@ CREATE EXTENSION IF NOT EXISTS vector;
 | **2** | `backtest/engine.py` + `backtest/metrics.py` | Phase 1 |
 | **3** | Survivorship-bias patches to `ingestion/universe_populator.py` | Nothing |
 | **4** | `memory/store.py` + migration | Nothing |
-| **5** | `research/arxiv_pipeline.py` + `paper_parser.py` + `strategy_generator.py` | Phases 1, 4 |
-| **6** | `loop/improver.py` + `loop/mutator.py` | Phases 1, 2, 4 |
-| **7** | `live/tws_runner.py` | Phase 1 |
-| **8** | API routers for all new modules | All phases |
+| **5** | `daemon/event_bus.py` + `daemon/circuit_breaker.py` + `daemon/state_machine.py` | Nothing |
+| **6** | `daemon/health.py` + `daemon/supervisor.py` + `daemon/scheduler.py` | Phase 5 |
+| **7** | `research/arxiv_pipeline.py` + `paper_parser.py` + `strategy_generator.py` | Phases 1, 4 |
+| **8** | `loop/improver.py` + `loop/mutator.py` | Phases 1, 2, 4 |
+| **9** | `live/tws_runner.py` (daemon-aware) | Phases 1, 5, 6 |
+| **10** | `daemon/risk_monitor.py` | Phases 5, 9 |
+| **11** | `daemon/jobs/*` — all scheduled jobs | Phases 1-10 |
+| **12** | `daemon/main.py` — CWFDaemon | Phase 11 |
+| **13** | API routers for all new modules | All phases |
+| **14** | `docker-compose.autonomous.yml` | Phase 12 |
 
-Phases 1-4 can be parallelized. Phase 5 and 6 depend on 1+2+4.
-Phase 7 is independent aside from Phase 1.
+Phases 1-5 can be parallelized. Phase 6 depends on 5.
+Phases 7-8 depend on 1+2+4. Phase 9 depends on 1+5+6.
+The daemon (12) is the capstone that wires everything together.
+
+---
+
+## 12. Autonomous Operation Guarantees
+
+| Property | How it's achieved |
+|----------|------------------|
+| **Starts automatically** | `docker-compose.autonomous.yml` with `restart: always` |
+| **Survives crashes** | Crash-only design: all state in Postgres/Redis, daemon resumes from persisted state |
+| **Survives dependency outages** | Circuit breakers on EODHD, LLM, TWS; graceful degradation per subsystem |
+| **Self-heals** | HealthMonitor detects failures → ProcessSupervisor auto-restarts with backoff |
+| **Self-improves** | Scheduled `improvement_cycle` runs MWF, mutations accumulate in memory |
+| **Discovers new ideas** | Scheduled `arxiv_scan` + `paper_to_strategy` run daily, no human input needed |
+| **Trades autonomously** | Scheduler triggers `live_rebalance` at 9:35 AM ET, risk monitor gates every order |
+| **Prevents catastrophe** | RiskMonitor can emergency-flatten all positions; circuit breakers halt runaway failures |
+| **Reports to humans** | Daily/weekly Telegram reports; event bus queryable via API for real-time dashboards |
+| **Maintains data** | Nightly `universe_refresh`, weekly `universe_extend`, weekly `memory_gc` |
+| **Observable** | Every action emits a structured event to Redis Streams; `/api/events` endpoint for streaming |
+| **Idempotent** | Every job can be safely re-run; duplicate ingestion/backtests/orders are no-ops |
