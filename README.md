@@ -2,7 +2,9 @@
 
 # Chat with Fundamentals v2
 
-> **This version is under active development.** The previous version (v1) is preserved on the [`legacy/v1`](../../tree/legacy/v1) branch.
+> **This project is no longer actively developed.** Chat with Fundamentals has been superseded by [**QuantMar**](https://slmar.co/solutions.html), which unifies factor analysis, strategy SDK, backtesting, and live deployment into a single framework. See the [Solutions page](https://slmar.co/solutions.html) for details.
+>
+> The previous version (v1) is preserved on the [`legacy/v1`](../../tree/legacy/v1) branch.
 
 Universe-based factor analysis platform. Create scoped datasets ("universes") from ETF holdings or sector screens, ingest OHLCV + fundamentals via EODHD, and analyze data through a chat-driven code agent that writes and executes Python in a sandboxed environment.
 
