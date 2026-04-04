@@ -2,7 +2,7 @@
 
 # Chat with Fundamentals v2
 
-> **This project is no longer actively developed.** Chat with Fundamentals has been superseded by [**QuantMar**](https://slmar.co/solutions.html), which unifies factor analysis, strategy SDK, backtesting, and live deployment into a single framework. See the [Solutions page](https://slmar.co/solutions.html) for details.
+> **This project is no longer actively developed.** Chat with Fundamentals has been superseded by a proprietary, that unifies factor analysis and insights monitoring on a curated list of tickers from Seeking Alpha Picks.                                               
 >
 > The previous version (v1) is preserved on the [`legacy/v1`](../../tree/legacy/v1) branch.
 
