@@ -286,4 +286,4 @@ This application is provided for informational and educational purposes only. No
 
 ## Author
 
-**S.M. Laignel** - [GitHub](https://github.com/SL-Mar) | [Substack](https://quantcoderfs.substack.com)
+**S.M. Laignel** - [GitHub](https://github.com/SL-Mar) | [slmar.co](https://slmar.co)
