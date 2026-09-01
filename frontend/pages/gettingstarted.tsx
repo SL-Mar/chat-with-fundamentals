@@ -26,7 +26,7 @@ const About = () => {
 
         <p className="text-lg leading-relaxed mb-4">
           I am affiliated with <strong>EODHD APIs</strong>. 
-          If you would like to support my work at no extra cost to you, you can subscribe through the affiliated links below:
+          The plans required to run the application are linked below; using these links supports my work at no extra cost to you.
         </p>
 
         <ul className="list-disc list-inside mb-6 space-y-3">
