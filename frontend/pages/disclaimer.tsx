@@ -17,7 +17,7 @@ const Disclaimer = () => {
         <h2 className="text-2xl font-semibold mb-2">1. No Financial Advice</h2>
         <p>
           Chat with Fundamentals is not operated by a licensed financial advisor. Insights, research tools, and
-          executive summaries provided on the Platform or Substack are informational only.
+          executive summaries provided on the Platform or in published research notes are informational only.
           Nothing should be construed as a recommendation to invest, trade, or make financial decisions.
           Always consult a qualified financial advisor before acting on any information.
         </p>
