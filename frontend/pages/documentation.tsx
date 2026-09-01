@@ -27,7 +27,7 @@ export default function DocumentationPage() {
 
         <h2 className="text-2xl font-semibold text-center text-blue-600 mt-12 mb-4">Workflow Summary</h2>
         <p className="text-base leading-relaxed mb-4">
-          The core workflow starts with a finance-focused PDF (e.g., a Substack post or academic paper) and progresses through five stages:
+          The core workflow starts with a finance-focused PDF (e.g., a research note or academic paper) and progresses through five stages:
         </p>
         <ol className="list-decimal list-inside space-y-2 text-base ml-4">
           <li>Parse the PDF to extract and structure relevant strategy text.</li>
@@ -44,14 +44,14 @@ export default function DocumentationPage() {
 
         <div className="text-center mt-10 space-y-2">
           <Link
-            href="https://quantcoderfs.substack.com/s/strategies"
+            href="https://slmar.co/quantmar.html"
             target="_blank"
             className="text-blue-600 hover:underline text-sm block"
           >
-            → Browse Strategy Notes on Substack
+            → Browse Strategy Notes on slmar.co
           </Link>
           <Link
-            href="https://quantcoderfs.substack.com/s/development-updates-and-technical"
+            href="https://slmar.co/quantmar.html"
             target="_blank"
             className="text-blue-600 hover:underline text-sm block"
           >

@@ -4,13 +4,13 @@
 
 **Local-first agent-based workflows for quantitative strategy extraction and automation**
 
-> **Archived (2026).** QuantCoder FS is no longer developed. The planned v2.0 release was not published; the research direction was folded into **QuantMar**, a falsification-first quantitative research studio. See [slmar.co/quantmar](https://slmar.co/quantmar.html). The former Substack and quantcoder-fs.com are offline. This branch is kept for reference only.
+> **Archived (2026).** QuantCoder FS is no longer developed. The planned v2.0 release was not published; the research direction was folded into **QuantMar**, a falsification-first quantitative research studio. See [slmar.co/quantmar](https://slmar.co/quantmar.html). The former newsletter and quantcoder-fs.com are offline. This branch is kept for reference only.
 
 QuantCoder FS is a research platform that transforms financial articles into executable trading strategies using modular agentic pipelines. Designed to operate locally without reliance on cloud infrastructure or authentication systems, the platform enables structured exploration of language model capabilities in quantitative finance.
 
 This repository contains the FastAPI backend, CrewAI-based agents, and modular orchestration logic for summarizing financial text and generating QuantConnect-compatible code. Performance depends on the selected LLM model and the clarity or relevance of the input article.
 
-> Original strategy research and development notes were published on a Substack that is no longer online. Current research is at [slmar.co/quantmar](https://slmar.co/quantmar.html).
+> Original strategy research and development notes were published on a newsletter that is no longer online. Current research is at [slmar.co/quantmar](https://slmar.co/quantmar.html).
 
 ---
 

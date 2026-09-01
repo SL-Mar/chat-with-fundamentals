@@ -14,7 +14,7 @@ const Disclaimer = () => {
         <h2 className="text-2xl font-semibold mb-2">1. No Financial Advice</h2>
         <p>
           QuantCoder FS is not operated by a licensed financial advisor. The insights, research tools, and
-          “Executive Summaries” shared on the platform or via Substack are informational in nature.
+          “Executive Summaries” shared on the platform or via published research notes are informational in nature.
           Users should not interpret any content as a recommendation to invest, trade, or make financial decisions.
           Always consult with a qualified financial advisor before acting on any investment idea.
         </p>

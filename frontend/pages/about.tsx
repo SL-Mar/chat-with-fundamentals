@@ -16,7 +16,7 @@ const About = () => {
         </p>
 
         <p className="text-lg leading-relaxed mb-4">
-          Strategy ideas tested in the platform are occasionally documented on Substack, where research notes and implementation examples are shared with the broader community.
+          Strategy ideas tested in the platform are occasionally documented in published research notes, where implementation examples are shared with the broader community.
         </p>
 
         <h2 className="text-xl font-semibold mt-8 mb-2 text-blue-600 text-center">Background</h2>
@@ -25,12 +25,12 @@ const About = () => {
         </p>
         <p className="text-base leading-relaxed mb-6 text-center">
           <a
-            href="https://substack.com/@quantcoderfs"
+            href="https://slmar.co"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline"
           >
-            Visit the Substack →
+            Visit slmar.co →
           </a>
         </p>
 

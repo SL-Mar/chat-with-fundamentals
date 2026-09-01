@@ -8,7 +8,7 @@ const Contact = () => {
     <div className="container mx-auto px-4 py-8 text-gray-400 text-center">
       <h1 className="text-3xl font-bold mb-6 text-blue-600">Contact</h1>
       <p className="mb-6 text-lg">
-        For project updates, research posts, and source code, follow QuantCoder FS on GitHub and Substack.
+        For project updates, research posts, and source code, follow QuantCoder FS on GitHub and slmar.co.
       </p>
 
       <section className="mb-8">
@@ -23,13 +23,13 @@ const Contact = () => {
             <FontAwesomeIcon icon={faGithub} className="text-gray-400 hover:text-blue-600" size="2x" />
           </a>
           <a
-            href="https://quantcoderfs.substack.com"
+            href="https://slmar.co"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Substack"
+            aria-label="slmar.co"
             className="text-xl font-medium text-gray-400 hover:text-blue-600"
           >
-            Substack
+            slmar.co
           </a>
         </div>
       </section>
