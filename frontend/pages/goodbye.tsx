@@ -19,7 +19,7 @@ const Goodbye = () => {
         {/* Social links */}
         <div className="mb-6">
           <h3 className="text-xl font-semibold mb-4">Connect</h3>
-          <div className="flex justify-center space-x-6">
+          <div className="flex justify-center items-center space-x-6">
             <a
               href="https://medium.com/@sl_mar/about"
               target="_blank"
@@ -33,6 +33,15 @@ const Goodbye = () => {
               rel="noopener noreferrer"
             >
               <FontAwesomeIcon icon={faGithub} className="text-gray-400 hover:text-blue-600" size="2x" />
+            </a>
+            <a
+              href="https://slmar.co"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="slmar.co"
+              className="text-xl font-medium text-gray-400 hover:text-blue-600"
+            >
+              slmar.co
             </a>
           </div>
         </div>
