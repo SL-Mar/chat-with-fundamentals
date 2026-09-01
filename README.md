@@ -4,14 +4,13 @@
 
 **Local-first agent-based workflows for quantitative strategy extraction and automation**
 
-**Development Status:** Active development on `dev` branch. Current focus is on optimizing the AI workflow to reduce latency and improve compilation success rates. Note: models such as `gpt-4o-mini` have exhibited compatibility issues with Pydantic-based output validation.
+> **Archived (2026).** QuantCoder FS is no longer developed. The planned v2.0 release was not published; the research direction was folded into **QuantMar**, a falsification-first quantitative research studio. See [slmar.co/quantmar](https://slmar.co/quantmar.html). The former Substack and quantcoder-fs.com are offline. This branch is kept for reference only.
 
 QuantCoder FS is a research platform that transforms financial articles into executable trading strategies using modular agentic pipelines. Designed to operate locally without reliance on cloud infrastructure or authentication systems, the platform enables structured exploration of language model capabilities in quantitative finance.
 
 This repository contains the FastAPI backend, CrewAI-based agents, and modular orchestration logic for summarizing financial text and generating QuantConnect-compatible code. Performance depends on the selected LLM model and the clarity or relevance of the input article.
 
-> The strategy research, including demonstrations and benchmarks, is published at: [https://quantcoderfs.substack.com/s/strategies](https://quantcoderfs.substack.com/s/strategies)
-> Technical documentation and development updates are available at: [https://quantcoderfs.substack.com/s/development-updates-and-technical](https://quantcoderfs.substack.com/s/development-updates-and-technical)
+> Original strategy research and development notes were published on a Substack that is no longer online. Current research is at [slmar.co/quantmar](https://slmar.co/quantmar.html).
 
 ---
 
@@ -213,8 +212,7 @@ See `LICENSE.md` for terms of use and redistribution.
 
 ## References
 
-* [QuantCoder FS Documentation & Updates](https://quantcoderfs.substack.com/s/development-updates-and-technical)
-* [QuantCoder FS: Strategy Research](https://quantcoderfs.substack.com/s/strategies)
+* [QuantMar — current research studio](https://slmar.co/quantmar.html)
 * [Medium: *Toward Automating Quantitative Finance Research*](https://medium.com/ai-advances/towards-automating-quantitative-finance-research-c868a2a6477e)
 
 ---
@@ -263,7 +261,7 @@ This version defines the current software baseline. Future versions will align w
 <p align="center">
   <b>S.M. Laignel</b><br>
   Founder of <b>SL MAR</b> consultancy<br>
-  Quant Developer — modular automation for research workflows in quantitative finance.<br><br>
-  🌐 <a href="https://quantcoderfs.substack.com">Substack — QuantCoderFS R&D</a><br>
-  💻 <a href="https://github.com/sl-mar/quantcoderfs">GitHub Repository</a>
+  Master Mariner — maritime engineering &amp; quantitative research.<br><br>
+  🌐 <a href="https://slmar.co">slmar.co</a><br>
+  💻 <a href="https://github.com/SL-Mar">GitHub</a>
 </p>
