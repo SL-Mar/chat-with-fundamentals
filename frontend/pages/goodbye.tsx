@@ -16,19 +16,19 @@ const Goodbye = () => {
           This session has ended. 
         </p>
 
-        {/* Substack CTA */}
+        {/* Research site CTA */}
         <div className="mb-12">
           <h2 className="text-2xl font-semibold mb-4">Follow the Project</h2>
           <p className="mb-4">
             Subscribe for updates, walkthroughs, and research notes:
           </p>
           <a
-            href="https://quantcoderfs.substack.com/s/chat-with-fundamentals"
+            href="https://slmar.co"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 shadow"
           >
-            Visit Substack
+            Visit slmar.co
           </a>
         </div>
 

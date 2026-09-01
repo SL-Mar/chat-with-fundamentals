@@ -65,14 +65,14 @@ export default function DocumentationPage() {
           </p>
         </div>
 
-        {/* Substack link */}
+        {/* Research site link */}
         <div className="text-center">
           <Link
-            href="https://quantcoderfs.substack.com/"
+            href="https://slmar.co"
             target="_blank"
             className="text-blue-600 hover:underline text-sm"
           >
-            Visit Substack for full documentation and updates →
+            Visit slmar.co for full documentation and updates →
           </Link>
         </div>
       </div>
