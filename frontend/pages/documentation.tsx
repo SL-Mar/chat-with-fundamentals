@@ -42,20 +42,13 @@ export default function DocumentationPage() {
           QuantCoder FS is a research and prototyping tool. It is not a financial advisor and does not provide investment advice. Outputs are for educational purposes only and must be independently reviewed and tested before live deployment.
         </p>
 
-        <div className="text-center mt-10 space-y-2">
+        <div className="text-center mt-10">
           <Link
             href="https://slmar.co/quantmar.html"
             target="_blank"
             className="text-blue-600 hover:underline text-sm block"
           >
-            → Browse Strategy Notes on slmar.co
-          </Link>
-          <Link
-            href="https://slmar.co/quantmar.html"
-            target="_blank"
-            className="text-blue-600 hover:underline text-sm block"
-          >
-            → Read Development Notes and Technical Updates
+            → Browse strategy and development notes on slmar.co
           </Link>
         </div>
       </div>
